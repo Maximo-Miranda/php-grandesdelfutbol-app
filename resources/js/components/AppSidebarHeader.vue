@@ -1,0 +1,60 @@
+<script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
+import { Moon, Sun, User } from 'lucide-vue-next';
+import { computed } from 'vue';
+import ClubSwitcher from '@/components/ClubSwitcher.vue';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import UserMenuContent from '@/components/UserMenuContent.vue';
+import { useAppearance } from '@/composables/useAppearance';
+import type { BreadcrumbItem } from '@/types';
+
+withDefaults(
+    defineProps<{
+        breadcrumbs?: BreadcrumbItem[];
+    }>(),
+    {
+        breadcrumbs: () => [],
+    },
+);
+
+const page = usePage();
+const user = computed(() => page.props.auth.user);
+const { appearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
+}
+</script>
+
+<template>
+    <header class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div class="flex items-center gap-2">
+            <SidebarTrigger class="-ml-1 lg:hidden" />
+            <ClubSwitcher />
+        </div>
+        <div class="flex items-center gap-1">
+            <button
+                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                @click="toggleTheme"
+            >
+                <Sun v-if="appearance === 'dark'" class="size-5" />
+                <Moon v-else class="size-5" />
+            </button>
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <button class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                        <User class="size-5" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent class="w-56" align="end" :side-offset="8">
+                    <UserMenuContent :user="user" />
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    </header>
+</template>

@@ -1,0 +1,83 @@
+<?php
+
+use App\Models\ClubMember;
+use App\Models\FootballMatch;
+use App\Models\MatchAttendance;
+use App\Models\MatchEvent;
+use App\Models\Player;
+use App\Services\MatchStatService;
+
+test('finalize stats updates player goals from events', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0]);
+
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(2);
+});
+
+test('finalize stats updates assists and cards', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'assists' => 0, 'yellow_cards' => 0, 'red_cards' => 0]);
+
+    MatchEvent::factory()->assist()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->yellowCard()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->redCard()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->assists)->toBe(1)
+        ->and($player->yellow_cards)->toBe(1)
+        ->and($player->red_cards)->toBe(1);
+});
+
+test('finalize stats increments matches played for confirmed attendees', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'matches_played' => 0]);
+
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->matches_played)->toBe(1);
+});
+
+test('finalize stats sets stats_finalized_at timestamp', function () {
+    $match = FootballMatch::factory()->completed()->create();
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $match->refresh();
+    expect($match->stats_finalized_at)->not->toBeNull();
+});
+
+test('finalize stats counts penalty scored as goal', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0]);
+
+    MatchEvent::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'event_type' => 'penalty_scored',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(1);
+});
