@@ -40,14 +40,14 @@ test('createMatch accepts team config', function () {
         'scheduled_at' => now()->addDay()->toISOString(),
         'team_a_name' => 'Los Rojos',
         'team_b_name' => 'Los Azules',
-        'team_a_color' => '#FF0000',
-        'team_b_color' => '#0000FF',
+        'team_a_color' => '#dc2626',
+        'team_b_color' => '#2563eb',
     ]);
 
     expect($match->team_a_name)->toBe('Los Rojos')
         ->and($match->team_b_name)->toBe('Los Azules')
-        ->and($match->team_a_color)->toBe('#FF0000')
-        ->and($match->team_b_color)->toBe('#0000FF');
+        ->and($match->team_a_color)->toBe('#dc2626')
+        ->and($match->team_b_color)->toBe('#2563eb');
 });
 
 test('registerPlayer auto-assigns starter role when under max_players', function () {

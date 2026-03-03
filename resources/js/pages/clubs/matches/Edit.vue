@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Bell, Clock, MapPin, Palette, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
+import { ArrowLeft, Bell, Clock, MapPin, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
+import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -27,11 +28,15 @@ const {
     form,
     allFields,
     autoTitle,
+    autoTeamA,
+    autoTeamB,
     selectedFieldLabel,
     selectedDate,
     selectedTime,
     enableManualTitle,
     enableAutoTitle,
+    enableManualTeamName,
+    enableAutoTeamName,
     resolveBeforeSubmit,
 } = useMatchForm({
     venues: props.venues,
@@ -208,46 +213,46 @@ function submit() {
                 <div class="grid gap-1.5">
                     <Label>Equipos</Label>
                     <p class="text-xs text-muted-foreground">Nombres y colores de camiseta para cada equipo.</p>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="grid gap-1.5">
-                            <Label for="team_a_name">Nombre Equipo A</Label>
-                            <Input id="team_a_name" v-model="form.team_a_name" placeholder="Equipo A" />
-                        </div>
-                        <div class="grid gap-1.5">
-                            <Label for="team_b_name">Nombre Equipo B</Label>
-                            <Input id="team_b_name" v-model="form.team_b_name" placeholder="Equipo B" />
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="grid gap-1.5">
-                            <Label for="team_a_color" class="flex items-center gap-1.5">
-                                <Palette class="size-3.5 text-muted-foreground" />
-                                Color Equipo A
-                            </Label>
-                            <div class="flex items-center gap-2">
-                                <input
-                                    id="team_a_color"
-                                    v-model="form.team_a_color"
-                                    type="color"
-                                    class="size-9 cursor-pointer rounded border border-border"
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="grid gap-2 rounded-md border border-border p-3">
+                            <div class="relative">
+                                <Input
+                                    id="team_a_name"
+                                    v-model="form.team_a_name"
+                                    class="pr-9"
+                                    :readonly="autoTeamA"
+                                    :class="autoTeamA ? 'bg-muted/50' : ''"
                                 />
-                                <span class="text-xs text-muted-foreground">{{ form.team_a_color || 'Sin color' }}</span>
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                                    @click="autoTeamA ? enableManualTeamName('a') : enableAutoTeamName('a')"
+                                >
+                                    <Pencil v-if="autoTeamA" class="size-4" />
+                                    <WandSparkles v-else class="size-4" />
+                                </button>
                             </div>
+                            <ColorSwatchPicker v-model="form.team_a_color" />
                         </div>
-                        <div class="grid gap-1.5">
-                            <Label for="team_b_color" class="flex items-center gap-1.5">
-                                <Palette class="size-3.5 text-muted-foreground" />
-                                Color Equipo B
-                            </Label>
-                            <div class="flex items-center gap-2">
-                                <input
-                                    id="team_b_color"
-                                    v-model="form.team_b_color"
-                                    type="color"
-                                    class="size-9 cursor-pointer rounded border border-border"
+                        <div class="grid gap-2 rounded-md border border-border p-3">
+                            <div class="relative">
+                                <Input
+                                    id="team_b_name"
+                                    v-model="form.team_b_name"
+                                    class="pr-9"
+                                    :readonly="autoTeamB"
+                                    :class="autoTeamB ? 'bg-muted/50' : ''"
                                 />
-                                <span class="text-xs text-muted-foreground">{{ form.team_b_color || 'Sin color' }}</span>
+                                <button
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                                    @click="autoTeamB ? enableManualTeamName('b') : enableAutoTeamName('b')"
+                                >
+                                    <Pencil v-if="autoTeamB" class="size-4" />
+                                    <WandSparkles v-else class="size-4" />
+                                </button>
                             </div>
+                            <ColorSwatchPicker v-model="form.team_b_color" />
                         </div>
                     </div>
                 </div>

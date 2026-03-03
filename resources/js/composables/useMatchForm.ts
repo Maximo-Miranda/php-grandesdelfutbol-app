@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { colorLabel } from '@/constants/jerseyColors';
 import type { Field, FootballMatch, Venue } from '@/types';
 
 export type MatchFormData = {
@@ -50,22 +51,9 @@ export function formatShortDate(dateStr: string): string {
     return `${dayLabel} ${num} ${monthLabel}`;
 }
 
-export function getDefaultDate(maxPlayers: number): string {
-    const today = new Date();
-    let daysAhead;
-    if (maxPlayers >= 20) daysAhead = 7;
-    else if (maxPlayers >= 16) daysAhead = 5;
-    else daysAhead = 3;
-
-    const target = new Date(today);
-    target.setDate(target.getDate() + daysAhead);
-
-    // Snap to nearest Saturday if within 2 days
-    const day = target.getDay();
-    const daysToSat = (6 - day + 7) % 7;
-    if (daysToSat > 0 && daysToSat <= 2) {
-        target.setDate(target.getDate() + daysToSat);
-    }
+export function getDefaultDate(): string {
+    const target = new Date();
+    target.setDate(target.getDate() + 3);
 
     return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
 }
@@ -112,7 +100,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
 
     // --- Initial values ---
     const isEdit = !!match;
-    const initialDate = isEdit ? match.scheduled_at.slice(0, 10) : getDefaultDate(10);
+    const initialDate = isEdit ? match.scheduled_at.slice(0, 10) : getDefaultDate();
     const initialTimeFull = isEdit ? match.scheduled_at.slice(11, 16) : '10:00';
     const initialTime = timeOptions.includes(initialTimeFull) ? initialTimeFull : timeOptions[0];
     const initialFieldLabel = isEdit ? resolveFieldLabel(match.field_id) : 'none';
@@ -171,9 +159,31 @@ export function useMatchForm(options: UseMatchFormOptions) {
         if (fieldType && fieldTypeToPlayers[fieldType]) {
             form.max_players = fieldTypeToPlayers[fieldType];
             form.registration_opens_hours = calcRegistrationHours(fieldTypeToPlayers[fieldType]);
-            if (!isEdit) {
-                selectedDate.value = getDefaultDate(fieldTypeToPlayers[fieldType]);
-            }
+        }
+    });
+
+    // --- Auto team names ---
+    const autoTeamA = ref(!isEdit);
+    const autoTeamB = ref(!isEdit);
+
+    function generatedTeamName(hex: string): string {
+        return `Eq. ${colorLabel(hex)}`;
+    }
+
+    if (!isEdit) {
+        form.team_a_name = generatedTeamName(form.team_a_color);
+        form.team_b_name = generatedTeamName(form.team_b_color);
+    }
+
+    watch(() => form.team_a_color, (hex) => {
+        if (autoTeamA.value) {
+            form.team_a_name = generatedTeamName(hex);
+        }
+    });
+
+    watch(() => form.team_b_color, (hex) => {
+        if (autoTeamB.value) {
+            form.team_b_name = generatedTeamName(hex);
         }
     });
 
@@ -185,6 +195,21 @@ export function useMatchForm(options: UseMatchFormOptions) {
     function enableAutoTitle() {
         autoTitle.value = true;
         form.title = generatedTitle.value;
+    }
+
+    function enableManualTeamName(team: 'a' | 'b') {
+        if (team === 'a') autoTeamA.value = false;
+        else autoTeamB.value = false;
+    }
+
+    function enableAutoTeamName(team: 'a' | 'b') {
+        if (team === 'a') {
+            autoTeamA.value = true;
+            form.team_a_name = generatedTeamName(form.team_a_color);
+        } else {
+            autoTeamB.value = true;
+            form.team_b_name = generatedTeamName(form.team_b_color);
+        }
     }
 
     // --- Build scheduled_at before submit ---
@@ -199,12 +224,16 @@ export function useMatchForm(options: UseMatchFormOptions) {
         form,
         allFields,
         autoTitle,
+        autoTeamA,
+        autoTeamB,
         selectedFieldLabel,
         selectedDate,
         selectedTime,
         generatedTitle,
         enableManualTitle,
         enableAutoTitle,
+        enableManualTeamName,
+        enableAutoTeamName,
         resolveBeforeSubmit,
     };
 }

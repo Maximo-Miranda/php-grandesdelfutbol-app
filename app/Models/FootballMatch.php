@@ -77,6 +77,15 @@ class FootballMatch extends Model
     /** @use HasFactory<\Database\Factories\FootballMatchFactory> */
     use HasFactory;
 
+    /** @var string[] */
+    public const JERSEY_COLORS = [
+        '#ffffff', '#1a1a1a', '#6b7280',
+        '#dc2626', '#991b1b', '#ea580c',
+        '#facc15', '#16a34a', '#065f46',
+        '#06b6d4', '#2563eb', '#1e3a5f',
+        '#7c3aed', '#db2777', '#92400e',
+    ];
+
     protected $table = 'matches';
 
     protected $fillable = [

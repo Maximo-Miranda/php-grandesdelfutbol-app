@@ -100,8 +100,8 @@ test('admins can create matches with team config', function () {
             'registration_opens_hours' => 24,
             'team_a_name' => 'Los Rojos',
             'team_b_name' => 'Los Azules',
-            'team_a_color' => '#FF0000',
-            'team_b_color' => '#0000FF',
+            'team_a_color' => '#dc2626',
+            'team_b_color' => '#2563eb',
         ])
         ->assertRedirect();
 
@@ -110,8 +110,8 @@ test('admins can create matches with team config', function () {
         'title' => 'Team Config Match',
         'team_a_name' => 'Los Rojos',
         'team_b_name' => 'Los Azules',
-        'team_a_color' => '#FF0000',
-        'team_b_color' => '#0000FF',
+        'team_a_color' => '#dc2626',
+        'team_b_color' => '#2563eb',
     ]);
 });
 
@@ -132,16 +132,16 @@ test('admins can update matches with team config', function () {
             'registration_opens_hours' => 24,
             'team_a_name' => 'Blancos',
             'team_b_name' => 'Negros',
-            'team_a_color' => '#FFFFFF',
-            'team_b_color' => '#000000',
+            'team_a_color' => '#ffffff',
+            'team_b_color' => '#1a1a1a',
         ])
         ->assertRedirect();
 
     $match->refresh();
     expect($match->team_a_name)->toBe('Blancos')
         ->and($match->team_b_name)->toBe('Negros')
-        ->and($match->team_a_color)->toBe('#FFFFFF')
-        ->and($match->team_b_color)->toBe('#000000');
+        ->and($match->team_a_color)->toBe('#ffffff')
+        ->and($match->team_b_color)->toBe('#1a1a1a');
 });
 
 test('team names cannot use reserved role words', function () {

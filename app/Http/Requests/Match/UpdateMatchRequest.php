@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Match;
 
+use App\Models\FootballMatch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,8 +35,8 @@ class UpdateMatchRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:500'],
             'team_a_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_b_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
-            'team_a_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'team_b_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'team_a_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
+            'team_b_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
         ];
     }
 

@@ -25,32 +25,40 @@ readonly class SetClubContext
             return $next($request);
         }
 
-        $clubId = $request->session()->get('active_club_id') ?? $user->last_club_id;
-        $club = $this->clubService->resolveForUser($user, $clubId);
+        $club = ($request->session()->get('active_club_id') ?? $user->last_club_id)
+            |> (fn (?int $id) => $this->clubService->resolveForUser($user, $id));
 
         if (! $club) {
-            $this->clearStaleContext($request, $user);
-
-            if (! $this->isClubIndependentRoute($request)) {
-                return redirect()->route('clubs.create');
-            }
-
-            return $next($request);
+            return $this->handleNoClub($request, $next, $user);
         }
 
-        if ($club->id !== $request->session()->get('active_club_id')) {
-            $this->activateClub($club, $user);
-        } else {
-            $this->clubContext->set($club);
+        $this->ensureClubIsActive($request, $club, $user);
+
+        return $next($request);
+    }
+
+    private function handleNoClub(Request $request, Closure $next, User $user): Response
+    {
+        $request->session()->forget('active_club_id');
+
+        if ($user->last_club_id) {
+            $user->update(['last_club_id' => null]);
+        }
+
+        if (! $this->isClubIndependentRoute($request)) {
+            return redirect()->route('clubs.create');
         }
 
         return $next($request);
     }
 
-    private function activateClub(Club $club, User $user): void
+    private function ensureClubIsActive(Request $request, Club $club, User $user): void
     {
         $this->clubContext->set($club);
-        $this->clubService->switchToClub($user, $club);
+
+        if ($club->id !== $request->session()->get('active_club_id')) {
+            $this->clubService->switchToClub($user, $club);
+        }
     }
 
     private function isClubIndependentRoute(Request $request): bool
@@ -75,14 +83,5 @@ readonly class SetClubContext
             'verification.*',
             'password.*',
         );
-    }
-
-    private function clearStaleContext(Request $request, User $user): void
-    {
-        $request->session()->forget('active_club_id');
-
-        if ($user->last_club_id) {
-            $user->update(['last_club_id' => null]);
-        }
     }
 }

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\MatchStatus;
 use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\MatchService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,17 +18,41 @@ class MatchController extends Controller
 {
     public function __construct(private MatchService $matchService) {}
 
-    public function index(Club $club): Response
+    public function index(Request $request, Club $club): Response
     {
         Gate::authorize('viewAny', [FootballMatch::class, $club]);
 
+        $filter = $request->enum('filter', MatchStatus::class);
+
+        $query = $club->matches()
+            ->with('field')
+            ->withCount('attendances');
+
+        if ($filter === MatchStatus::Upcoming) {
+            $query->whereIn('status', [MatchStatus::Upcoming, MatchStatus::InProgress])
+                ->orderBy('scheduled_at');
+        } elseif ($filter === MatchStatus::Completed) {
+            $query->where('status', MatchStatus::Completed)
+                ->orderByDesc('scheduled_at');
+        } else {
+            $query->orderByRaw('CASE WHEN status IN (?, ?) THEN 0 ELSE 1 END', [
+                MatchStatus::Upcoming->value,
+                MatchStatus::InProgress->value,
+            ])
+                ->orderByRaw('CASE WHEN status IN (?, ?) THEN scheduled_at END ASC', [
+                    MatchStatus::Upcoming->value,
+                    MatchStatus::InProgress->value,
+                ])
+                ->orderByRaw('CASE WHEN status NOT IN (?, ?) THEN scheduled_at END DESC', [
+                    MatchStatus::Upcoming->value,
+                    MatchStatus::InProgress->value,
+                ]);
+        }
+
         return Inertia::render('clubs/matches/Index', [
             'club' => $club,
-            'matches' => $club->matches()
-                ->with('field')
-                ->withCount('attendances')
-                ->latest('scheduled_at')
-                ->get(),
+            'filter' => $filter?->value ?? 'all',
+            'matches' => Inertia::scroll(fn () => $query->simplePaginate(15)),
         ]);
     }
 
