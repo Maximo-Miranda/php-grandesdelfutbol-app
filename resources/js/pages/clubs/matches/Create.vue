@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Bell, Clock, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
+import { ArrowLeft, Bell, Clock, Info, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -36,6 +36,7 @@ const {
     enableAutoTitle,
     enableManualTeamName,
     enableAutoTeamName,
+    isPastMatch,
     resolveBeforeSubmit,
 } = useMatchForm({
     venues: props.venues,
@@ -142,6 +143,12 @@ function submit() {
                             </SelectContent>
                         </Select>
                     </div>
+                </div>
+
+                <!-- Past match alert -->
+                <div v-if="isPastMatch" class="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                    <Info class="mt-0.5 size-4 shrink-0" />
+                    <span>Este partido se creara como finalizado. Podras confirmar jugadores y cargar estadisticas manualmente.</span>
                 </div>
 
                 <!-- Duracion y Llegada -->

@@ -33,9 +33,9 @@ export function calcRegistrationHours(maxPlayers: number): number {
     return Math.round(maxPlayers * 2.4);
 }
 
-// Time options: 30-min intervals from 06:00 to 23:30
-export const timeOptions = Array.from({ length: 36 }, (_, i) => {
-    const h = Math.floor(i / 2) + 6;
+// Time options: 30-min intervals from 00:00 to 23:30
+export const timeOptions = Array.from({ length: 48 }, (_, i) => {
+    const h = Math.floor(i / 2);
     const m = (i % 2) * 30;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 });
@@ -212,6 +212,13 @@ export function useMatchForm(options: UseMatchFormOptions) {
         }
     }
 
+    // --- Past-match detection ---
+    const isPastMatch = computed(() => {
+        if (!selectedDate.value || !selectedTime.value) return false;
+        const selected = new Date(`${selectedDate.value}T${selectedTime.value}`);
+        return selected < new Date();
+    });
+
     // --- Build scheduled_at before submit ---
     function resolveBeforeSubmit() {
         form.scheduled_at = selectedDate.value && selectedTime.value
@@ -234,6 +241,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
         enableAutoTitle,
         enableManualTeamName,
         enableAutoTeamName,
+        isPastMatch,
         resolveBeforeSubmit,
     };
 }

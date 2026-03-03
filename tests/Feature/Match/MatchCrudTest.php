@@ -180,6 +180,58 @@ test('team names cannot use reserved role words', function () {
     }
 });
 
+test('admins can create matches with past dates', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $pastDate = now()->subDays(3);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.store', $club), [
+            'title' => 'Past Match',
+            'scheduled_at' => $pastDate->toISOString(),
+            'duration_minutes' => 90,
+            'arrival_minutes' => 15,
+            'max_players' => 14,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+        ])
+        ->assertRedirect();
+
+    $match = FootballMatch::query()->where('title', 'Past Match')->first();
+
+    expect($match)->not->toBeNull()
+        ->and($match->status->value)->toBe('completed')
+        ->and($match->started_at)->not->toBeNull()
+        ->and($match->ended_at)->not->toBeNull();
+});
+
+test('past matches are created with correct timestamps', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $pastDate = now()->subDays(5);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.store', $club), [
+            'title' => 'Timestamp Match',
+            'scheduled_at' => $pastDate->toISOString(),
+            'duration_minutes' => 120,
+            'arrival_minutes' => 15,
+            'max_players' => 10,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+        ])
+        ->assertRedirect();
+
+    $match = FootballMatch::query()->where('title', 'Timestamp Match')->first();
+
+    expect($match->started_at->toDateTimeString())->toBe($pastDate->toDateTimeString())
+        ->and($match->ended_at->toDateTimeString())->toBe($pastDate->copy()->addMinutes(120)->toDateTimeString());
+});
+
 test('regular members cannot delete matches', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -51,7 +51,13 @@ const clubNavItems = computed<NavItem[]>(() => {
     ];
 });
 
-const navItems = computed(() => currentClub.value ? clubNavItems.value : globalNavItems);
+const navItems = computed(() => {
+    if (!currentClub.value) return globalNavItems;
+    return [
+        { title: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
+        ...clubNavItems.value,
+    ];
+});
 
 function isActive(item: NavItem, allItems: NavItem[]): boolean {
     if (item.title === 'Inicio' || item.title === 'Dashboard') {

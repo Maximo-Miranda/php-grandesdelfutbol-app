@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, router, usePoll } from '@inertiajs/vue3';
-import { ArrowLeft, CircleDot, RectangleVertical, RefreshCw, Shuffle, Trash2, UserPlus } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { ArrowLeft, Check, ChevronDown, ChevronUp, CircleDot, Minus, Plus, RectangleVertical, RefreshCw, Shield, Shuffle, Trash2 } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/types';
 
@@ -23,38 +20,59 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Live', href: `${base}/${props.match.id}/live` },
 ];
 
-const quickEvents = [
-    { value: 'goal', label: 'Gol', icon: CircleDot },
-    { value: 'assist', label: 'Asist.', icon: CircleDot },
-    { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical },
-    { value: 'red_card', label: 'Roja', icon: RectangleVertical },
+const eventTypes = [
+    { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', activeBg: 'bg-emerald-500/30 border-emerald-400' },
+    { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20', activeBg: 'bg-sky-500/30 border-sky-400' },
+    { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20', activeBg: 'bg-yellow-500/30 border-yellow-400' },
+    { value: 'red_card', label: 'Roja', icon: RectangleVertical, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20', activeBg: 'bg-red-500/30 border-red-400' },
+    { value: 'own_goal', label: 'Autogol', icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20', activeBg: 'bg-orange-500/30 border-orange-400' },
+    { value: 'penalty_scored', label: 'Penal', icon: CircleDot, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', activeBg: 'bg-emerald-500/30 border-emerald-400' },
+    { value: 'penalty_missed', label: 'Penal\nfallado', icon: CircleDot, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20', activeBg: 'bg-zinc-500/30 border-zinc-400' },
+    { value: 'save', label: 'Atajada', icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', activeBg: 'bg-violet-500/30 border-violet-400' },
 ];
 
-const allEventTypes = [
-    { value: 'goal', label: 'Gol' },
-    { value: 'assist', label: 'Asistencia' },
-    { value: 'yellow_card', label: 'Tarjeta amarilla' },
-    { value: 'red_card', label: 'Tarjeta roja' },
-    { value: 'penalty_scored', label: 'Penal anotado' },
-    { value: 'penalty_missed', label: 'Penal fallado' },
-    { value: 'free_kick', label: 'Tiro libre' },
-    { value: 'save', label: 'Atajada' },
-    { value: 'own_goal', label: 'Autogol' },
-];
-
-const showMoreEvents = ref(false);
-const selectedPlayerId = ref('');
-const selectedEventType = ref('');
+const selectedPlayerId = ref<number | null>(null);
+const selectedPlayerName = ref('');
 const minute = ref(0);
+const showAllEvents = ref(false);
+const submitting = ref(false);
+const lastRecorded = ref<{ player: string; event: string } | null>(null);
+let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
 
 usePoll(10000);
 
+// Auto-calculate minute from started_at
+const autoMinuteTimer = ref<ReturnType<typeof setInterval> | null>(null);
+
+function calcMinuteFromStart(): number {
+    if (props.match.started_at) {
+        const started = new Date(props.match.started_at).getTime();
+        const now = Date.now();
+        return Math.max(0, Math.floor((now - started) / 60000));
+    }
+    return 0;
+}
+
+onMounted(() => {
+    if (props.match.status === 'in_progress' && props.match.started_at) {
+        minute.value = calcMinuteFromStart();
+        autoMinuteTimer.value = setInterval(() => {
+            minute.value = calcMinuteFromStart();
+        }, 30000);
+    }
+});
+
+onUnmounted(() => {
+    if (autoMinuteTimer.value) clearInterval(autoMinuteTimer.value);
+    if (confirmTimeout) clearTimeout(confirmTimeout);
+});
+
 const teamAPlayers = computed(() =>
-    props.match.attendances?.filter(a => a.team === 'a').map(a => ({ ...a, player: a.player })) ?? [],
+    props.match.attendances?.filter(a => a.team === 'a') ?? [],
 );
 
 const teamBPlayers = computed(() =>
-    props.match.attendances?.filter(a => a.team === 'b').map(a => ({ ...a, player: a.player })) ?? [],
+    props.match.attendances?.filter(a => a.team === 'b') ?? [],
 );
 
 const teamAGoals = computed(() =>
@@ -73,11 +91,11 @@ const sortedEvents = computed(() =>
     [...(props.match.events ?? [])].sort((a, b) => b.minute - a.minute),
 );
 
-const statusLabel: Record<string, string> = {
-    upcoming: 'PROXIMO',
-    in_progress: 'EN JUEGO',
-    completed: 'FINALIZADO',
-    cancelled: 'CANCELADO',
+const statusConfig: Record<string, { label: string; class: string }> = {
+    upcoming: { label: 'PROXIMO', class: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30' },
+    in_progress: { label: 'EN JUEGO', class: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse' },
+    completed: { label: 'FINALIZADO', class: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+    cancelled: { label: 'CANCELADO', class: 'bg-red-500/20 text-red-300 border-red-500/30' },
 };
 
 const eventLabel: Record<string, string> = {
@@ -92,24 +110,50 @@ const eventLabel: Record<string, string> = {
     free_kick: 'Tiro libre',
 };
 
-function recordQuickEvent(eventType: string) {
-    if (!selectedPlayerId.value) return;
-    router.post(`${base}/${props.match.id}/events`, {
-        player_id: Number(selectedPlayerId.value),
-        event_type: eventType,
-        minute: minute.value,
-    }, { preserveScroll: true, onSuccess: () => { selectedPlayerId.value = ''; } });
+const eventIcon: Record<string, { color: string }> = {
+    goal: { color: 'text-emerald-400' },
+    assist: { color: 'text-sky-400' },
+    yellow_card: { color: 'text-yellow-400' },
+    red_card: { color: 'text-red-400' },
+    penalty_scored: { color: 'text-emerald-300' },
+    penalty_missed: { color: 'text-zinc-400' },
+    own_goal: { color: 'text-orange-400' },
+    save: { color: 'text-violet-400' },
+    free_kick: { color: 'text-cyan-400' },
+};
+
+function selectPlayer(playerId: number, playerName: string) {
+    if (selectedPlayerId.value === playerId) {
+        selectedPlayerId.value = null;
+        selectedPlayerName.value = '';
+    } else {
+        selectedPlayerId.value = playerId;
+        selectedPlayerName.value = playerName;
+    }
 }
 
-function recordEvent() {
-    if (!selectedPlayerId.value || !selectedEventType.value) return;
+function recordEvent(eventType: string) {
+    if (!selectedPlayerId.value || submitting.value) return;
+    submitting.value = true;
+
+    const playerName = selectedPlayerName.value;
+    const eventName = eventLabel[eventType] ?? eventType;
+
     router.post(`${base}/${props.match.id}/events`, {
-        player_id: Number(selectedPlayerId.value),
-        event_type: selectedEventType.value,
+        player_id: selectedPlayerId.value,
+        event_type: eventType,
         minute: minute.value,
     }, {
         preserveScroll: true,
-        onSuccess: () => { selectedPlayerId.value = ''; selectedEventType.value = ''; },
+        onSuccess: () => {
+            lastRecorded.value = { player: playerName, event: eventName };
+            selectedPlayerId.value = null;
+            selectedPlayerName.value = '';
+            submitting.value = false;
+            if (confirmTimeout) clearTimeout(confirmTimeout);
+            confirmTimeout = setTimeout(() => { lastRecorded.value = null; }, 2500);
+        },
+        onError: () => { submitting.value = false; },
     });
 }
 
@@ -124,151 +168,257 @@ function autoAssignTeams() {
 function completeMatch() {
     router.post(`${base}/${props.match.id}/complete`);
 }
+
+const visibleEventTypes = computed(() => showAllEvents.value ? eventTypes : eventTypes.slice(0, 4));
+
+function getPlayerTeam(playerId: number): 'a' | 'b' | null {
+    const att = props.match.attendances?.find(a => a.player_id === playerId);
+    return att?.team ?? null;
+}
 </script>
 
 <template>
     <Head :title="`Live: ${match.title}`" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto w-full max-w-2xl px-4 py-6">
+        <div class="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
             <!-- Header -->
-            <div class="mb-4 flex items-center justify-between">
+            <div class="mb-3 flex items-center justify-between">
                 <Link :href="base" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
                     <ArrowLeft class="size-4" />Partidos
                 </Link>
-                <RefreshCw class="size-4 text-muted-foreground" />
+                <RefreshCw class="size-4 text-muted-foreground animate-spin" style="animation-duration: 10s" />
             </div>
 
-            <!-- Score -->
-            <div class="mb-6 text-center">
-                <Badge variant="outline" class="mb-2">{{ statusLabel[match.status] ?? match.status }}</Badge>
-                <h1 class="text-lg font-medium">{{ match.title }}</h1>
-
-                <div class="mt-4 flex items-center justify-center gap-6">
-                    <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_a_name }}</p>
-                        <p class="text-5xl font-bold">{{ teamAGoals }}</p>
-                    </div>
-                    <span class="text-2xl text-muted-foreground">-</span>
-                    <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_b_name }}</p>
-                        <p class="text-5xl font-bold">{{ teamBGoals }}</p>
-                    </div>
+            <!-- Scoreboard -->
+            <div class="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 p-5 shadow-lg dark:from-zinc-900/80 dark:to-black/60">
+                <!-- Subtle pitch lines decoration -->
+                <div class="pointer-events-none absolute inset-0 opacity-[0.03]">
+                    <div class="absolute top-1/2 left-1/2 size-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"></div>
+                    <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
                 </div>
 
-                <Button v-if="match.status === 'in_progress'" variant="outline" size="sm" class="mt-4" @click="autoAssignTeams">
-                    <Shuffle class="mr-2 size-4" />Sortear Equipos
+                <div class="relative text-center">
+                    <!-- Status badge -->
+                    <span
+                        class="inline-block rounded-full border px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase"
+                        :class="statusConfig[match.status]?.class ?? 'bg-zinc-500/20 text-zinc-300'"
+                    >
+                        {{ statusConfig[match.status]?.label ?? match.status }}
+                    </span>
+
+                    <!-- Match title -->
+                    <p class="mt-2 text-sm font-medium text-zinc-400">{{ match.title }}</p>
+
+                    <!-- Score -->
+                    <div class="mt-4 flex items-center justify-center gap-4 sm:gap-8">
+                        <div class="min-w-0 flex-1 text-right">
+                            <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_a_name }}</p>
+                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamAGoals }}</p>
+                        </div>
+
+                        <div class="flex flex-col items-center">
+                            <span class="text-xl font-light text-zinc-600 select-none">vs</span>
+                        </div>
+
+                        <div class="min-w-0 flex-1 text-left">
+                            <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_b_name }}</p>
+                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamBGoals }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Minute display (when in progress) -->
+                    <div v-if="match.status === 'in_progress'" class="mt-3">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-bold tabular-nums text-emerald-400">
+                            <span class="size-1.5 animate-pulse rounded-full bg-emerald-400"></span>
+                            {{ minute }}'
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Bar -->
+            <div v-if="match.status === 'in_progress'" class="mb-5 flex gap-2">
+                <Button variant="outline" size="sm" class="flex-1" @click="autoAssignTeams">
+                    <Shuffle class="mr-1.5 size-3.5" />Sortear
+                </Button>
+                <Button variant="outline" size="sm" class="flex-1" @click="completeMatch">
+                    <Check class="mr-1.5 size-3.5" />Terminar
                 </Button>
             </div>
 
-            <!-- Formations -->
-            <div class="mb-6">
-                <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Formacion</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="mb-2 text-center text-sm font-semibold">{{ match.team_a_name }}</p>
-                        <div class="space-y-1">
-                            <div v-for="att in teamAPlayers" :key="att.id" class="flex items-center gap-2 rounded-md bg-accent p-2">
-                                <span class="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold">{{ att.player?.name?.charAt(0) }}</span>
-                                <span class="truncate text-sm">{{ att.player?.name }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <p class="mb-2 text-center text-sm font-semibold">{{ match.team_b_name }}</p>
-                        <div class="space-y-1">
-                            <div v-for="att in teamBPlayers" :key="att.id" class="flex items-center gap-2 rounded-md bg-accent p-2">
-                                <span class="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold">{{ att.player?.name?.charAt(0) }}</span>
-                                <span class="truncate text-sm">{{ att.player?.name }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Register event -->
-            <div class="mb-6">
-                <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registrar evento</h3>
-
-                <div class="mb-3 grid grid-cols-2 gap-2">
-                    <div>
-                        <Label class="sr-only">Player</Label>
-                        <Select v-model="selectedPlayerId">
-                            <SelectTrigger><SelectValue placeholder="Jugador" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem v-for="player in players" :key="player.id" :value="String(player.id)">
-                                    {{ player.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label class="sr-only">Minute</Label>
-                        <Input v-model.number="minute" type="number" min="0" max="200" placeholder="Minuto" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-4 gap-2">
-                    <button
-                        v-for="qe in quickEvents"
-                        :key="qe.value"
-                        class="flex flex-col items-center justify-center gap-1 rounded-lg border border-border p-3 text-center transition-colors hover:bg-accent"
-                        :class="{ 'text-yellow-400': qe.value === 'yellow_card', 'text-destructive': qe.value === 'red_card', 'text-primary': qe.value === 'goal' || qe.value === 'assist' }"
-                        @click="recordQuickEvent(qe.value)"
-                    >
-                        <component :is="qe.icon" class="size-5" />
-                        <span class="text-xs">{{ qe.label }}</span>
-                    </button>
-                </div>
-
-                <button
-                    class="mt-2 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-                    @click="showMoreEvents = !showMoreEvents"
+            <!-- ===== EVENT REGISTRATION (the fast UX) ===== -->
+            <div class="mb-5">
+                <!-- Success confirmation toast -->
+                <Transition
+                    enter-active-class="transition-all duration-300 ease-out"
+                    enter-from-class="opacity-0 -translate-y-2"
+                    enter-to-class="opacity-100 translate-y-0"
+                    leave-active-class="transition-all duration-200 ease-in"
+                    leave-from-class="opacity-100 translate-y-0"
+                    leave-to-class="opacity-0 -translate-y-2"
                 >
-                    {{ showMoreEvents ? 'Menos eventos' : 'Mas eventos' }} &#9662;
-                </button>
+                    <div v-if="lastRecorded" class="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-sm text-emerald-400">
+                        <Check class="size-4 shrink-0" />
+                        <span class="truncate"><strong>{{ lastRecorded.player }}</strong> &mdash; {{ lastRecorded.event }} ({{ minute }}')</span>
+                    </div>
+                </Transition>
 
-                <div v-if="showMoreEvents" class="mt-2 flex gap-2">
-                    <Select v-model="selectedEventType" class="flex-1">
-                        <SelectTrigger><SelectValue placeholder="Tipo de evento" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem v-for="et in allEventTypes" :key="et.value" :value="et.value">
-                                {{ et.label }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button @click="recordEvent">Registrar</Button>
-                </div>
-            </div>
-
-            <!-- Events list -->
-            <div>
-                <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Eventos ({{ match.events?.length ?? 0 }})
+                <h3 class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    1. Selecciona jugador
                 </h3>
-                <div v-if="sortedEvents.length" class="space-y-2">
-                    <div v-for="event in sortedEvents" :key="event.id" class="flex items-start justify-between rounded-lg border border-border p-3">
-                        <div class="flex items-start gap-3">
-                            <span class="mt-0.5 text-sm font-medium text-muted-foreground">{{ event.minute }}'</span>
-                            <CircleDot v-if="event.event_type === 'goal'" class="mt-0.5 size-4 text-primary" />
-                            <RectangleVertical v-else-if="event.event_type === 'yellow_card'" class="mt-0.5 size-4 text-yellow-400" />
-                            <RectangleVertical v-else-if="event.event_type === 'red_card'" class="mt-0.5 size-4 text-destructive" />
-                            <CircleDot v-else class="mt-0.5 size-4 text-muted-foreground" />
-                            <div>
-                                <p class="font-medium">{{ event.player?.name }}</p>
-                                <p class="text-sm text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
-                            </div>
+
+                <!-- Teams side by side with tappable players -->
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Team A -->
+                    <div>
+                        <p class="mb-1.5 text-center text-xs font-bold tracking-wide text-zinc-400 uppercase">{{ match.team_a_name }}</p>
+                        <div class="space-y-1">
+                            <button
+                                v-for="att in teamAPlayers"
+                                :key="att.id"
+                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all active:scale-[0.97]"
+                                :class="selectedPlayerId === att.player_id
+                                    ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
+                                    : 'border-border bg-accent/50 hover:bg-accent'"
+                                @click="selectPlayer(att.player_id, att.player?.name ?? '')"
+                            >
+                                <span
+                                    class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
+                                >{{ att.player?.name?.charAt(0) }}</span>
+                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.name }}</span>
+                            </button>
                         </div>
-                        <button class="text-destructive hover:text-destructive/80" @click="removeEvent(event.id)">
-                            <Trash2 class="size-4" />
+                    </div>
+
+                    <!-- Team B -->
+                    <div>
+                        <p class="mb-1.5 text-center text-xs font-bold tracking-wide text-zinc-400 uppercase">{{ match.team_b_name }}</p>
+                        <div class="space-y-1">
+                            <button
+                                v-for="att in teamBPlayers"
+                                :key="att.id"
+                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all active:scale-[0.97]"
+                                :class="selectedPlayerId === att.player_id
+                                    ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
+                                    : 'border-border bg-accent/50 hover:bg-accent'"
+                                @click="selectPlayer(att.player_id, att.player?.name ?? '')"
+                            >
+                                <span
+                                    class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
+                                >{{ att.player?.name?.charAt(0) }}</span>
+                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.name }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Minute + Event Type (step 2) -->
+                <div class="mt-4">
+                    <div class="mb-2 flex items-center justify-between">
+                        <h3 class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                            2. Minuto y evento
+                        </h3>
+
+                        <!-- Minute stepper -->
+                        <div class="flex items-center gap-1">
+                            <button
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="minute = Math.max(0, minute - 1)"
+                            >
+                                <Minus class="size-3.5" />
+                            </button>
+                            <span class="w-10 text-center text-sm font-bold tabular-nums">{{ minute }}'</span>
+                            <button
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="minute = Math.min(200, minute + 1)"
+                            >
+                                <Plus class="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Event type buttons -->
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button
+                            v-for="et in visibleEventTypes"
+                            :key="et.value"
+                            :disabled="!selectedPlayerId || submitting"
+                            class="flex flex-col items-center justify-center gap-1 rounded-xl border p-2.5 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none sm:p-3"
+                            :class="et.bg"
+                            @click="recordEvent(et.value)"
+                        >
+                            <component :is="et.icon" class="size-5 sm:size-6" :class="et.color" />
+                            <span class="whitespace-pre-line text-center text-[10px] font-semibold leading-tight sm:text-xs" :class="et.color">{{ et.label }}</span>
                         </button>
                     </div>
+
+                    <button
+                        class="mt-1.5 flex w-full items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground"
+                        @click="showAllEvents = !showAllEvents"
+                    >
+                        {{ showAllEvents ? 'Menos' : 'Mas eventos' }}
+                        <component :is="showAllEvents ? ChevronUp : ChevronDown" class="size-3.5" />
+                    </button>
+
+                    <!-- Hint when no player selected -->
+                    <p v-if="!selectedPlayerId" class="mt-1 text-center text-[10px] text-muted-foreground">
+                        Toca un jugador arriba para registrar un evento
+                    </p>
                 </div>
-                <p v-else class="text-sm text-muted-foreground">No hay eventos registrados.</p>
             </div>
 
-            <!-- End match -->
-            <div v-if="match.status === 'in_progress'" class="mt-6 border-t border-border pt-4">
-                <Button variant="outline" class="w-full" @click="completeMatch">Terminar partido</Button>
+            <!-- ===== EVENTS TIMELINE ===== -->
+            <div>
+                <h3 class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    Eventos ({{ match.events?.length ?? 0 }})
+                </h3>
+
+                <div v-if="sortedEvents.length" class="relative space-y-0">
+                    <!-- Timeline line -->
+                    <div class="absolute top-0 bottom-0 left-[18px] w-px bg-border"></div>
+
+                    <div
+                        v-for="event in sortedEvents"
+                        :key="event.id"
+                        class="group relative flex items-center gap-3 py-1.5"
+                    >
+                        <!-- Minute bubble -->
+                        <span class="z-10 flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-bold tabular-nums">
+                            {{ event.minute }}'
+                        </span>
+
+                        <!-- Event card -->
+                        <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2">
+                            <CircleDot v-if="event.event_type === 'goal' || event.event_type === 'assist' || event.event_type === 'penalty_scored' || event.event_type === 'penalty_missed'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
+                            <RectangleVertical v-else-if="event.event_type === 'yellow_card' || event.event_type === 'red_card'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
+                            <Shield v-else class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
+
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">{{ event.player?.name }}</p>
+                                <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
+                            </div>
+
+                            <!-- Team indicator -->
+                            <Badge
+                                v-if="getPlayerTeam(event.player_id)"
+                                variant="outline"
+                                class="shrink-0 text-[9px] px-1.5"
+                            >
+                                {{ getPlayerTeam(event.player_id) === 'a' ? match.team_a_name : match.team_b_name }}
+                            </Badge>
+
+                            <button
+                                class="shrink-0 text-destructive/50 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                                @click="removeEvent(event.id)"
+                            >
+                                <Trash2 class="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-center text-sm text-muted-foreground">No hay eventos registrados.</p>
             </div>
         </div>
     </AppLayout>

@@ -12,6 +12,7 @@ export type Club = {
     owner?: User;
     members_count?: number;
     matches_count?: number;
+    upcoming_matches_count?: number;
     created_at: string;
     updated_at: string;
 };

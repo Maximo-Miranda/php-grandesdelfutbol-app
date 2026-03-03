@@ -20,7 +20,7 @@ class StoreMatchRequest extends FormRequest
 
         return [
             'title' => ['required', 'string', 'min:2', 'max:100'],
-            'scheduled_at' => ['required', 'date', 'after:now'],
+            'scheduled_at' => ['required', 'date'],
             'field_id' => [
                 'nullable',
                 'integer',
@@ -50,7 +50,6 @@ class StoreMatchRequest extends FormRequest
             'title.max' => 'El titulo no puede tener mas de :max caracteres.',
             'scheduled_at.required' => 'La fecha y hora son obligatorias.',
             'scheduled_at.date' => 'La fecha y hora no son validas.',
-            'scheduled_at.after' => 'La fecha debe ser posterior a ahora.',
             'field_id.exists' => 'La cancha seleccionada no pertenece a este club.',
             'field_id.integer' => 'La cancha seleccionada no es valida.',
             'duration_minutes.required' => 'La duracion es obligatoria.',

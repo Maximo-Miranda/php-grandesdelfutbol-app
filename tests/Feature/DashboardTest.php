@@ -73,17 +73,26 @@ test('dashboard includes player stats across clubs', function () {
         );
 });
 
-test('dashboard shows top 3 clubs by activity', function () {
+test('dashboard shows top 3 clubs by combined activity', function () {
     $user = User::factory()->create();
 
-    $clubs = Club::factory()->count(5)->create();
+    $clubs = Club::factory()->count(4)->create();
     foreach ($clubs as $club) {
         ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
     }
 
-    FootballMatch::factory()->count(10)->create(['club_id' => $clubs[2]->id]);
-    FootballMatch::factory()->count(5)->create(['club_id' => $clubs[0]->id]);
-    FootballMatch::factory()->count(3)->create(['club_id' => $clubs[4]->id]);
+    // Club 0: matches_count=5, upcoming=3 → score 8
+    FootballMatch::factory()->count(2)->completed()->create(['club_id' => $clubs[0]->id]);
+    FootballMatch::factory()->count(3)->create(['club_id' => $clubs[0]->id]);
+
+    // Club 1: matches_count=10, upcoming=0 → score 10
+    FootballMatch::factory()->count(10)->completed()->create(['club_id' => $clubs[1]->id]);
+
+    // Club 2: matches_count=7, upcoming=6 → score 13 (highest — upcoming activity weighs more)
+    FootballMatch::factory()->count(1)->completed()->create(['club_id' => $clubs[2]->id]);
+    FootballMatch::factory()->count(6)->create(['club_id' => $clubs[2]->id]);
+
+    // Club 3: 0 matches (should not appear in top 3)
 
     $this->actingAs($user)
         ->get(route('dashboard'))
@@ -91,6 +100,9 @@ test('dashboard shows top 3 clubs by activity', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
             ->has('topClubs', 3)
+            ->where('topClubs.0.id', $clubs[2]->id)
+            ->where('topClubs.1.id', $clubs[1]->id)
+            ->where('topClubs.2.id', $clubs[0]->id)
         );
 });
 

@@ -141,29 +141,49 @@ function formatShortDate(dateStr: string): string {
             <!-- Top active clubs -->
             <div v-if="topClubs.length > 0" class="mt-6">
                 <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Clubes activos</h2>
-                <div class="flex gap-3 overflow-x-auto pb-1">
+                <div class="space-y-2">
                     <Link
-                        v-for="club in topClubs"
+                        v-for="(club, index) in topClubs"
                         :key="club.id"
                         :href="`/clubs/${club.id}`"
-                        class="flex min-w-0 shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent"
+                        class="flex items-center gap-3 rounded-xl border border-border/60 bg-gradient-to-r from-card to-card/60 p-3 transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"
                     >
                         <div
+                            class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                            :class="[
+                                index === 0 ? 'bg-yellow-500/20 text-yellow-400' : '',
+                                index === 1 ? 'bg-gray-300/20 text-gray-400' : '',
+                                index === 2 ? 'bg-amber-700/20 text-amber-600' : '',
+                            ]"
+                        >
+                            {{ index + 1 }}
+                        </div>
+                        <div
                             v-if="club.logo_url"
-                            class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
+                            class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted"
                         >
                             <img :src="club.logo_url" :alt="club.name" class="size-full object-cover" />
                         </div>
                         <div
                             v-else
-                            class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground"
+                            class="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-border bg-muted text-sm font-bold"
                         >
                             {{ club.name.charAt(0) }}
                         </div>
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold">{{ club.name }}</p>
-                            <p class="text-xs text-muted-foreground">{{ club.matches_count ?? 0 }} partidos</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate font-semibold">{{ club.name }}</p>
+                            <div class="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span class="flex items-center gap-1">
+                                    <Trophy class="size-3" />
+                                    {{ club.matches_count ?? 0 }} partidos
+                                </span>
+                                <span v-if="(club.upcoming_matches_count ?? 0) > 0" class="flex items-center gap-1 text-primary">
+                                    <CalendarDays class="size-3" />
+                                    {{ club.upcoming_matches_count }} proximos
+                                </span>
+                            </div>
                         </div>
+                        <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
                     </Link>
                 </div>
             </div>
@@ -206,9 +226,9 @@ function formatShortDate(dateStr: string): string {
             </div>
 
             <!-- Recent matches -->
-            <WhenVisible :data="['recentMatches']" class="mt-10">
+            <WhenVisible :data="['recentMatches']">
                 <template #fallback>
-                    <div>
+                    <div class="mt-10 border-t border-border pt-8">
                         <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ultimos resultados</h2>
                         <div class="space-y-2">
                             <div v-for="i in 3" :key="i" class="animate-pulse rounded-lg border border-border p-3">
@@ -219,7 +239,7 @@ function formatShortDate(dateStr: string): string {
                     </div>
                 </template>
 
-                <div v-if="recentMatches?.length">
+                <div v-if="recentMatches?.length" class="mt-10 border-t border-border pt-8">
                     <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ultimos resultados</h2>
                     <div class="space-y-2">
                         <Link

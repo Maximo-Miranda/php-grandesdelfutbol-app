@@ -21,7 +21,13 @@ class DashboardController extends Controller
 
         $clubs = Club::query()
             ->forUser($user)
-            ->withCount('members', 'matches')
+            ->withCount([
+                'members',
+                'matches',
+                'matches as upcoming_matches_count' => function ($query) {
+                    $query->upcoming();
+                },
+            ])
             ->get();
 
         if ($clubs->isEmpty()) {
@@ -39,7 +45,10 @@ class DashboardController extends Controller
 
         $clubIds = $clubs->pluck('id');
 
-        $topClubs = $clubs->sortByDesc('matches_count')->take(3)->values();
+        $topClubs = $clubs
+            ->sortByDesc(fn (Club $club) => $club->matches_count + $club->upcoming_matches_count)
+            ->take(3)
+            ->values();
 
         $playerStats = Player::query()
             ->whereIn('club_id', $clubIds)

@@ -1,12 +1,35 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, CircleDot, RectangleVertical } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import {
+    ArrowLeft,
+    Ban,
+    Calendar,
+    CircleDot,
+    Clock,
+    MapPin,
+    RectangleVertical,
+    Shield,
+    Star,
+    Trash2,
+    Trophy,
+} from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, MatchEvent } from '@/types';
 
-type Props = { club: Club; match: FootballMatch };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.id}/matches`;
@@ -16,25 +39,23 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.club.name, href: `/clubs/${props.club.id}` },
     { title: 'Partidos', href: base },
     { title: props.match.title, href: `${base}/${props.match.id}` },
-    { title: 'Resumen', href: `${base}/${props.match.id}/summary` },
 ];
 
-const teamAGoals = (props.match.events ?? []).filter(
-    (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'a',
-).length;
+// --- Goals ---
+const teamAGoals = computed(() =>
+    (props.match.events ?? []).filter(
+        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'a',
+    ).length,
+);
 
-const teamBGoals = (props.match.events ?? []).filter(
-    (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'b',
-).length;
+const teamBGoals = computed(() =>
+    (props.match.events ?? []).filter(
+        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'b',
+    ).length,
+);
 
-const sortedEvents = [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute);
-
-const statusLabel: Record<string, string> = {
-    upcoming: 'PROXIMO',
-    in_progress: 'EN JUEGO',
-    completed: 'FINALIZADO',
-    cancelled: 'CANCELADO',
-};
+// --- Events ---
+const sortedEvents = computed(() => [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute));
 
 const eventLabel: Record<string, string> = {
     goal: 'Gol',
@@ -47,31 +68,116 @@ const eventLabel: Record<string, string> = {
     save: 'Atajada',
 };
 
-type PlayerStat = { name: string; team: string; goals: number; assists: number; yellowCards: number; redCards: number };
-const playerStats = new Map<number, PlayerStat>();
-for (const event of props.match.events ?? []) {
-    if (!playerStats.has(event.player_id)) {
-        const att = props.match.attendances?.find(a => a.player_id === event.player_id);
-        playerStats.set(event.player_id, {
-            name: event.player?.name ?? 'Unknown',
-            team: att?.team === 'a' ? props.match.team_a_name : att?.team === 'b' ? props.match.team_b_name : '',
-            goals: 0, assists: 0, yellowCards: 0, redCards: 0,
-        });
+function getPlayerTeam(playerId: number): 'a' | 'b' | null {
+    const att = props.match.attendances?.find(a => a.player_id === playerId);
+    return att?.team ?? null;
+}
+
+// --- Player stats ---
+type PlayerStat = {
+    name: string;
+    team: 'a' | 'b' | null;
+    goals: number;
+    assists: number;
+    yellowCards: number;
+    redCards: number;
+};
+
+const playerStats = computed(() => {
+    const map = new Map<number, PlayerStat>();
+    for (const event of props.match.events ?? []) {
+        if (!map.has(event.player_id)) {
+            const att = props.match.attendances?.find(a => a.player_id === event.player_id);
+            map.set(event.player_id, {
+                name: event.player?.name ?? 'Unknown',
+                team: att?.team as 'a' | 'b' | null ?? null,
+                goals: 0,
+                assists: 0,
+                yellowCards: 0,
+                redCards: 0,
+            });
+        }
+        const stat = map.get(event.player_id)!;
+        if (event.event_type === 'goal') stat.goals++;
+        if (event.event_type === 'assist') stat.assists++;
+        if (event.event_type === 'yellow_card') stat.yellowCards++;
+        if (event.event_type === 'red_card') stat.redCards++;
     }
-    const stat = playerStats.get(event.player_id)!;
-    if (event.event_type === 'goal') stat.goals++;
-    if (event.event_type === 'assist') stat.assists++;
-    if (event.event_type === 'yellow_card') stat.yellowCards++;
-    if (event.event_type === 'red_card') stat.redCards++;
+    return map;
+});
+
+const teamAStats = computed(() =>
+    [...playerStats.value.entries()].filter(([, s]) => s.team === 'a').map(([id, s]) => ({ id, ...s })),
+);
+
+const teamBStats = computed(() =>
+    [...playerStats.value.entries()].filter(([, s]) => s.team === 'b').map(([id, s]) => ({ id, ...s })),
+);
+
+// --- Top scorer ---
+const topScorer = computed(() => {
+    let best: { name: string; goals: number; team: 'a' | 'b' | null } | null = null;
+    for (const [, stat] of playerStats.value) {
+        if (stat.goals > 0 && (!best || stat.goals > best.goals)) {
+            best = { name: stat.name, goals: stat.goals, team: stat.team };
+        }
+    }
+    return best;
+});
+
+// --- Date helpers ---
+const scheduledDate = new Date(props.match.scheduled_at);
+
+const formattedDate = computed(() =>
+    scheduledDate.toLocaleDateString('es', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    }).replace(/^\w/, c => c.toUpperCase()),
+);
+
+const formattedTime = computed(() =>
+    scheduledDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false }),
+);
+
+const matchDuration = computed(() => {
+    if (props.match.started_at && props.match.ended_at) {
+        const start = new Date(props.match.started_at).getTime();
+        const end = new Date(props.match.ended_at).getTime();
+        return Math.round((end - start) / 60000);
+    }
+    return props.match.duration_minutes;
+});
+
+// --- Team color helpers ---
+function teamColor(team: 'a' | 'b' | null): string {
+    if (team === 'a') return props.match.team_a_color ?? '#6b7280';
+    if (team === 'b') return props.match.team_b_color ?? '#6b7280';
+    return '#6b7280';
+}
+
+function teamName(team: 'a' | 'b' | null): string {
+    if (team === 'a') return props.match.team_a_name;
+    if (team === 'b') return props.match.team_b_name;
+    return '';
+}
+
+// --- Admin actions ---
+function finalizeStats() {
+    router.post(`${base}/${props.match.id}/finalize-stats`);
+}
+
+const showDeleteDialog = ref(false);
+function deleteMatch() {
+    router.delete(`${base}/${props.match.id}`, {
+        onSuccess: () => { showDeleteDialog.value = false; },
+    });
 }
 
 function formatStatsDate(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function finalizeStats() {
-    router.post(`${base}/${props.match.id}/finalize-stats`);
 }
 </script>
 
@@ -83,74 +189,262 @@ function finalizeStats() {
                 <ArrowLeft class="size-4" />Volver
             </Link>
 
-            <!-- Score header -->
-            <div class="mb-6 text-center">
-                <Badge variant="outline" class="mb-2">{{ statusLabel[match.status] ?? match.status }}</Badge>
-                <h1 class="text-lg font-medium">{{ match.title }}</h1>
-
-                <div class="mt-4 flex items-center justify-center gap-6">
-                    <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_a_name }}</p>
-                        <p class="text-5xl font-bold">{{ teamAGoals }}</p>
-                    </div>
-                    <span class="text-2xl text-muted-foreground">-</span>
-                    <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_b_name }}</p>
-                        <p class="text-5xl font-bold">{{ teamBGoals }}</p>
-                    </div>
+            <!-- ===== SCOREBOARD HERO ===== -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 p-6 shadow-lg dark:from-zinc-900/80 dark:to-black/60">
+                <!-- Pitch decoration -->
+                <div class="pointer-events-none absolute inset-0 opacity-[0.03]">
+                    <div class="absolute top-1/2 left-1/2 size-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"></div>
+                    <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
                 </div>
 
-                <div class="mt-4 flex items-center justify-center gap-4">
-                    <Link :href="`${base}/${match.id}/live`" class="text-sm text-muted-foreground hover:text-foreground">
-                        Panel de control
-                    </Link>
-                    <span v-if="match.stats_finalized_at" class="text-sm text-primary">
-                        Estadisticas acumuladas el {{ formatStatsDate(match.stats_finalized_at) }}
+                <div class="relative text-center">
+                    <!-- Status -->
+                    <span class="inline-block rounded-full border border-blue-500/30 bg-blue-500/20 px-3 py-0.5 text-[10px] font-bold tracking-widest text-blue-300 uppercase">
+                        FINALIZADO
                     </span>
-                    <Button v-else-if="match.status === 'completed'" size="sm" @click="finalizeStats">
-                        Finalizar estadisticas
-                    </Button>
-                </div>
-            </div>
 
-            <!-- Timeline -->
-            <div v-if="sortedEvents.length" class="mb-8">
-                <h3 class="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</h3>
-                <div class="space-y-3">
-                    <div v-for="event in sortedEvents" :key="event.id" class="flex items-start gap-3 rounded-lg border border-border p-3">
-                        <span class="mt-0.5 text-sm font-medium text-muted-foreground">{{ event.minute }}'</span>
-                        <CircleDot v-if="event.event_type === 'goal'" class="mt-0.5 size-4 text-primary" />
-                        <RectangleVertical v-else-if="event.event_type === 'yellow_card'" class="mt-0.5 size-4 text-yellow-400" />
-                        <RectangleVertical v-else-if="event.event_type === 'red_card'" class="mt-0.5 size-4 text-destructive" />
-                        <CircleDot v-else class="mt-0.5 size-4 text-muted-foreground" />
-                        <div>
-                            <p class="font-medium">{{ event.player?.name }}</p>
-                            <p class="text-sm text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    <p class="mt-2 text-sm font-medium text-zinc-400">{{ match.title }}</p>
 
-            <!-- Player stats -->
-            <div v-if="playerStats.size">
-                <h3 class="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estadisticas por jugador</h3>
-                <div class="space-y-2">
-                    <div v-for="[playerId, stat] in playerStats" :key="playerId" class="rounded-lg border border-border p-3">
-                        <div class="flex items-center gap-3">
-                            <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                {{ stat.name.charAt(0) }}
+                    <!-- Score with team colors -->
+                    <div class="mt-4 flex items-center justify-center gap-4 sm:gap-8">
+                        <div class="min-w-0 flex-1 text-right">
+                            <div class="mb-2 flex items-center justify-end gap-2">
+                                <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_a_name }}</p>
+                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>
                             </div>
-                            <span class="font-medium">{{ stat.name }}</span>
-                            <Badge v-if="stat.team" variant="outline" class="text-xs">{{ stat.team }}</Badge>
+                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamAGoals }}</p>
                         </div>
-                        <div class="mt-2 flex gap-4 text-sm text-muted-foreground">
-                            <span v-if="stat.goals" class="flex items-center gap-1"><CircleDot class="size-3 text-primary" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}</span>
-                            <span v-if="stat.assists">{{ stat.assists }} {{ stat.assists === 1 ? 'asistencia' : 'asistencias' }}</span>
-                            <span v-if="stat.yellowCards" class="flex items-center gap-1"><RectangleVertical class="size-3 text-yellow-400" /> {{ stat.yellowCards }} amarilla</span>
-                            <span v-if="stat.redCards" class="flex items-center gap-1"><RectangleVertical class="size-3 text-destructive" /> {{ stat.redCards }} roja</span>
+
+                        <div class="flex flex-col items-center">
+                            <span class="text-xl font-light text-zinc-600 select-none">vs</span>
+                        </div>
+
+                        <div class="min-w-0 flex-1 text-left">
+                            <div class="mb-2 flex items-center gap-2">
+                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>
+                                <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_b_name }}</p>
+                            </div>
+                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamBGoals }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Top scorer highlight -->
+                    <div v-if="topScorer" class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">
+                        <Trophy class="size-3.5" />
+                        <span class="font-semibold">{{ topScorer.name }}</span>
+                        <span class="text-amber-500/60">&mdash; {{ topScorer.goals }} {{ topScorer.goals === 1 ? 'gol' : 'goles' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== MATCH INFO STRIP ===== -->
+            <div class="mt-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card">
+                <div class="flex flex-col items-center gap-1 px-2 py-3">
+                    <Calendar class="size-4 text-muted-foreground" />
+                    <p class="text-center text-xs font-medium">{{ formattedDate }}</p>
+                    <p class="text-xs text-muted-foreground">{{ formattedTime }}</p>
+                </div>
+                <div class="flex flex-col items-center gap-1 px-2 py-3">
+                    <Clock class="size-4 text-muted-foreground" />
+                    <p class="text-xs font-medium">{{ matchDuration }}'</p>
+                    <p class="text-xs text-muted-foreground">Duracion</p>
+                </div>
+                <div class="flex flex-col items-center gap-1 px-2 py-3">
+                    <MapPin class="size-4 text-muted-foreground" />
+                    <p class="text-center text-xs font-medium">{{ match.field?.name ?? 'Sin cancha' }}</p>
+                    <p v-if="match.field?.field_type" class="text-xs text-muted-foreground">{{ match.field.field_type }}</p>
+                </div>
+            </div>
+
+            <!-- Venue details -->
+            <div v-if="match.field?.venue" class="mt-2 rounded-xl border border-border bg-card px-4 py-3 text-center text-sm text-muted-foreground">
+                {{ match.field.venue.name }}
+                <span v-if="match.field.venue.address"> &mdash; {{ match.field.venue.address }}</span>
+            </div>
+
+            <!-- Stats finalized badge -->
+            <div v-if="match.stats_finalized_at" class="mt-3 text-center">
+                <Badge variant="secondary" class="gap-1">
+                    <Star class="size-3" />
+                    Estadisticas acumuladas el {{ formatStatsDate(match.stats_finalized_at) }}
+                </Badge>
+            </div>
+
+            <!-- ===== TIMELINE ===== -->
+            <div v-if="sortedEvents.length" class="mt-6">
+                <h3 class="mb-4 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    Timeline ({{ sortedEvents.length }})
+                </h3>
+
+                <div class="relative space-y-0">
+                    <!-- Center line -->
+                    <div class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border"></div>
+
+                    <div
+                        v-for="event in sortedEvents"
+                        :key="event.id"
+                        class="relative flex items-center gap-2 py-1.5"
+                        :class="getPlayerTeam(event.player_id) === 'b' ? 'flex-row-reverse' : ''"
+                    >
+                        <!-- Event card -->
+                        <div
+                            class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2"
+                            :class="getPlayerTeam(event.player_id) === 'b' ? 'flex-row-reverse text-right' : ''"
+                            :style="{ borderColor: teamColor(getPlayerTeam(event.player_id)) + '40', backgroundColor: teamColor(getPlayerTeam(event.player_id)) + '08' }"
+                        >
+                            <CircleDot v-if="event.event_type === 'goal' || event.event_type === 'penalty_scored'" class="size-3.5 shrink-0 text-emerald-400" />
+                            <RectangleVertical v-else-if="event.event_type === 'yellow_card'" class="size-3.5 shrink-0 text-yellow-400" />
+                            <RectangleVertical v-else-if="event.event_type === 'red_card'" class="size-3.5 shrink-0 text-red-400" />
+                            <Shield v-else-if="event.event_type === 'save'" class="size-3.5 shrink-0 text-violet-400" />
+                            <CircleDot v-else class="size-3.5 shrink-0 text-muted-foreground" />
+
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">{{ event.player?.name }}</p>
+                                <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Minute bubble (center) -->
+                        <span class="z-10 flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-bold tabular-nums">
+                            {{ event.minute }}'
+                        </span>
+
+                        <!-- Spacer for the other side -->
+                        <div class="flex-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="mt-6 text-center text-sm text-muted-foreground">
+                No se registraron eventos en este partido.
+            </div>
+
+            <!-- ===== PLAYER STATS BY TEAM ===== -->
+            <div v-if="playerStats.size" class="mt-6 space-y-4">
+                <h3 class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    Estadisticas por jugador
+                </h3>
+
+                <!-- Team A stats -->
+                <div v-if="teamAStats.length" class="overflow-hidden rounded-xl border border-border">
+                    <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: match.team_a_color + '20' }">
+                        <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>
+                        <span class="flex-1 text-sm font-bold">{{ match.team_a_name }}</span>
+                    </div>
+                    <div class="divide-y divide-border/50">
+                        <div
+                            v-for="stat in teamAStats"
+                            :key="stat.id"
+                            class="flex items-center gap-3 bg-card px-4 py-2.5"
+                        >
+                            <div
+                                class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                                :style="{ backgroundColor: match.team_a_color + '30' }"
+                            >
+                                {{ stat.name.charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">{{ stat.name }}</p>
+                                <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                    <span v-if="stat.goals" class="flex items-center gap-1">
+                                        <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}
+                                    </span>
+                                    <span v-if="stat.assists">{{ stat.assists }} {{ stat.assists === 1 ? 'asist.' : 'asist.' }}</span>
+                                    <span v-if="stat.yellowCards" class="flex items-center gap-1">
+                                        <RectangleVertical class="size-3 text-yellow-400" /> {{ stat.yellowCards }}
+                                    </span>
+                                    <span v-if="stat.redCards" class="flex items-center gap-1">
+                                        <RectangleVertical class="size-3 text-red-400" /> {{ stat.redCards }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Team B stats -->
+                <div v-if="teamBStats.length" class="overflow-hidden rounded-xl border border-border">
+                    <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: match.team_b_color + '20' }">
+                        <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>
+                        <span class="flex-1 text-sm font-bold">{{ match.team_b_name }}</span>
+                    </div>
+                    <div class="divide-y divide-border/50">
+                        <div
+                            v-for="stat in teamBStats"
+                            :key="stat.id"
+                            class="flex items-center gap-3 bg-card px-4 py-2.5"
+                        >
+                            <div
+                                class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                                :style="{ backgroundColor: match.team_b_color + '30' }"
+                            >
+                                {{ stat.name.charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">{{ stat.name }}</p>
+                                <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                    <span v-if="stat.goals" class="flex items-center gap-1">
+                                        <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}
+                                    </span>
+                                    <span v-if="stat.assists">{{ stat.assists }} {{ stat.assists === 1 ? 'asist.' : 'asist.' }}</span>
+                                    <span v-if="stat.yellowCards" class="flex items-center gap-1">
+                                        <RectangleVertical class="size-3 text-yellow-400" /> {{ stat.yellowCards }}
+                                    </span>
+                                    <span v-if="stat.redCards" class="flex items-center gap-1">
+                                        <RectangleVertical class="size-3 text-red-400" /> {{ stat.redCards }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ADMIN ACTIONS ===== -->
+            <div v-if="isAdmin" class="mt-6 space-y-2">
+                <Button
+                    v-if="!match.stats_finalized_at && match.status === 'completed'"
+                    class="w-full gap-2"
+                    @click="finalizeStats"
+                >
+                    <Star class="size-4" />
+                    Finalizar estadisticas
+                </Button>
+
+                <Dialog v-model:open="showDeleteDialog">
+                    <DialogTrigger as-child>
+                        <Button variant="destructive" class="w-full gap-2">
+                            <Trash2 class="size-4" />
+                            Eliminar partido
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Eliminar partido</DialogTitle>
+                            <DialogDescription>
+                                Esta accion no se puede deshacer. Se eliminara el partido
+                                <strong>"{{ match.title }}"</strong> junto con toda su informacion
+                                de asistencia y eventos.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter class="gap-2 sm:gap-0">
+                            <DialogClose as-child>
+                                <Button variant="outline">Cancelar</Button>
+                            </DialogClose>
+                            <Button variant="destructive" class="gap-2" @click="deleteMatch">
+                                <Trash2 class="size-4" />
+                                Eliminar partido
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <!-- Public link -->
+            <div v-if="match.share_token" class="mt-4 text-center">
+                <Link :href="`/match/${match.share_token}`" class="text-sm text-muted-foreground hover:underline">
+                    Ver pagina publica del partido
+                </Link>
             </div>
         </div>
     </AppLayout>

@@ -78,7 +78,7 @@ class FootballMatch extends Model
     use HasFactory;
 
     /** @var string[] */
-    public const JERSEY_COLORS = [
+    public const array JERSEY_COLORS = [
         '#ffffff', '#1a1a1a', '#6b7280',
         '#dc2626', '#991b1b', '#ea580c',
         '#facc15', '#16a34a', '#065f46',

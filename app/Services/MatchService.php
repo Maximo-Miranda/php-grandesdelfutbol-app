@@ -10,22 +10,29 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\Player;
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class MatchService
 {
     public function createMatch(Club $club, array $data): FootballMatch
     {
+        $scheduledAt = Carbon::parse($data['scheduled_at']);
+        $isPast = $scheduledAt->isPast();
+        $durationMinutes = $data['duration_minutes'] ?? 60;
+
         return FootballMatch::query()->create([
             'club_id' => $club->id,
             'field_id' => $data['field_id'] ?? null,
             'title' => $data['title'],
             'scheduled_at' => $data['scheduled_at'],
-            'duration_minutes' => $data['duration_minutes'] ?? 60,
+            'duration_minutes' => $durationMinutes,
             'arrival_minutes' => $data['arrival_minutes'] ?? 15,
             'max_players' => $data['max_players'] ?? 10,
             'max_substitutes' => $data['max_substitutes'] ?? 4,
-            'status' => MatchStatus::Upcoming,
+            'status' => $isPast ? MatchStatus::Completed : MatchStatus::Upcoming,
+            'started_at' => $isPast ? $scheduledAt : null,
+            'ended_at' => $isPast ? $scheduledAt->copy()->addMinutes($durationMinutes) : null,
             'share_token' => Str::random(16),
             'registration_opens_hours' => $data['registration_opens_hours'] ?? 24,
             'notes' => $data['notes'] ?? null,
