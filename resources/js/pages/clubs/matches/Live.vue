@@ -145,12 +145,12 @@ function completeMatch() {
 
                 <div class="mt-4 flex items-center justify-center gap-6">
                     <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Equipo A</p>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_a_name }}</p>
                         <p class="text-5xl font-bold">{{ teamAGoals }}</p>
                     </div>
                     <span class="text-2xl text-muted-foreground">-</span>
                     <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Equipo B</p>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_b_name }}</p>
                         <p class="text-5xl font-bold">{{ teamBGoals }}</p>
                     </div>
                 </div>
@@ -165,7 +165,7 @@ function completeMatch() {
                 <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Formacion</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <p class="mb-2 text-center text-sm font-semibold">Equipo A</p>
+                        <p class="mb-2 text-center text-sm font-semibold">{{ match.team_a_name }}</p>
                         <div class="space-y-1">
                             <div v-for="att in teamAPlayers" :key="att.id" class="flex items-center gap-2 rounded-md bg-accent p-2">
                                 <span class="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold">{{ att.player?.name?.charAt(0) }}</span>
@@ -174,7 +174,7 @@ function completeMatch() {
                         </div>
                     </div>
                     <div>
-                        <p class="mb-2 text-center text-sm font-semibold">Equipo B</p>
+                        <p class="mb-2 text-center text-sm font-semibold">{{ match.team_b_name }}</p>
                         <div class="space-y-1">
                             <div v-for="att in teamBPlayers" :key="att.id" class="flex items-center gap-2 rounded-md bg-accent p-2">
                                 <span class="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold">{{ att.player?.name?.charAt(0) }}</span>

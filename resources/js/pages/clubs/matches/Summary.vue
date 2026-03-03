@@ -54,7 +54,7 @@ for (const event of props.match.events ?? []) {
         const att = props.match.attendances?.find(a => a.player_id === event.player_id);
         playerStats.set(event.player_id, {
             name: event.player?.name ?? 'Unknown',
-            team: att?.team === 'a' ? 'Eq. A' : att?.team === 'b' ? 'Eq. B' : '',
+            team: att?.team === 'a' ? props.match.team_a_name : att?.team === 'b' ? props.match.team_b_name : '',
             goals: 0, assists: 0, yellowCards: 0, redCards: 0,
         });
     }
@@ -90,12 +90,12 @@ function finalizeStats() {
 
                 <div class="mt-4 flex items-center justify-center gap-6">
                     <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Equipo A</p>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_a_name }}</p>
                         <p class="text-5xl font-bold">{{ teamAGoals }}</p>
                     </div>
                     <span class="text-2xl text-muted-foreground">-</span>
                     <div class="text-center">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Equipo B</p>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ match.team_b_name }}</p>
                         <p class="text-5xl font-bold">{{ teamBGoals }}</p>
                     </div>
                 </div>

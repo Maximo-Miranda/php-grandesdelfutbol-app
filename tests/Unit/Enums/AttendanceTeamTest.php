@@ -17,6 +17,6 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(AttendanceTeam::A->label())->toBe('Team A')
-        ->and(AttendanceTeam::B->label())->toBe('Team B');
+    expect(AttendanceTeam::A->label())->toBe('Equipo A')
+        ->and(AttendanceTeam::B->label())->toBe('Equipo B');
 });

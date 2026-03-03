@@ -29,11 +29,32 @@ class MatchService
             'share_token' => Str::random(16),
             'registration_opens_hours' => $data['registration_opens_hours'] ?? 24,
             'notes' => $data['notes'] ?? null,
+            'team_a_name' => $data['team_a_name'] ?? 'Equipo A',
+            'team_b_name' => $data['team_b_name'] ?? 'Equipo B',
+            'team_a_color' => $data['team_a_color'] ?? '#1a1a1a',
+            'team_b_color' => $data['team_b_color'] ?? '#facc15',
         ]);
     }
 
-    public function registerPlayer(FootballMatch $match, Player $player, AttendanceStatus $status): MatchAttendance
-    {
+    public function registerPlayer(
+        FootballMatch $match,
+        Player $player,
+        AttendanceStatus $status,
+        ?AttendanceTeam $team = null,
+    ): MatchAttendance {
+        $role = AttendanceRole::Pending;
+
+        if ($status === AttendanceStatus::Confirmed) {
+            $confirmedCount = $match->attendances()
+                ->where('status', AttendanceStatus::Confirmed)
+                ->where('player_id', '!=', $player->id)
+                ->count();
+
+            $role = $confirmedCount < $match->max_players
+                ? AttendanceRole::Starter
+                : AttendanceRole::Substitute;
+        }
+
         return MatchAttendance::query()->updateOrCreate(
             [
                 'match_id' => $match->id,
@@ -41,6 +62,8 @@ class MatchService
             ],
             [
                 'status' => $status,
+                'role' => $status === AttendanceStatus::Confirmed ? $role : AttendanceRole::Pending,
+                'team' => $status === AttendanceStatus::Confirmed ? $team : null,
                 'confirmed_at' => $status === AttendanceStatus::Confirmed ? now() : null,
             ],
         );
@@ -61,14 +84,18 @@ class MatchService
     {
         $confirmedAttendances = $match->attendances()
             ->where('status', AttendanceStatus::Confirmed)
-            ->inRandomOrder()
             ->get();
 
         $maxPerTeam = intdiv($match->max_players, 2);
-        $teamACount = 0;
-        $teamBCount = 0;
 
-        foreach ($confirmedAttendances as $attendance) {
+        // Count already-assigned players
+        $teamACount = $confirmedAttendances->where('team', AttendanceTeam::A)->count();
+        $teamBCount = $confirmedAttendances->where('team', AttendanceTeam::B)->count();
+
+        // Only distribute unassigned players
+        $unassigned = $confirmedAttendances->whereNull('team')->shuffle();
+
+        foreach ($unassigned as $attendance) {
             if ($teamACount < $maxPerTeam) {
                 $attendance->update([
                     'team' => AttendanceTeam::A,
@@ -85,6 +112,13 @@ class MatchService
                 $attendance->update([
                     'role' => AttendanceRole::Substitute,
                 ]);
+            }
+        }
+
+        // Ensure already-assigned players have Starter role if within capacity
+        foreach ($confirmedAttendances->whereNotNull('team') as $attendance) {
+            if ($attendance->role !== AttendanceRole::Starter) {
+                $attendance->update(['role' => AttendanceRole::Starter]);
             }
         }
     }

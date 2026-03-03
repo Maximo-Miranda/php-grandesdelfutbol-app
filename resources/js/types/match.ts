@@ -18,6 +18,10 @@ export type FootballMatch = {
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;
+    team_a_name: string;
+    team_b_name: string;
+    team_a_color: string | null;
+    team_b_color: string | null;
     field?: Field;
     attendances?: MatchAttendance[];
     events?: MatchEvent[];

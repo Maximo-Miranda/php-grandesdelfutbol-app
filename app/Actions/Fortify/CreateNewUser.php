@@ -50,6 +50,9 @@ class CreateNewUser implements CreatesNewUsers
 
         if ($invitation) {
             app(InvitationService::class)->acceptInvitation($invitation, $user);
+
+            // Auto-verify: clicking the invitation link proves email ownership
+            $user->markEmailAsVerified();
         }
     }
 }

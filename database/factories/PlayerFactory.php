@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PlayerPosition;
 use App\Models\Club;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,7 +18,7 @@ class PlayerFactory extends Factory
             'club_id' => Club::factory(),
             'user_id' => null,
             'name' => fake()->name(),
-            'position' => fake()->randomElement(['GK', 'CB', 'LB', 'RB', 'CM', 'LW', 'RW', 'ST']),
+            'position' => fake()->randomElement(PlayerPosition::cases()),
             'jersey_number' => null,
             'goals' => 0,
             'assists' => 0,
@@ -28,7 +29,7 @@ class PlayerFactory extends Factory
         ];
     }
 
-    public function linked(User $user = null): static
+    public function linked(?User $user = null): static
     {
         return $this->state(fn (array $attributes) => [
             'user_id' => $user?->id ?? User::factory(),

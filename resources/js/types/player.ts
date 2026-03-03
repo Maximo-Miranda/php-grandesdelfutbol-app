@@ -7,6 +7,7 @@ export type Player = {
     user_id: number | null;
     name: string;
     position: string | null;
+    position_label: string | null;
     jersey_number: number | null;
     goals: number;
     assists: number;

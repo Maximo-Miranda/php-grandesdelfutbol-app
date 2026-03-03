@@ -8,8 +8,10 @@ export type Club = {
     invite_token: string | null;
     is_invite_active: boolean;
     requires_approval: boolean;
+    logo_url?: string | null;
     owner?: User;
     members_count?: number;
+    matches_count?: number;
     created_at: string;
     updated_at: string;
 };
@@ -22,6 +24,19 @@ export type ClubMember = {
     status: 'pending' | 'approved';
     approved_at: string | null;
     user?: User;
+    club?: Club;
+    created_at: string;
+    updated_at: string;
+};
+
+export type ClubInvitation = {
+    id: number;
+    club_id: number;
+    email: string;
+    token: string;
+    status: 'pending' | 'accepted' | 'declined' | 'expired';
+    invited_by: number;
+    expires_at: string;
     club?: Club;
     created_at: string;
     updated_at: string;

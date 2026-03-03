@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
-import { ArrowLeft, Bell, Clock, MapPin, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, Bell, Clock, MapPin, Palette, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem, Club, Field, FootballMatch, Venue } from '@/types';
+import type { BreadcrumbItem, Club, FootballMatch, Venue } from '@/types';
 
 type Props = { club: Club; match: FootballMatch; venues: Venue[] };
 const props = defineProps<Props>();
@@ -23,113 +23,24 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Editar', href: `/clubs/${props.club.id}/matches/${props.match.id}/edit` },
 ];
 
-// Build flat list of fields with venue context
-const allFields = computed(() => {
-    const fields: Array<{ label: string; field: Field }> = [];
-    for (const venue of props.venues) {
-        for (const field of venue.fields || []) {
-            if (field.is_active) {
-                fields.push({
-                    label: `${venue.name} - ${field.name} (${field.field_type})`,
-                    field,
-                });
-            }
-        }
-    }
-    return fields;
+const {
+    form,
+    allFields,
+    autoTitle,
+    selectedFieldLabel,
+    selectedDate,
+    selectedTime,
+    enableManualTitle,
+    enableAutoTitle,
+    resolveBeforeSubmit,
+} = useMatchForm({
+    venues: props.venues,
+    match: props.match,
+    autoTitleOnInit: false,
 });
-
-function resolveFieldType(label: string): string | null {
-    if (!label || label === 'none') return null;
-    return allFields.value.find((f) => f.label === label)?.field.field_type ?? null;
-}
-
-function resolveFieldId(label: string): number | null {
-    if (!label || label === 'none') return null;
-    return allFields.value.find((f) => f.label === label)?.field.id ?? null;
-}
-
-function resolveFieldLabel(fieldId: number | null): string {
-    if (!fieldId) return 'none';
-    return allFields.value.find((f) => f.field.id === fieldId)?.label ?? 'none';
-}
-
-// Time options: 30-min intervals from 06:00 to 23:30
-const timeOptions = Array.from({ length: 36 }, (_, i) => {
-    const h = Math.floor(i / 2) + 6;
-    const m = (i % 2) * 30;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-});
-
-// Parse existing match data
-const existingDate = props.match.scheduled_at.slice(0, 10);
-const existingTimeFull = props.match.scheduled_at.slice(11, 16);
-const existingTime = timeOptions.includes(existingTimeFull) ? existingTimeFull : timeOptions[0];
-
-// Auto-title logic (OFF by default for edit)
-const autoTitle = ref(false);
-const selectedFieldLabel = ref(resolveFieldLabel(props.match.field_id));
-const selectedDate = ref(existingDate);
-const selectedTime = ref(existingTime);
-
-function formatShortDate(dateStr: string): string {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const weekday = date.toLocaleDateString('es', { weekday: 'short' });
-    const num = date.getDate();
-    const monthName = date.toLocaleDateString('es', { month: 'short' });
-    const dayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
-    const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1).replace('.', '');
-    return `${dayLabel} ${num} ${monthLabel}`;
-}
-
-const generatedTitle = computed(() => {
-    const parts: string[] = ['Partido'];
-    const fieldType = resolveFieldType(selectedFieldLabel.value);
-    if (fieldType) parts.push(fieldType);
-    if (selectedDate.value) parts.push(formatShortDate(selectedDate.value));
-    return parts.join(' ');
-});
-
-const form = useForm({
-    title: props.match.title,
-    scheduled_at: '',
-    field_id: props.match.field_id,
-    duration_minutes: props.match.duration_minutes,
-    arrival_minutes: props.match.arrival_minutes,
-    max_players: props.match.max_players,
-    max_substitutes: props.match.max_substitutes,
-    registration_opens_hours: props.match.registration_opens_hours ?? 24,
-    notes: props.match.notes ?? '',
-});
-
-// Watch auto-title changes
-watch(generatedTitle, (val) => {
-    if (autoTitle.value) {
-        form.title = val;
-    }
-});
-
-// Watch field selection to update field_id
-watch(selectedFieldLabel, (label) => {
-    form.field_id = resolveFieldId(label);
-});
-
-function enableManualTitle() {
-    autoTitle.value = false;
-}
-
-function enableAutoTitle() {
-    autoTitle.value = true;
-    form.title = generatedTitle.value;
-}
 
 function submit() {
-    form.scheduled_at = selectedDate.value && selectedTime.value
-        ? `${selectedDate.value}T${selectedTime.value}`
-        : '';
-    form.field_id = resolveFieldId(selectedFieldLabel.value);
-
+    resolveBeforeSubmit();
     form.put(`/clubs/${props.club.id}/matches/${props.match.id}`);
 }
 </script>
@@ -291,6 +202,54 @@ function submit() {
                         />
                     </div>
                     <InputError :message="form.errors.registration_opens_hours" />
+                </div>
+
+                <!-- Equipos -->
+                <div class="grid gap-1.5">
+                    <Label>Equipos</Label>
+                    <p class="text-xs text-muted-foreground">Nombres y colores de camiseta para cada equipo.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-1.5">
+                            <Label for="team_a_name">Nombre Equipo A</Label>
+                            <Input id="team_a_name" v-model="form.team_a_name" placeholder="Equipo A" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="team_b_name">Nombre Equipo B</Label>
+                            <Input id="team_b_name" v-model="form.team_b_name" placeholder="Equipo B" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-1.5">
+                            <Label for="team_a_color" class="flex items-center gap-1.5">
+                                <Palette class="size-3.5 text-muted-foreground" />
+                                Color Equipo A
+                            </Label>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    id="team_a_color"
+                                    v-model="form.team_a_color"
+                                    type="color"
+                                    class="size-9 cursor-pointer rounded border border-border"
+                                />
+                                <span class="text-xs text-muted-foreground">{{ form.team_a_color || 'Sin color' }}</span>
+                            </div>
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="team_b_color" class="flex items-center gap-1.5">
+                                <Palette class="size-3.5 text-muted-foreground" />
+                                Color Equipo B
+                            </Label>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    id="team_b_color"
+                                    v-model="form.team_b_color"
+                                    type="color"
+                                    class="size-9 cursor-pointer rounded border border-border"
+                                />
+                                <span class="text-xs text-muted-foreground">{{ form.team_b_color || 'Sin color' }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Notas -->

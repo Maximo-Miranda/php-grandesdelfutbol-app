@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Bell, Clock, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, Bell, Clock, MapPin, Palette, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem, Club, Field, Venue } from '@/types';
+import type { BreadcrumbItem, Club, Venue } from '@/types';
 
 type Props = { club: Club; venues: Venue[] };
 const props = defineProps<Props>();
@@ -22,148 +22,22 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Crear', href: `/clubs/${props.club.id}/matches/create` },
 ];
 
-// Build flat list of fields with venue context
-const allFields = computed(() => {
-    const fields: Array<{ label: string; field: Field }> = [];
-    for (const venue of props.venues) {
-        for (const field of venue.fields || []) {
-            if (field.is_active) {
-                fields.push({
-                    label: `${venue.name} - ${field.name} (${field.field_type})`,
-                    field,
-                });
-            }
-        }
-    }
-    return fields;
+const {
+    form,
+    allFields,
+    autoTitle,
+    selectedFieldLabel,
+    selectedDate,
+    selectedTime,
+    enableManualTitle,
+    enableAutoTitle,
+    resolveBeforeSubmit,
+} = useMatchForm({
+    venues: props.venues,
 });
-
-// Field type to max players mapping
-const fieldTypeToPlayers: Record<string, number> = {
-    '5v5': 10,
-    '6v6': 12,
-    '7v7': 14,
-    '8v8': 16,
-    '9v9': 18,
-    '10v10': 20,
-    '11v11': 22,
-};
-
-function resolveFieldType(label: string): string | null {
-    if (!label || label === 'none') return null;
-    return allFields.value.find((f) => f.label === label)?.field.field_type ?? null;
-}
-
-function resolveFieldId(label: string): number | null {
-    if (!label || label === 'none') return null;
-    return allFields.value.find((f) => f.label === label)?.field.id ?? null;
-}
-
-function calcRegistrationHours(maxPlayers: number): number {
-    return Math.round(maxPlayers * 2.4);
-}
-
-// Time options: 30-min intervals from 06:00 to 23:30
-const timeOptions = Array.from({ length: 36 }, (_, i) => {
-    const h = Math.floor(i / 2) + 6;
-    const m = (i % 2) * 30;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-});
-
-// Smart default date: enough days ahead to organize based on player count
-function getDefaultDate(maxPlayers: number): string {
-    const today = new Date();
-    let daysAhead;
-    if (maxPlayers >= 20) daysAhead = 7;
-    else if (maxPlayers >= 16) daysAhead = 5;
-    else daysAhead = 3;
-
-    const target = new Date(today);
-    target.setDate(target.getDate() + daysAhead);
-
-    // Snap to nearest Saturday if within 2 days
-    const day = target.getDay();
-    const daysToSat = (6 - day + 7) % 7;
-    if (daysToSat > 0 && daysToSat <= 2) {
-        target.setDate(target.getDate() + daysToSat);
-    }
-
-    return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
-}
-// Auto-title logic
-const autoTitle = ref(true);
-const selectedFieldLabel = ref('none');
-const selectedDate = ref(getDefaultDate(10));
-const selectedTime = ref('10:00');
-
-function formatShortDate(dateStr: string): string {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const weekday = date.toLocaleDateString('es', { weekday: 'short' });
-    const num = date.getDate();
-    const monthName = date.toLocaleDateString('es', { month: 'short' });
-    const dayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
-    const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1).replace('.', '');
-    return `${dayLabel} ${num} ${monthLabel}`;
-}
-
-const generatedTitle = computed(() => {
-    const parts: string[] = ['Partido'];
-    const fieldType = resolveFieldType(selectedFieldLabel.value);
-    if (fieldType) parts.push(fieldType);
-    if (selectedDate.value) parts.push(formatShortDate(selectedDate.value));
-    return parts.join(' ');
-});
-
-const form = useForm({
-    title: 'Partido',
-    scheduled_at: '',
-    field_id: null as number | null,
-    duration_minutes: 60,
-    arrival_minutes: 15,
-    max_players: 10,
-    max_substitutes: 4,
-    registration_opens_hours: calcRegistrationHours(10),
-    notes: '',
-});
-
-// Initialize title with default date
-form.title = generatedTitle.value;
-
-// Watch auto-title changes
-watch(generatedTitle, (val) => {
-    if (autoTitle.value) {
-        form.title = val;
-    }
-});
-
-// Watch field selection to autofill max_players, default date, and registration hours
-watch(selectedFieldLabel, (label) => {
-    const fieldType = resolveFieldType(label);
-    if (fieldType && fieldTypeToPlayers[fieldType]) {
-        form.max_players = fieldTypeToPlayers[fieldType];
-        form.registration_opens_hours = calcRegistrationHours(fieldTypeToPlayers[fieldType]);
-        selectedDate.value = getDefaultDate(fieldTypeToPlayers[fieldType]);
-    }
-    form.field_id = resolveFieldId(label);
-});
-
-function enableManualTitle() {
-    autoTitle.value = false;
-}
-
-function enableAutoTitle() {
-    autoTitle.value = true;
-    form.title = generatedTitle.value;
-}
 
 function submit() {
-    // Always resolve values explicitly before posting
-    form.scheduled_at = selectedDate.value && selectedTime.value
-        ? `${selectedDate.value}T${selectedTime.value}`
-        : '';
-    form.field_id = resolveFieldId(selectedFieldLabel.value);
-
+    resolveBeforeSubmit();
     form.post(`/clubs/${props.club.id}/matches`);
 }
 </script>
@@ -325,6 +199,54 @@ function submit() {
                         />
                     </div>
                     <InputError :message="form.errors.registration_opens_hours" />
+                </div>
+
+                <!-- Equipos -->
+                <div class="grid gap-1.5">
+                    <Label>Equipos</Label>
+                    <p class="text-xs text-muted-foreground">Nombres y colores de camiseta para cada equipo.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-1.5">
+                            <Label for="team_a_name">Nombre Equipo A</Label>
+                            <Input id="team_a_name" v-model="form.team_a_name" placeholder="Equipo A" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="team_b_name">Nombre Equipo B</Label>
+                            <Input id="team_b_name" v-model="form.team_b_name" placeholder="Equipo B" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-1.5">
+                            <Label for="team_a_color" class="flex items-center gap-1.5">
+                                <Palette class="size-3.5 text-muted-foreground" />
+                                Color Equipo A
+                            </Label>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    id="team_a_color"
+                                    v-model="form.team_a_color"
+                                    type="color"
+                                    class="size-9 cursor-pointer rounded border border-border"
+                                />
+                                <span class="text-xs text-muted-foreground">{{ form.team_a_color || 'Sin color' }}</span>
+                            </div>
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="team_b_color" class="flex items-center gap-1.5">
+                                <Palette class="size-3.5 text-muted-foreground" />
+                                Color Equipo B
+                            </Label>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    id="team_b_color"
+                                    v-model="form.team_b_color"
+                                    type="color"
+                                    class="size-9 cursor-pointer rounded border border-border"
+                                />
+                                <span class="text-xs text-muted-foreground">{{ form.team_b_color || 'Sin color' }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Notas -->

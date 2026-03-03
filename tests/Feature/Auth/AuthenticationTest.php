@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Club;
+use App\Models\ClubMember;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
@@ -12,6 +14,8 @@ test('login screen can be rendered', function () {
 
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
@@ -19,7 +23,7 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('dashboard'));
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {

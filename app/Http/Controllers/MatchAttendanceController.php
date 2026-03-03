@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
 use App\Models\Club;
@@ -23,14 +24,18 @@ class MatchAttendanceController extends Controller
         $validated = $request->validate([
             'player_id' => ['required', 'exists:players,id'],
             'status' => ['required', 'string', 'in:confirmed,declined'],
+            'team' => ['nullable', 'string', 'in:a,b'],
         ]);
 
         $player = $club->players()->findOrFail($validated['player_id']);
+
+        $team = isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null;
 
         $this->matchService->registerPlayer(
             $match,
             $player,
             AttendanceStatus::from($validated['status']),
+            $team,
         );
 
         return back()->with('success', 'Registration updated.');
@@ -41,9 +46,40 @@ class MatchAttendanceController extends Controller
         Gate::authorize('update', $match);
 
         $validated = $request->validate([
+            'status' => ['nullable', 'string', 'in:confirmed,declined'],
             'team' => ['nullable', 'string', 'in:a,b'],
             'role' => ['nullable', 'string', 'in:pending,starter,substitute'],
         ]);
+
+        if (isset($validated['status'])) {
+            $status = AttendanceStatus::from($validated['status']);
+
+            if ($status === AttendanceStatus::Declined) {
+                $attendance->update([
+                    'status' => $status,
+                    'role' => AttendanceRole::Pending,
+                    'team' => null,
+                    'confirmed_at' => null,
+                ]);
+            } else {
+                $confirmedCount = $match->attendances()
+                    ->where('status', AttendanceStatus::Confirmed)
+                    ->where('id', '!=', $attendance->id)
+                    ->count();
+
+                $role = $confirmedCount < $match->max_players
+                    ? AttendanceRole::Starter
+                    : AttendanceRole::Substitute;
+
+                $attendance->update([
+                    'status' => $status,
+                    'role' => $role,
+                    'confirmed_at' => now(),
+                ]);
+            }
+
+            return back()->with('success', 'Attendance updated.');
+        }
 
         $data = [];
         if (isset($validated['team'])) {
@@ -56,6 +92,15 @@ class MatchAttendanceController extends Controller
         $attendance->update($data);
 
         return back()->with('success', 'Attendance updated.');
+    }
+
+    public function destroy(Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
+    {
+        Gate::authorize('update', $match);
+
+        $attendance->delete();
+
+        return back()->with('success', 'Player removed from match.');
     }
 
     public function autoAssign(Club $club, FootballMatch $match): RedirectResponse

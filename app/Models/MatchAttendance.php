@@ -9,6 +9,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $match_id
+ * @property int $player_id
+ * @property AttendanceStatus $status
+ * @property AttendanceRole $role
+ * @property AttendanceTeam|null $team
+ * @property \Carbon\CarbonImmutable|null $confirmed_at
+ * @property \Carbon\CarbonImmutable|null $created_at
+ * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property-read \App\Models\FootballMatch $match
+ * @property-read \App\Models\Player $player
+ *
+ * @method static \Database\Factories\MatchAttendanceFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereConfirmedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereMatchId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance wherePlayerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereRole($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereTeam($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance whereUpdatedAt($value)
+ *
+ * @mixin \Eloquent
+ */
 class MatchAttendance extends Model
 {
     /** @use HasFactory<\Database\Factories\MatchAttendanceFactory> */

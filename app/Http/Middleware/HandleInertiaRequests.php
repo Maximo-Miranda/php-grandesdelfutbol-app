@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ClubContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -47,7 +48,7 @@ class HandleInertiaRequests extends Middleware
             'userClubs' => fn () => $user
                 ? \App\Models\Club::query()->forUser($user)->get(['id', 'name'])
                 : [],
-            'currentClub' => fn () => $request->route('club'),
+            'currentClub' => fn () => app(ClubContext::class)->get(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

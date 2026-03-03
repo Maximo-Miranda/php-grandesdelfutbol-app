@@ -54,10 +54,17 @@ class ClubController extends Controller
         Gate::authorize('view', $club);
 
         $club->load('owner', 'members.user');
-        $club->loadCount('members');
+        $club->loadCount('members', 'matches');
+
+        $nextMatch = $club->matches()
+            ->upcoming()
+            ->with('field', 'attendances')
+            ->orderBy('scheduled_at')
+            ->first();
 
         return Inertia::render('clubs/Show', [
             'club' => $club,
+            'nextMatch' => $nextMatch,
         ]);
     }
 

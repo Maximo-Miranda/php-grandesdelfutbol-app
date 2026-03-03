@@ -52,12 +52,18 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $match->load('field', 'attendances.player', 'events.player');
+        $user = request()->user();
+        $match->load('field.venue', 'attendances.player', 'events.player');
+
+        $member = $club->members()->where('user_id', $user->id)->first();
+        $myPlayer = $club->players()->where('user_id', $user->id)->first();
 
         return Inertia::render('clubs/matches/Show', [
             'club' => $club,
             'match' => $match,
             'players' => $club->players()->active()->get(),
+            'isAdmin' => $member && in_array($member->role->value, ['owner', 'admin']),
+            'myPlayer' => $myPlayer,
         ]);
     }
 
@@ -78,6 +84,16 @@ class MatchController extends Controller
 
         return redirect()->route('clubs.matches.show', [$club, $match])
             ->with('success', 'Match updated.');
+    }
+
+    public function destroy(Club $club, FootballMatch $match): RedirectResponse
+    {
+        Gate::authorize('delete', $match);
+
+        $match->delete();
+
+        return redirect()->route('clubs.matches.index', $club)
+            ->with('success', 'Partido eliminado.');
     }
 
     public function live(Club $club, FootballMatch $match): Response

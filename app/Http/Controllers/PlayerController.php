@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PlayerPosition;
 use App\Http\Requests\Player\StorePlayerRequest;
 use App\Http\Requests\Player\UpdatePlayerRequest;
 use App\Models\Club;
@@ -29,6 +30,7 @@ class PlayerController extends Controller
 
         return Inertia::render('clubs/players/Create', [
             'club' => $club,
+            'positions' => collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()]),
         ]);
     }
 
@@ -57,6 +59,7 @@ class PlayerController extends Controller
         return Inertia::render('clubs/players/Edit', [
             'club' => $club,
             'player' => $player,
+            'positions' => collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()]),
         ]);
     }
 

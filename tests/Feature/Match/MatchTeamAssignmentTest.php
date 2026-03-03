@@ -43,3 +43,56 @@ test('admins can update individual attendance', function () {
     $attendance->refresh();
     expect($attendance->team->value)->toBe('a');
 });
+
+test('admins can unconfirm a confirmed player', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
+    $attendance = MatchAttendance::factory()->starter()->teamA()->create(['match_id' => $match->id]);
+
+    $this->actingAs($user)
+        ->patch(route('clubs.matches.attendance.update', [$club, $match, $attendance]), [
+            'status' => 'declined',
+        ])
+        ->assertRedirect();
+
+    $attendance->refresh();
+    expect($attendance->status->value)->toBe('declined')
+        ->and($attendance->role->value)->toBe('pending')
+        ->and($attendance->team)->toBeNull()
+        ->and($attendance->confirmed_at)->toBeNull();
+});
+
+test('admins can remove a player from the match', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
+    $attendance = MatchAttendance::factory()->starter()->create(['match_id' => $match->id]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.matches.attendance.destroy', [$club, $match, $attendance]))
+        ->assertRedirect();
+
+    $this->assertDatabaseMissing('match_attendances', ['id' => $attendance->id]);
+});
+
+test('admins can reconfirm a declined player', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create(['club_id' => $club->id, 'max_players' => 10]);
+    $attendance = MatchAttendance::factory()->declined()->create(['match_id' => $match->id]);
+
+    $this->actingAs($user)
+        ->patch(route('clubs.matches.attendance.update', [$club, $match, $attendance]), [
+            'status' => 'confirmed',
+        ])
+        ->assertRedirect();
+
+    $attendance->refresh();
+    expect($attendance->status->value)->toBe('confirmed')
+        ->and($attendance->role->value)->toBe('starter')
+        ->and($attendance->confirmed_at)->not->toBeNull();
+});

@@ -10,8 +10,8 @@ enum AttendanceTeam: string
     public function label(): string
     {
         return match ($this) {
-            self::A => 'Team A',
-            self::B => 'Team B',
+            self::A => 'Equipo A',
+            self::B => 'Equipo B',
         };
     }
 }

@@ -5,10 +5,12 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club } from '@/types';
 
-type Props = { club: Club };
+type PositionOption = { value: string; label: string };
+type Props = { club: Club; positions: PositionOption[] };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -21,7 +23,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({ name: '', position: '', jersey_number: '' });
 
 function submit() {
-    form.post(`/clubs/${props.club.id}/players`);
+    form.transform((data) => ({
+        ...data,
+        position: data.position === 'none' ? null : data.position,
+    })).post(`/clubs/${props.club.id}/players`);
 }
 </script>
 
@@ -38,7 +43,17 @@ function submit() {
                 </div>
                 <div class="grid gap-2">
                     <Label for="position">Position</Label>
-                    <Input id="position" v-model="form.position" placeholder="e.g. ST, CM, GK" />
+                    <Select v-model="form.position">
+                        <SelectTrigger id="position">
+                            <SelectValue placeholder="Seleccionar posicion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Sin posicion</SelectItem>
+                            <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
+                                {{ pos.label }} ({{ pos.value }})
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="form.errors.position" />
                 </div>
                 <div class="grid gap-2">

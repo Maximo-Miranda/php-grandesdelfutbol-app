@@ -15,9 +15,10 @@ export type Field = {
     id: number;
     venue_id: number;
     name: string;
-    field_type: '5v5' | '7v7' | '11v11';
+    field_type: '5v5' | '6v6' | '7v7' | '8v8' | '9v9' | '10v10' | '11v11';
     surface_type: string | null;
     is_active: boolean;
+    venue?: Venue;
     created_at: string;
     updated_at: string;
 };

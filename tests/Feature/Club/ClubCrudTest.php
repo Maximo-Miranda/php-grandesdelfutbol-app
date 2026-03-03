@@ -8,8 +8,18 @@ test('guests are redirected to login when viewing clubs', function () {
     $this->get(route('clubs.index'))->assertRedirect(route('login'));
 });
 
-test('authenticated users can view clubs index', function () {
+test('users without clubs are redirected to club creation from index', function () {
     $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('clubs.index'))
+        ->assertRedirect(route('clubs.create'));
+});
+
+test('users with clubs can view clubs index', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->get(route('clubs.index'))

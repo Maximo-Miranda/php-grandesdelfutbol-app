@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Player;
 
+use App\Enums\PlayerPosition;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePlayerRequest extends FormRequest
 {
@@ -16,7 +18,7 @@ class UpdatePlayerRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'position' => ['nullable', 'string', 'max:50'],
+            'position' => ['nullable', Rule::in(PlayerPosition::cases())],
             'jersey_number' => ['nullable', 'integer', 'min:1', 'max:99'],
             'is_active' => ['boolean'],
         ];

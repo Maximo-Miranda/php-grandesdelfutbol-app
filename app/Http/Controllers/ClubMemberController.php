@@ -6,6 +6,7 @@ use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\ClubMember;
+use App\Models\Player;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +33,15 @@ class ClubMemberController extends Controller
             'status' => ClubMemberStatus::Approved,
             'approved_at' => now(),
         ]);
+
+        // Auto-create player record
+        $user = $member->user;
+        if ($user) {
+            Player::query()->firstOrCreate(
+                ['club_id' => $club->id, 'user_id' => $user->id],
+                ['name' => $user->name, 'is_active' => true],
+            );
+        }
 
         return back()->with('success', 'Member approved.');
     }

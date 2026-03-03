@@ -9,6 +9,48 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property int $owner_id
+ * @property string|null $invite_token
+ * @property bool $is_invite_active
+ * @property bool $requires_approval
+ * @property \Carbon\CarbonImmutable|null $created_at
+ * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attachment> $attachments
+ * @property-read int|null $attachments_count
+ * @property-read string|null $logo_url
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubInvitation> $invitations
+ * @property-read int|null $invitations_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\FootballMatch> $matches
+ * @property-read int|null $matches_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubMember> $members
+ * @property-read int|null $members_count
+ * @property-read \App\Models\User $owner
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Player> $players
+ * @property-read int|null $players_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Venue> $venues
+ * @property-read int|null $venues_count
+ *
+ * @method static \Database\Factories\ClubFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club forUser(\App\Models\User $user)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereInviteToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereIsInviteActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereOwnerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereRequiresApproval($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Club whereUpdatedAt($value)
+ *
+ * @mixin \Eloquent
+ */
 class Club extends Model
 {
     /** @use HasFactory<\Database\Factories\ClubFactory> */

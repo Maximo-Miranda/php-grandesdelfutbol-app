@@ -30,6 +30,10 @@ class FootballMatchFactory extends Factory
             'share_token' => Str::random(16),
             'registration_opens_hours' => 24,
             'notes' => null,
+            'team_a_name' => 'Equipo A',
+            'team_b_name' => 'Equipo B',
+            'team_a_color' => '#1a1a1a',
+            'team_b_color' => '#facc15',
         ];
     }
 

@@ -36,6 +36,19 @@ services:
       retries: 3
       timeout: 5s
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '${FORWARD_MAILPIT_PORT:-8025}:8025'
+      - '${FORWARD_MAILPIT_SMTP_PORT:-1025}:1025'
+    healthcheck:
+      test:
+        - CMD
+        - /mailpit
+        - readyz
+      retries: 3
+      timeout: 5s
+
   minio:
     image: minio/minio:latest
     ports:
@@ -62,4 +75,6 @@ volumes:
   sail-redis:
     driver: local
   sail-minio:
+    driver: local
+  sail-mailpit:
     driver: local

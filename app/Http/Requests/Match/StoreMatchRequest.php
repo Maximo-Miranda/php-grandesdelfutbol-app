@@ -34,6 +34,10 @@ class StoreMatchRequest extends FormRequest
             'max_substitutes' => ['required', 'integer', 'min:0', 'max:50'],
             'registration_opens_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'team_a_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
+            'team_b_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
+            'team_a_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'team_b_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
     }
 
@@ -65,6 +69,17 @@ class StoreMatchRequest extends FormRequest
             'registration_opens_hours.min' => 'Minimo :min hora.',
             'registration_opens_hours.max' => 'Maximo :max horas.',
             'notes.max' => 'Las notas no pueden tener mas de :max caracteres.',
+            'team_a_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
+            'team_b_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
+        ];
+    }
+
+    /** @return string[] */
+    protected function reservedTeamNames(): array
+    {
+        return [
+            'Titular', 'Titulares', 'Suplente', 'Suplentes',
+            'Starter', 'Starters', 'Substitute', 'Substitutes',
         ];
     }
 }
