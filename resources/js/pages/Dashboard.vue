@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, WhenVisible } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import { CalendarDays, ChevronRight, Goal, Handshake, Shield, Trophy, UsersRound } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';

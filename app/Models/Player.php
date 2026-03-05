@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
  * @property-read \App\Models\Club $club
+ * @property-read string $display_name
+ * @property-read string|null $photo_url
  * @property-read string|null $position_label
  * @property-read \App\Models\User|null $user
  *
@@ -71,7 +73,7 @@ class Player extends Model
         'is_active',
     ];
 
-    protected $appends = ['position_label'];
+    protected $appends = ['display_name', 'photo_url', 'position_label'];
 
     protected function casts(): array
     {
@@ -84,6 +86,16 @@ class Player extends Model
             'yellow_cards' => 'integer',
             'red_cards' => 'integer',
         ];
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->user?->playerProfile?->nickname ?? $this->name;
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->user?->playerProfile?->photo_url;
     }
 
     public function getPositionLabelAttribute(): ?string

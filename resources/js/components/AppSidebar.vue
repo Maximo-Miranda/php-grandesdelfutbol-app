@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import {
     CalendarDays,
     Home,
@@ -12,6 +11,7 @@ import {
     UserCircle,
     UsersRound,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import {
     Sidebar,

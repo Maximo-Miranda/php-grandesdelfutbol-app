@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceStatus;
+use App\Enums\MatchEventType;
+use App\Enums\MatchStatus;
 use App\Enums\PlayerPosition;
 use App\Http\Requests\Player\StorePlayerRequest;
 use App\Http\Requests\Player\UpdatePlayerRequest;
 use App\Models\Club;
+use App\Models\FootballMatch;
+use App\Models\MatchAttendance;
+use App\Models\MatchEvent;
 use App\Models\Player;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -20,7 +26,7 @@ class PlayerController extends Controller
 
         return Inertia::render('clubs/players/Index', [
             'club' => $club,
-            'players' => $club->players()->with('user')->get(),
+            'players' => $club->players()->with('user.playerProfile')->get(),
         ]);
     }
 
@@ -46,9 +52,35 @@ class PlayerController extends Controller
     {
         Gate::authorize('view', $player);
 
+        $player->load('user.playerProfile');
+
+        $lastGoal = MatchEvent::where('player_id', $player->id)
+            ->whereIn('event_type', [MatchEventType::Goal, MatchEventType::PenaltyScored])
+            ->with('match:id,title,scheduled_at')
+            ->latest('created_at')
+            ->first();
+
+        $totalMatches = FootballMatch::where('club_id', $club->id)
+            ->where('status', MatchStatus::Completed)
+            ->count();
+
+        $attendedMatches = MatchAttendance::where('player_id', $player->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Completed))
+            ->where('status', AttendanceStatus::Confirmed)
+            ->count();
+
         return Inertia::render('clubs/players/Show', [
             'club' => $club,
-            'player' => $player->load('user'),
+            'player' => $player,
+            'lastGoal' => $lastGoal ? [
+                'match_id' => $lastGoal->match->id,
+                'match_title' => $lastGoal->match->title,
+                'match_date' => $lastGoal->match->scheduled_at->format('d M Y'),
+                'minute' => $lastGoal->minute,
+            ] : null,
+            'attendanceRate' => $totalMatches > 0
+                ? round(($attendedMatches / $totalMatches) * 100)
+                : null,
         ]);
     }
 

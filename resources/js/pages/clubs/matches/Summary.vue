@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 import {
-    ArrowLeft,
-    Ban,
     Calendar,
     CircleDot,
     Clock,
@@ -14,6 +11,7 @@ import {
     Trash2,
     Trophy,
 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,7 +87,7 @@ const playerStats = computed(() => {
         if (!map.has(event.player_id)) {
             const att = props.match.attendances?.find(a => a.player_id === event.player_id);
             map.set(event.player_id, {
-                name: event.player?.name ?? 'Unknown',
+                name: event.player?.display_name ?? 'Unknown',
                 team: att?.team as 'a' | 'b' | null ?? null,
                 goals: 0,
                 assists: 0,
@@ -157,13 +155,6 @@ function teamColor(team: 'a' | 'b' | null): string {
     return '#6b7280';
 }
 
-function teamName(team: 'a' | 'b' | null): string {
-    if (team === 'a') return props.match.team_a_name;
-    if (team === 'b') return props.match.team_b_name;
-    return '';
-}
-
-// --- Admin actions ---
 function finalizeStats() {
     router.post(`${base}/${props.match.id}/finalize-stats`);
 }
@@ -185,10 +176,6 @@ function formatStatsDate(dateStr: string): string {
     <Head title="Resumen del Partido" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
-            <Link :href="base" class="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                <ArrowLeft class="size-4" />Volver
-            </Link>
-
             <!-- ===== SCOREBOARD HERO ===== -->
             <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 p-6 shadow-lg dark:from-zinc-900/80 dark:to-black/60">
                 <!-- Pitch decoration -->
@@ -299,7 +286,7 @@ function formatStatsDate(dateStr: string): string {
                             <CircleDot v-else class="size-3.5 shrink-0 text-muted-foreground" />
 
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ event.player?.name }}</p>
+                                <p class="truncate text-sm font-medium">{{ event.player?.display_name }}</p>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
                         </div>

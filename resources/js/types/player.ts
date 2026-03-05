@@ -6,6 +6,8 @@ export type Player = {
     club_id: number;
     user_id: number | null;
     name: string;
+    display_name: string;
+    photo_url: string | null;
     position: string | null;
     position_label: string | null;
     jersey_number: number | null;

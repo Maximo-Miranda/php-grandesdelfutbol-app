@@ -20,8 +20,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const search = ref('');
 
 const sortedPlayers = computed(() => {
+    const q = search.value.toLowerCase();
     const filtered = props.players.filter(p =>
-        p.name.toLowerCase().includes(search.value.toLowerCase()),
+        p.name.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q),
     );
     return [...filtered].sort((a, b) => {
         const scoreA = (a.goals ?? 0) + (a.assists ?? 0);
@@ -84,10 +85,10 @@ function getGoalsPerMatch(player: Player): string {
                     >
                         <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>
                         <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                            {{ player.name.charAt(0) }}
+                            {{ player.display_name.charAt(0) }}
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate font-medium">{{ player.name }}</p>
+                            <p class="truncate font-medium">{{ player.display_name }}</p>
                             <div class="flex items-center gap-2">
                                 <Badge v-if="player.position" variant="outline" class="text-[10px]">{{ player.position }}</Badge>
                                 <span v-if="player.jersey_number" class="text-xs text-muted-foreground">#{{ player.jersey_number }}</span>

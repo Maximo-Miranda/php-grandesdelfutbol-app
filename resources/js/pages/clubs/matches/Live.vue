@@ -280,13 +280,13 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                                 :class="selectedPlayerId === att.player_id
                                     ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
                                     : 'border-border bg-accent/50 hover:bg-accent'"
-                                @click="selectPlayer(att.player_id, att.player?.name ?? '')"
+                                @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
                                     class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
                                     :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
-                                >{{ att.player?.name?.charAt(0) }}</span>
-                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.name }}</span>
+                                >{{ att.player?.display_name?.charAt(0) }}</span>
+                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
                             </button>
                         </div>
                     </div>
@@ -302,13 +302,13 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                                 :class="selectedPlayerId === att.player_id
                                     ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
                                     : 'border-border bg-accent/50 hover:bg-accent'"
-                                @click="selectPlayer(att.player_id, att.player?.name ?? '')"
+                                @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
                                     class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
                                     :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
-                                >{{ att.player?.name?.charAt(0) }}</span>
-                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.name }}</span>
+                                >{{ att.player?.display_name?.charAt(0) }}</span>
+                                <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
                             </button>
                         </div>
                     </div>
@@ -396,7 +396,7 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                             <Shield v-else class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
 
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ event.player?.name }}</p>
+                                <p class="truncate text-sm font-medium">{{ event.player?.display_name }}</p>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
 

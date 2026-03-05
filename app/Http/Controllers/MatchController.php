@@ -79,7 +79,7 @@ class MatchController extends Controller
         Gate::authorize('view', $match);
 
         $user = request()->user();
-        $match->load('field.venue', 'attendances.player', 'events.player');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
 
         $member = $club->members()->where('user_id', $user->id)->first();
         $isAdmin = $member && in_array($member->role->value, ['owner', 'admin']);
@@ -88,7 +88,7 @@ class MatchController extends Controller
             return Inertia::render('clubs/matches/Live', [
                 'club' => $club,
                 'match' => $match,
-                'players' => $club->players()->active()->get(),
+                'players' => $club->players()->active()->with('user.playerProfile')->get(),
             ]);
         }
 
@@ -105,7 +105,7 @@ class MatchController extends Controller
         return Inertia::render('clubs/matches/Show', [
             'club' => $club,
             'match' => $match,
-            'players' => $club->players()->active()->get(),
+            'players' => $club->players()->active()->with('user.playerProfile')->get(),
             'isAdmin' => $isAdmin,
             'myPlayer' => $myPlayer,
         ]);
@@ -144,12 +144,12 @@ class MatchController extends Controller
     {
         Gate::authorize('update', $match);
 
-        $match->load('field', 'attendances.player', 'events.player');
+        $match->load('field', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
 
         return Inertia::render('clubs/matches/Live', [
             'club' => $club,
             'match' => $match,
-            'players' => $club->players()->active()->get(),
+            'players' => $club->players()->active()->with('user.playerProfile')->get(),
         ]);
     }
 
@@ -158,7 +158,7 @@ class MatchController extends Controller
         Gate::authorize('view', $match);
 
         $user = request()->user();
-        $match->load('field.venue', 'attendances.player', 'events.player');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
 
         $member = $club->members()->where('user_id', $user->id)->first();
         $isAdmin = $member && in_array($member->role->value, ['owner', 'admin']);

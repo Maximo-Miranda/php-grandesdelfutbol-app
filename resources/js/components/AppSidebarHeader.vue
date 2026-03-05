@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
-import { Moon, Sun, User } from 'lucide-vue-next';
+import { router, usePage } from '@inertiajs/vue3';
+import { ArrowLeft, Moon, Sun, User } from 'lucide-vue-next';
 import { computed } from 'vue';
 import ClubSwitcher from '@/components/ClubSwitcher.vue';
 import {
@@ -13,7 +13,7 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import type { BreadcrumbItem } from '@/types';
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         breadcrumbs?: BreadcrumbItem[];
     }>(),
@@ -26,6 +26,22 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 const { appearance, updateAppearance } = useAppearance();
 
+const showBack = computed(() => props.breadcrumbs.length >= 2);
+const backFallback = computed(() => {
+    if (props.breadcrumbs.length >= 2) {
+        return props.breadcrumbs[props.breadcrumbs.length - 2].href;
+    }
+    return undefined;
+});
+
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else if (backFallback.value) {
+        router.visit(backFallback.value);
+    }
+}
+
 function toggleTheme() {
     updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
 }
@@ -35,6 +51,14 @@ function toggleTheme() {
     <header class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <div class="flex items-center gap-2">
             <SidebarTrigger class="-ml-1 lg:hidden" />
+            <button
+                v-if="showBack"
+                type="button"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                @click="goBack"
+            >
+                <ArrowLeft class="size-5" />
+            </button>
             <ClubSwitcher />
         </div>
         <div class="flex items-center gap-1">

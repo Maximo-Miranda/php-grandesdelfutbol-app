@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
     ArrowDownRight,
-    ArrowLeft,
     Ban,
     CalendarPlus,
     Check,
@@ -22,6 +20,7 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,7 +39,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import TextLink from '@/components/TextLink.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
 
@@ -241,7 +239,6 @@ function adminReconfirm(attendanceId: number) {
 
 function startMatch() { router.post(`${base}/start`); }
 function cancelMatch() { router.post(`${base}/cancel`); }
-function completeMatch() { router.post(`${base}/complete`); }
 function finalizeStats() { router.post(`${base}/finalize-stats`); }
 
 const showDeleteDialog = ref(false);
@@ -284,11 +281,6 @@ function pad(n: number): string {
     <Head :title="match.title" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
-            <TextLink :href="`/clubs/${club.id}/matches`" class="mb-4 inline-flex items-center gap-1 text-sm">
-                <ArrowLeft class="size-4" />
-                Volver
-            </TextLink>
-
             <!-- Header Card -->
             <div class="rounded-xl border border-border bg-card p-5 text-center">
                 <div class="mb-3 flex items-center justify-between">
@@ -592,10 +584,10 @@ function pad(n: number): string {
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
                                 <div class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold" :style="match.team_a_color ? { backgroundColor: match.team_a_color + '30' } : { backgroundColor: 'var(--color-muted)' }">
-                                    {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -637,10 +629,10 @@ function pad(n: number): string {
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
                                 <div class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold" :style="match.team_b_color ? { backgroundColor: match.team_b_color + '30' } : { backgroundColor: 'var(--color-muted)' }">
-                                    {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -679,10 +671,10 @@ function pad(n: number): string {
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
                                 <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                    {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -718,10 +710,10 @@ function pad(n: number): string {
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
                                 <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                    {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -765,10 +757,10 @@ function pad(n: number): string {
                         >
                             <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
                             <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                                 <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                             </div>
                             <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -808,10 +800,10 @@ function pad(n: number): string {
                             class="flex items-center gap-3 bg-card px-4 py-2.5"
                         >
                             <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                {{ att.player?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ att.player?.name }}</p>
+                                <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
                             </div>
                             <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
                                 <DropdownMenuTrigger as-child>
@@ -849,10 +841,10 @@ function pad(n: number): string {
                     >
                         <div class="flex items-center gap-2">
                             <div class="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                {{ player.name.charAt(0).toUpperCase() }}
+                                {{ player.display_name.charAt(0).toUpperCase() }}
                             </div>
                             <div>
-                                <span class="text-sm">{{ player.name }}</span>
+                                <span class="text-sm">{{ player.display_name }}</span>
                                 <p v-if="player.position_label" class="text-xs text-muted-foreground">{{ player.position_label }}</p>
                             </div>
                         </div>
@@ -892,7 +884,7 @@ function pad(n: number): string {
                     >
                         <span class="w-8 text-right text-xs font-bold text-muted-foreground">{{ event.minute }}'</span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium">{{ event.player?.name }}</p>
+                            <p class="truncate text-sm font-medium">{{ event.player?.display_name }}</p>
                         </div>
                         <Badge variant="outline" class="shrink-0 text-xs">{{ event.event_type.replace(/_/g, ' ') }}</Badge>
                     </div>

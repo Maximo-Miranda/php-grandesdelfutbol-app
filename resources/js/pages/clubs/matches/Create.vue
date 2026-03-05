@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Bell, Clock, Info, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Bell, Clock, Info, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
-import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,11 +51,6 @@ function submit() {
     <Head title="Crear partido" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
-            <TextLink :href="`/clubs/${club.id}/matches`" class="mb-4 inline-flex items-center gap-1 text-sm">
-                <ArrowLeft class="size-4" />
-                Volver
-            </TextLink>
-
             <h1 class="text-2xl font-bold">Crear Partido</h1>
             <p class="mb-6 text-sm text-muted-foreground">Programa un partido y comparte el link para confirmar asistencia.</p>
 
