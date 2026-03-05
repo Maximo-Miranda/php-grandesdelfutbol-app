@@ -232,6 +232,75 @@ test('past matches are created with correct timestamps', function () {
         ->and($match->ended_at->toDateTimeString())->toBe($pastDate->copy()->addMinutes(120)->toDateTimeString());
 });
 
+test('admins can add youtube url to matches', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.matches.update', [$club, $match]), [
+            'title' => $match->title,
+            'scheduled_at' => $match->scheduled_at->toISOString(),
+            'duration_minutes' => 60,
+            'arrival_minutes' => 15,
+            'max_players' => 10,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+            'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        ])
+        ->assertRedirect();
+
+    $match->refresh();
+    expect($match->youtube_url)->toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+});
+
+test('youtube url must be a valid url', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.matches.update', [$club, $match]), [
+            'title' => $match->title,
+            'scheduled_at' => $match->scheduled_at->toISOString(),
+            'duration_minutes' => 60,
+            'arrival_minutes' => 15,
+            'max_players' => 10,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+            'youtube_url' => 'not-a-url',
+        ])
+        ->assertSessionHasErrors('youtube_url');
+});
+
+test('youtube url can be cleared', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.matches.update', [$club, $match]), [
+            'title' => $match->title,
+            'scheduled_at' => $match->scheduled_at->toISOString(),
+            'duration_minutes' => 60,
+            'arrival_minutes' => 15,
+            'max_players' => 10,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+            'youtube_url' => null,
+        ])
+        ->assertRedirect();
+
+    $match->refresh();
+    expect($match->youtube_url)->toBeNull();
+});
+
 test('regular members cannot delete matches', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

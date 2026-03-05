@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { Head, Link, router, usePoll } from '@inertiajs/vue3';
-import { ArrowLeft, Check, ChevronDown, ChevronUp, CircleDot, Minus, Plus, RectangleVertical, RefreshCw, Shield, Shuffle, Trash2 } from 'lucide-vue-next';
+import {
+    AlertTriangle,
+    ArrowLeftRight,
+    Check,
+    CircleDot,
+    Minus,
+    Plus,
+    RectangleVertical,
+    RefreshCw,
+    Shield,
+    Shuffle,
+    Trash2,
+    X,
+} from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,51 +33,80 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Live', href: `${base}/${props.match.id}/live` },
 ];
 
-const eventTypes = [
-    { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', activeBg: 'bg-emerald-500/30 border-emerald-400' },
-    { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20', activeBg: 'bg-sky-500/30 border-sky-400' },
-    { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20', activeBg: 'bg-yellow-500/30 border-yellow-400' },
-    { value: 'red_card', label: 'Roja', icon: RectangleVertical, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20', activeBg: 'bg-red-500/30 border-red-400' },
-    { value: 'own_goal', label: 'Autogol', icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20', activeBg: 'bg-orange-500/30 border-orange-400' },
-    { value: 'penalty_scored', label: 'Penal', icon: CircleDot, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', activeBg: 'bg-emerald-500/30 border-emerald-400' },
-    { value: 'penalty_missed', label: 'Penal\nfallado', icon: CircleDot, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20', activeBg: 'bg-zinc-500/30 border-zinc-400' },
-    { value: 'save', label: 'Atajada', icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', activeBg: 'bg-violet-500/30 border-violet-400' },
+const primaryEventTypes = [
+    { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20' },
+    { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
+    { value: 'red_card', label: 'Roja', icon: RectangleVertical, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20' },
+];
+
+const secondaryEventTypes = [
+    { value: 'own_goal', label: 'Autogol', icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+    { value: 'penalty_scored', label: 'Penal', icon: CircleDot, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'penalty_missed', label: 'Penal\nfallado', icon: CircleDot, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
+    { value: 'foul', label: 'Falta', icon: X, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' },
+    { value: 'substitution', label: 'Cambio', icon: ArrowLeftRight, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
+    { value: 'injury', label: 'Lesión', icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20' },
+    { value: 'save', label: 'Atajada', icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20' },
+    { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
 ];
 
 const selectedPlayerId = ref<number | null>(null);
 const selectedPlayerName = ref('');
+const autoMinute = ref(0);
 const minute = ref(0);
-const showAllEvents = ref(false);
+const manualMode = ref(false);
 const submitting = ref(false);
-const lastRecorded = ref<{ player: string; event: string } | null>(null);
+const lastRecorded = ref<{ player: string; event: string; minute: number } | null>(null);
+const confirmingDeleteId = ref<number | null>(null);
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
+let deleteTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Running clock
+const clockDisplay = ref('00:00');
+const clockTimer = ref<ReturnType<typeof setInterval> | null>(null);
+
+function updateClock() {
+    if (props.match.started_at) {
+        const started = new Date(props.match.started_at).getTime();
+        const elapsed = Math.max(0, Date.now() - started);
+        const totalSeconds = Math.floor(elapsed / 1000);
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        clockDisplay.value = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        autoMinute.value = mins;
+        if (!manualMode.value) {
+            minute.value = mins;
+        }
+    }
+}
+
+function toggleManualMode() {
+    if (manualMode.value) {
+        manualMode.value = false;
+        minute.value = autoMinute.value;
+    } else {
+        manualMode.value = true;
+    }
+}
+
+function adjustMinute(delta: number) {
+    minute.value = Math.max(0, Math.min(200, minute.value + delta));
+}
 
 usePoll(10000);
 
-// Auto-calculate minute from started_at
-const autoMinuteTimer = ref<ReturnType<typeof setInterval> | null>(null);
-
-function calcMinuteFromStart(): number {
-    if (props.match.started_at) {
-        const started = new Date(props.match.started_at).getTime();
-        const now = Date.now();
-        return Math.max(0, Math.floor((now - started) / 60000));
-    }
-    return 0;
-}
-
 onMounted(() => {
     if (props.match.status === 'in_progress' && props.match.started_at) {
-        minute.value = calcMinuteFromStart();
-        autoMinuteTimer.value = setInterval(() => {
-            minute.value = calcMinuteFromStart();
-        }, 30000);
+        updateClock();
+        clockTimer.value = setInterval(updateClock, 1000);
     }
 });
 
 onUnmounted(() => {
-    if (autoMinuteTimer.value) clearInterval(autoMinuteTimer.value);
+    if (clockTimer.value) clearInterval(clockTimer.value);
     if (confirmTimeout) clearTimeout(confirmTimeout);
+    if (deleteTimeout) clearTimeout(deleteTimeout);
 });
 
 const teamAPlayers = computed(() =>
@@ -75,17 +117,18 @@ const teamBPlayers = computed(() =>
     props.match.attendances?.filter(a => a.team === 'b') ?? [],
 );
 
-const teamAGoals = computed(() =>
-    (props.match.events ?? []).filter(
-        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'a',
-    ).length,
-);
+function countTeamGoals(team: 'a' | 'b'): number {
+    const opposite = team === 'a' ? 'b' : 'a';
+    return (props.match.events ?? []).filter((e: MatchEvent) => {
+        const playerTeam = props.match.attendances?.find(a => a.player_id === e.player_id)?.team;
+        if (e.event_type === 'goal' || e.event_type === 'penalty_scored') return playerTeam === team;
+        if (e.event_type === 'own_goal') return playerTeam === opposite;
+        return false;
+    }).length;
+}
 
-const teamBGoals = computed(() =>
-    (props.match.events ?? []).filter(
-        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'b',
-    ).length,
-);
+const teamAGoals = computed(() => countTeamGoals('a'));
+const teamBGoals = computed(() => countTeamGoals('b'));
 
 const sortedEvents = computed(() =>
     [...(props.match.events ?? [])].sort((a, b) => b.minute - a.minute),
@@ -108,6 +151,9 @@ const eventLabel: Record<string, string> = {
     own_goal: 'Autogol',
     save: 'Atajada',
     free_kick: 'Tiro libre',
+    substitution: 'Cambio',
+    injury: 'Lesión',
+    foul: 'Falta',
 };
 
 const eventIcon: Record<string, { color: string }> = {
@@ -120,6 +166,9 @@ const eventIcon: Record<string, { color: string }> = {
     own_goal: { color: 'text-orange-400' },
     save: { color: 'text-violet-400' },
     free_kick: { color: 'text-cyan-400' },
+    substitution: { color: 'text-blue-400' },
+    injury: { color: 'text-rose-400' },
+    foul: { color: 'text-amber-400' },
 };
 
 function selectPlayer(playerId: number, playerName: string) {
@@ -138,17 +187,20 @@ function recordEvent(eventType: string) {
 
     const playerName = selectedPlayerName.value;
     const eventName = eventLabel[eventType] ?? eventType;
+    const recordedMinute = minute.value;
 
     router.post(`${base}/${props.match.id}/events`, {
         player_id: selectedPlayerId.value,
         event_type: eventType,
-        minute: minute.value,
+        minute: recordedMinute,
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            lastRecorded.value = { player: playerName, event: eventName };
+            lastRecorded.value = { player: playerName, event: eventName, minute: recordedMinute };
             selectedPlayerId.value = null;
             selectedPlayerName.value = '';
+            manualMode.value = false;
+            minute.value = autoMinute.value;
             submitting.value = false;
             if (confirmTimeout) clearTimeout(confirmTimeout);
             confirmTimeout = setTimeout(() => { lastRecorded.value = null; }, 2500);
@@ -157,8 +209,16 @@ function recordEvent(eventType: string) {
     });
 }
 
-function removeEvent(eventId: number) {
-    router.delete(`${base}/${props.match.id}/events/${eventId}`, { preserveScroll: true });
+function confirmRemoveEvent(eventId: number) {
+    if (confirmingDeleteId.value === eventId) {
+        if (deleteTimeout) clearTimeout(deleteTimeout);
+        confirmingDeleteId.value = null;
+        router.delete(`${base}/${props.match.id}/events/${eventId}`, { preserveScroll: true });
+    } else {
+        confirmingDeleteId.value = eventId;
+        if (deleteTimeout) clearTimeout(deleteTimeout);
+        deleteTimeout = setTimeout(() => { confirmingDeleteId.value = null; }, 3000);
+    }
 }
 
 function autoAssignTeams() {
@@ -169,12 +229,12 @@ function completeMatch() {
     router.post(`${base}/${props.match.id}/complete`);
 }
 
-const visibleEventTypes = computed(() => showAllEvents.value ? eventTypes : eventTypes.slice(0, 4));
-
 function getPlayerTeam(playerId: number): 'a' | 'b' | null {
     const att = props.match.attendances?.find(a => a.player_id === playerId);
     return att?.team ?? null;
 }
+
+const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
 </script>
 
 <template>
@@ -182,23 +242,18 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
             <!-- Header -->
-            <div class="mb-3 flex items-center justify-between">
-                <Link :href="base" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                    <ArrowLeft class="size-4" />Partidos
-                </Link>
+            <div class="mb-3 flex items-center justify-end">
                 <RefreshCw class="size-4 text-muted-foreground animate-spin" style="animation-duration: 10s" />
             </div>
 
             <!-- Scoreboard -->
             <div class="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 p-5 shadow-lg dark:from-zinc-900/80 dark:to-black/60">
-                <!-- Subtle pitch lines decoration -->
                 <div class="pointer-events-none absolute inset-0 opacity-[0.03]">
                     <div class="absolute top-1/2 left-1/2 size-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"></div>
                     <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
                 </div>
 
                 <div class="relative text-center">
-                    <!-- Status badge -->
                     <span
                         class="inline-block rounded-full border px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase"
                         :class="statusConfig[match.status]?.class ?? 'bg-zinc-500/20 text-zinc-300'"
@@ -206,7 +261,6 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                         {{ statusConfig[match.status]?.label ?? match.status }}
                     </span>
 
-                    <!-- Match title -->
                     <p class="mt-2 text-sm font-medium text-zinc-400">{{ match.title }}</p>
 
                     <!-- Score -->
@@ -226,11 +280,11 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                         </div>
                     </div>
 
-                    <!-- Minute display (when in progress) -->
+                    <!-- Running clock -->
                     <div v-if="match.status === 'in_progress'" class="mt-3">
-                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-bold tabular-nums text-emerald-400">
-                            <span class="size-1.5 animate-pulse rounded-full bg-emerald-400"></span>
-                            {{ minute }}'
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-4 py-1.5 text-base font-bold tabular-nums tracking-wider text-emerald-400 font-mono">
+                            <span class="size-2 animate-pulse rounded-full bg-emerald-400"></span>
+                            {{ clockDisplay }}
                         </span>
                     </div>
                 </div>
@@ -246,7 +300,7 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                 </Button>
             </div>
 
-            <!-- ===== EVENT REGISTRATION (the fast UX) ===== -->
+            <!-- ===== EVENT REGISTRATION ===== -->
             <div class="mb-5">
                 <!-- Success confirmation toast -->
                 <Transition
@@ -259,15 +313,23 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                 >
                     <div v-if="lastRecorded" class="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-sm text-emerald-400">
                         <Check class="size-4 shrink-0" />
-                        <span class="truncate"><strong>{{ lastRecorded.player }}</strong> &mdash; {{ lastRecorded.event }} ({{ minute }}')</span>
+                        <span class="truncate"><strong>{{ lastRecorded.player }}</strong> &mdash; {{ lastRecorded.event }} ({{ lastRecorded.minute }}')</span>
                     </div>
                 </Transition>
+
+                <!-- Selected player indicator -->
+                <div v-if="selectedPlayerId" class="mb-3 flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-3 py-2">
+                    <span class="text-sm font-semibold text-primary">{{ selectedPlayerName }}</span>
+                    <button class="text-primary/60 hover:text-primary" @click="selectedPlayerId = null; selectedPlayerName = ''">
+                        <X class="size-4" />
+                    </button>
+                </div>
 
                 <h3 class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
                     1. Selecciona jugador
                 </h3>
 
-                <!-- Teams side by side with tappable players -->
+                <!-- Teams side by side -->
                 <div class="grid grid-cols-2 gap-2">
                     <!-- Team A -->
                     <div>
@@ -276,14 +338,14 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                             <button
                                 v-for="att in teamAPlayers"
                                 :key="att.id"
-                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all active:scale-[0.97]"
+                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2.5 text-left transition-all active:scale-[0.97]"
                                 :class="selectedPlayerId === att.player_id
                                     ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
                                     : 'border-border bg-accent/50 hover:bg-accent'"
                                 @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
-                                    class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
                                     :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
                                 >{{ att.player?.display_name?.charAt(0) }}</span>
                                 <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
@@ -298,14 +360,14 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                             <button
                                 v-for="att in teamBPlayers"
                                 :key="att.id"
-                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all active:scale-[0.97]"
+                                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2.5 text-left transition-all active:scale-[0.97]"
                                 :class="selectedPlayerId === att.player_id
                                     ? 'border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm shadow-primary/20'
                                     : 'border-border bg-accent/50 hover:bg-accent'"
                                 @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
-                                    class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
                                     :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
                                 >{{ att.player?.display_name?.charAt(0) }}</span>
                                 <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
@@ -318,23 +380,37 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                 <div class="mt-4">
                     <div class="mb-2 flex items-center justify-between">
                         <h3 class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-                            2. Minuto y evento
+                            2. Toca evento
                         </h3>
 
-                        <!-- Minute stepper -->
+                        <!-- Minute display: tap to toggle manual -->
                         <div class="flex items-center gap-1">
                             <button
-                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
-                                @click="minute = Math.max(0, minute - 1)"
+                                v-if="manualMode"
+                                class="flex size-9 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="adjustMinute(-1)"
                             >
-                                <Minus class="size-3.5" />
+                                <Minus class="size-4" />
                             </button>
-                            <span class="w-10 text-center text-sm font-bold tabular-nums">{{ minute }}'</span>
+
                             <button
-                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
-                                @click="minute = Math.min(200, minute + 1)"
+                                class="rounded-lg px-3 py-1 text-sm font-bold tabular-nums transition-all active:scale-95"
+                                :class="manualMode
+                                    ? 'border-2 border-amber-400/50 bg-amber-500/15 text-amber-400'
+                                    : 'border border-border bg-accent/50 text-muted-foreground'"
+                                @click="toggleManualMode"
                             >
-                                <Plus class="size-3.5" />
+                                {{ minute }}'
+                                <span v-if="!manualMode" class="ml-1 text-[9px] font-normal opacity-60">editar</span>
+                                <span v-else class="ml-1 text-[9px] font-normal opacity-60">auto</span>
+                            </button>
+
+                            <button
+                                v-if="manualMode"
+                                class="flex size-9 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="adjustMinute(1)"
+                            >
+                                <Plus class="size-4" />
                             </button>
                         </div>
                     </div>
@@ -342,25 +418,17 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                     <!-- Event type buttons -->
                     <div class="grid grid-cols-4 gap-1.5">
                         <button
-                            v-for="et in visibleEventTypes"
+                            v-for="et in allEventTypes"
                             :key="et.value"
                             :disabled="!selectedPlayerId || submitting"
-                            class="flex flex-col items-center justify-center gap-1 rounded-xl border p-2.5 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none sm:p-3"
+                            class="flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none sm:p-3.5"
                             :class="et.bg"
                             @click="recordEvent(et.value)"
                         >
-                            <component :is="et.icon" class="size-5 sm:size-6" :class="et.color" />
+                            <component :is="et.icon" class="size-6 sm:size-7" :class="et.color" />
                             <span class="whitespace-pre-line text-center text-[10px] font-semibold leading-tight sm:text-xs" :class="et.color">{{ et.label }}</span>
                         </button>
                     </div>
-
-                    <button
-                        class="mt-1.5 flex w-full items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground"
-                        @click="showAllEvents = !showAllEvents"
-                    >
-                        {{ showAllEvents ? 'Menos' : 'Mas eventos' }}
-                        <component :is="showAllEvents ? ChevronUp : ChevronDown" class="size-3.5" />
-                    </button>
 
                     <!-- Hint when no player selected -->
                     <p v-if="!selectedPlayerId" class="mt-1 text-center text-[10px] text-muted-foreground">
@@ -376,7 +444,6 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                 </h3>
 
                 <div v-if="sortedEvents.length" class="relative space-y-0">
-                    <!-- Timeline line -->
                     <div class="absolute top-0 bottom-0 left-[18px] w-px bg-border"></div>
 
                     <div
@@ -391,8 +458,11 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
 
                         <!-- Event card -->
                         <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2">
-                            <CircleDot v-if="event.event_type === 'goal' || event.event_type === 'assist' || event.event_type === 'penalty_scored' || event.event_type === 'penalty_missed'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
+                            <CircleDot v-if="['goal', 'assist', 'penalty_scored', 'penalty_missed', 'free_kick'].includes(event.event_type)" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
                             <RectangleVertical v-else-if="event.event_type === 'yellow_card' || event.event_type === 'red_card'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
+                            <ArrowLeftRight v-else-if="event.event_type === 'substitution'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color" />
+                            <AlertTriangle v-else-if="event.event_type === 'injury'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color" />
+                            <X v-else-if="event.event_type === 'foul'" class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color" />
                             <Shield v-else class="size-3.5 shrink-0" :class="eventIcon[event.event_type]?.color ?? 'text-muted-foreground'" />
 
                             <div class="min-w-0 flex-1">
@@ -404,7 +474,6 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
 
-                            <!-- Team indicator -->
                             <Badge
                                 v-if="getPlayerTeam(event.player_id)"
                                 variant="outline"
@@ -414,10 +483,14 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
                             </Badge>
 
                             <button
-                                class="shrink-0 text-destructive/50 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                                @click="removeEvent(event.id)"
+                                class="shrink-0 rounded-md p-1 transition-colors"
+                                :class="confirmingDeleteId === event.id
+                                    ? 'bg-destructive/20 text-destructive'
+                                    : 'text-destructive/60 hover:bg-destructive/10 hover:text-destructive'"
+                                @click="confirmRemoveEvent(event.id)"
                             >
-                                <Trash2 class="size-3.5" />
+                                <Trash2 v-if="confirmingDeleteId !== event.id" class="size-4" />
+                                <Check v-else class="size-4" />
                             </button>
                         </div>
                     </div>

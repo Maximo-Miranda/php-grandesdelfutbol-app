@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Bell, Clock, MapPin, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Bell, Clock, MapPin, Pencil, Save, Trophy, Video, WandSparkles } from 'lucide-vue-next';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -262,6 +262,24 @@ function submit() {
                         rows="3"
                     />
                     <InputError :message="form.errors.notes" />
+                </div>
+
+                <!-- Video YouTube -->
+                <div class="grid gap-1.5">
+                    <Label for="youtube_url">Video de YouTube</Label>
+                    <p class="text-xs text-muted-foreground">Pega el enlace del video del partido grabado.</p>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <Video class="size-4 text-muted-foreground" />
+                        </div>
+                        <Input
+                            id="youtube_url"
+                            v-model="form.youtube_url"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            class="pl-9"
+                        />
+                    </div>
+                    <InputError :message="form.errors.youtube_url" />
                 </div>
 
                 <!-- Actions -->

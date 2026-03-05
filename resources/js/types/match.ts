@@ -15,6 +15,7 @@ export type FootballMatch = {
     share_token: string | null;
     registration_opens_hours: number;
     notes: string | null;
+    youtube_url: string | null;
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;
@@ -47,7 +48,7 @@ export type MatchEvent = {
     id: number;
     match_id: number;
     player_id: number;
-    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal';
+    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul';
     minute: number;
     notes: string | null;
     player?: Player;

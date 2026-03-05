@@ -18,7 +18,7 @@ class MatchLifecycleController extends Controller
         Gate::authorize('update', $match);
 
         if ($match->status !== MatchStatus::Upcoming) {
-            return back()->with('error', 'Match can only be started from upcoming status.');
+            return back()->with('error', 'El partido solo puede iniciarse desde estado programado.');
         }
 
         $match->update([
@@ -26,7 +26,7 @@ class MatchLifecycleController extends Controller
             'started_at' => now(),
         ]);
 
-        return back()->with('success', 'Match started.');
+        return back()->with('success', 'Partido iniciado.');
     }
 
     public function complete(Club $club, FootballMatch $match): RedirectResponse
@@ -34,7 +34,7 @@ class MatchLifecycleController extends Controller
         Gate::authorize('update', $match);
 
         if ($match->status !== MatchStatus::InProgress) {
-            return back()->with('error', 'Match can only be completed from in-progress status.');
+            return back()->with('error', 'El partido solo puede completarse desde estado en progreso.');
         }
 
         $match->update([
@@ -42,7 +42,7 @@ class MatchLifecycleController extends Controller
             'ended_at' => now(),
         ]);
 
-        return back()->with('success', 'Match completed.');
+        return back()->with('success', 'Partido completado.');
     }
 
     public function cancel(Club $club, FootballMatch $match): RedirectResponse
@@ -50,14 +50,14 @@ class MatchLifecycleController extends Controller
         Gate::authorize('update', $match);
 
         if ($match->status === MatchStatus::Completed) {
-            return back()->with('error', 'Completed matches cannot be cancelled.');
+            return back()->with('error', 'Los partidos completados no pueden ser cancelados.');
         }
 
         $match->update([
             'status' => MatchStatus::Cancelled,
         ]);
 
-        return back()->with('success', 'Match cancelled.');
+        return back()->with('success', 'Partido cancelado.');
     }
 
     public function finalizeStats(Club $club, FootballMatch $match): RedirectResponse
@@ -65,15 +65,11 @@ class MatchLifecycleController extends Controller
         Gate::authorize('update', $match);
 
         if ($match->status !== MatchStatus::Completed) {
-            return back()->with('error', 'Stats can only be finalized for completed matches.');
-        }
-
-        if ($match->stats_finalized_at) {
-            return back()->with('error', 'Stats have already been finalized.');
+            return back()->with('error', 'Las estadísticas solo pueden registrarse para partidos completados.');
         }
 
         $this->statService->finalizeStats($match);
 
-        return back()->with('success', 'Stats finalized.');
+        return back()->with('success', 'Estadísticas registradas.');
     }
 }

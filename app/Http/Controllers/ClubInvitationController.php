@@ -32,7 +32,7 @@ class ClubInvitationController extends Controller
             $request->user(),
         );
 
-        return back()->with('success', 'Invitation sent successfully.');
+        return back()->with('success', 'Invitación enviada.');
     }
 
     /**

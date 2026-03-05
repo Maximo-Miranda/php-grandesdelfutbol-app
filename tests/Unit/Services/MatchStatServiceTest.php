@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\ClubMember;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
@@ -63,6 +62,63 @@ test('finalize stats sets stats_finalized_at timestamp', function () {
 
     $match->refresh();
     expect($match->stats_finalized_at)->not->toBeNull();
+});
+
+test('revert stats decrements player stats using applied snapshot', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0, 'assists' => 0, 'yellow_cards' => 0, 'matches_played' => 0]);
+
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->assist()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(2)
+        ->and($player->assists)->toBe(1)
+        ->and($player->matches_played)->toBe(1);
+
+    $service->revertStats($match);
+
+    $player->refresh();
+    $match->refresh();
+    expect($player->goals)->toBe(0)
+        ->and($player->assists)->toBe(0)
+        ->and($player->matches_played)->toBe(0)
+        ->and($match->stats_finalized_at)->toBeNull()
+        ->and($match->applied_stats)->toBeNull();
+});
+
+test('re-finalize reverts then reapplies stats correctly', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0]);
+
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(1);
+
+    // Add another goal and re-finalize
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(2);
 });
 
 test('finalize stats counts penalty scored as goal', function () {

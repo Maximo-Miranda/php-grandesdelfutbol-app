@@ -13,19 +13,25 @@ enum MatchEventType: string
     case FreeKick = 'free_kick';
     case Save = 'save';
     case OwnGoal = 'own_goal';
+    case Substitution = 'substitution';
+    case Injury = 'injury';
+    case Foul = 'foul';
 
     public function label(): string
     {
         return match ($this) {
-            self::Goal => 'Goal',
-            self::Assist => 'Assist',
-            self::YellowCard => 'Yellow Card',
-            self::RedCard => 'Red Card',
-            self::PenaltyScored => 'Penalty Scored',
-            self::PenaltyMissed => 'Penalty Missed',
-            self::FreeKick => 'Free Kick',
-            self::Save => 'Save',
-            self::OwnGoal => 'Own Goal',
+            self::Goal => 'Gol',
+            self::Assist => 'Asistencia',
+            self::YellowCard => 'Tarjeta amarilla',
+            self::RedCard => 'Tarjeta roja',
+            self::PenaltyScored => 'Penal anotado',
+            self::PenaltyMissed => 'Penal fallado',
+            self::FreeKick => 'Tiro libre',
+            self::Save => 'Atajada',
+            self::OwnGoal => 'Autogol',
+            self::Substitution => 'Cambio',
+            self::Injury => 'Lesión',
+            self::Foul => 'Falta',
         };
     }
 }

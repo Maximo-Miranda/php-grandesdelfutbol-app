@@ -1,19 +1,31 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
+    AlertTriangle,
+    ArrowLeftRight,
     Calendar,
+    ChevronDown,
+    ChevronUp,
     CircleDot,
     Clock,
     MapPin,
+    Minus,
+    Pencil,
+    Play,
+    Plus,
+    Check,
+    Video,
     RectangleVertical,
     Shield,
     Star,
     Trash2,
     Trophy,
+    X,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogClose,
@@ -25,9 +37,9 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem, Club, FootballMatch, MatchEvent } from '@/types';
+import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/types';
 
-type Props = { club: Club; match: FootballMatch; isAdmin?: boolean };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[] };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.id}/matches`;
@@ -40,17 +52,18 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // --- Goals ---
-const teamAGoals = computed(() =>
-    (props.match.events ?? []).filter(
-        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'a',
-    ).length,
-);
+function countTeamGoals(team: 'a' | 'b'): number {
+    const opposite = team === 'a' ? 'b' : 'a';
+    return (props.match.events ?? []).filter((e: MatchEvent) => {
+        const playerTeam = props.match.attendances?.find(a => a.player_id === e.player_id)?.team;
+        if (e.event_type === 'goal' || e.event_type === 'penalty_scored') return playerTeam === team;
+        if (e.event_type === 'own_goal') return playerTeam === opposite;
+        return false;
+    }).length;
+}
 
-const teamBGoals = computed(() =>
-    (props.match.events ?? []).filter(
-        (e: MatchEvent) => e.event_type === 'goal' && props.match.attendances?.find(a => a.player_id === e.player_id)?.team === 'b',
-    ).length,
-);
+const teamAGoals = computed(() => countTeamGoals('a'));
+const teamBGoals = computed(() => countTeamGoals('b'));
 
 // --- Events ---
 const sortedEvents = computed(() => [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute));
@@ -64,6 +77,10 @@ const eventLabel: Record<string, string> = {
     penalty_missed: 'Penal fallado',
     own_goal: 'Autogol',
     save: 'Atajada',
+    free_kick: 'Tiro libre',
+    substitution: 'Cambio',
+    injury: 'Lesión',
+    foul: 'Falta',
 };
 
 function getPlayerTeam(playerId: number): 'a' | 'b' | null {
@@ -166,9 +183,96 @@ function deleteMatch() {
     });
 }
 
+function extractYoutubeId(url: string): string | null {
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    return match?.[1] ?? null;
+}
+
+const youtubeId = computed(() => props.match.youtube_url ? extractYoutubeId(props.match.youtube_url) : null);
+
+// --- YouTube URL inline edit (admin) ---
+const youtubeInput = ref(props.match.youtube_url ?? '');
+const savingYoutube = ref(false);
+
+function saveYoutubeUrl() {
+    savingYoutube.value = true;
+    router.put(`${base}/${props.match.id}`, {
+        title: props.match.title,
+        scheduled_at: props.match.scheduled_at,
+        duration_minutes: props.match.duration_minutes,
+        arrival_minutes: props.match.arrival_minutes,
+        max_players: props.match.max_players,
+        max_substitutes: props.match.max_substitutes,
+        registration_opens_hours: props.match.registration_opens_hours,
+        youtube_url: youtubeInput.value || null,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { savingYoutube.value = false; },
+    });
+}
+
 function formatStatsDate(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// --- Edit events (admin) ---
+const showEditEvents = ref(false);
+const editSelectedPlayerId = ref<number | null>(null);
+const editSelectedPlayerName = ref('');
+const editMinute = ref(0);
+const editSubmitting = ref(false);
+
+const editEventTypes = [
+    { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20' },
+    { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
+    { value: 'red_card', label: 'Roja', icon: RectangleVertical, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20' },
+    { value: 'own_goal', label: 'Autogol', icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+    { value: 'penalty_scored', label: 'Penal', icon: CircleDot, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'penalty_missed', label: 'Penal fallado', icon: CircleDot, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
+    { value: 'save', label: 'Atajada', icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20' },
+    { value: 'foul', label: 'Falta', icon: X, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' },
+    { value: 'substitution', label: 'Cambio', icon: ArrowLeftRight, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
+    { value: 'injury', label: 'Lesión', icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20' },
+    { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
+];
+
+const confirmedPlayers = computed(() =>
+    props.match.attendances?.filter(a => a.status === 'confirmed') ?? [],
+);
+
+function selectEditPlayer(playerId: number, playerName: string) {
+    if (editSelectedPlayerId.value === playerId) {
+        editSelectedPlayerId.value = null;
+        editSelectedPlayerName.value = '';
+    } else {
+        editSelectedPlayerId.value = playerId;
+        editSelectedPlayerName.value = playerName;
+    }
+}
+
+function addEvent(eventType: string) {
+    if (!editSelectedPlayerId.value || editSubmitting.value) return;
+    editSubmitting.value = true;
+
+    router.post(`${base}/${props.match.id}/events`, {
+        player_id: editSelectedPlayerId.value,
+        event_type: eventType,
+        minute: editMinute.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            editSelectedPlayerId.value = null;
+            editSelectedPlayerName.value = '';
+            editSubmitting.value = false;
+        },
+        onError: () => { editSubmitting.value = false; },
+    });
+}
+
+function removeEvent(eventId: number) {
+    router.delete(`${base}/${props.match.id}/events/${eventId}`, { preserveScroll: true });
 }
 </script>
 
@@ -222,6 +326,53 @@ function formatStatsDate(dateStr: string): string {
                         <span class="text-amber-500/60">&mdash; {{ topScorer.goals }} {{ topScorer.goals === 1 ? 'gol' : 'goles' }}</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- ===== YOUTUBE VIDEO ===== -->
+            <a
+                v-if="youtubeId"
+                :href="match.youtube_url!"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group relative mt-4 block overflow-hidden rounded-xl"
+            >
+                <img
+                    :src="`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`"
+                    :alt="match.title"
+                    class="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div class="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
+                    <div class="flex size-16 items-center justify-center rounded-full bg-red-600 shadow-lg transition-transform group-hover:scale-110">
+                        <Play class="ml-1 size-7 fill-white text-white" />
+                    </div>
+                </div>
+                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-8">
+                    <p class="text-sm font-semibold text-white">Ver video del partido</p>
+                </div>
+            </a>
+
+            <!-- YouTube URL inline edit (admin) -->
+            <div v-if="isAdmin" class="mt-3 flex items-center gap-2">
+                <div class="relative flex-1">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Video class="size-4 text-muted-foreground" />
+                    </div>
+                    <Input
+                        v-model="youtubeInput"
+                        :placeholder="youtubeId ? 'Cambiar enlace de YouTube...' : 'Pegar enlace de YouTube del partido...'"
+                        class="pl-9 text-sm"
+                        @keydown.enter.prevent="saveYoutubeUrl"
+                    />
+                </div>
+                <Button
+                    size="sm"
+                    :disabled="savingYoutube || youtubeInput === (match.youtube_url ?? '')"
+                    class="shrink-0 gap-1.5"
+                    @click="saveYoutubeUrl"
+                >
+                    <Check class="size-3.5" />
+                    Guardar
+                </Button>
             </div>
 
             <!-- ===== MATCH INFO STRIP ===== -->
@@ -293,6 +444,13 @@ function formatStatsDate(dateStr: string): string {
                                 >{{ event.player.display_name }}</Link>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
+                            <button
+                                v-if="isAdmin && showEditEvents"
+                                class="shrink-0 text-destructive/50 transition-opacity hover:text-destructive"
+                                @click="removeEvent(event.id)"
+                            >
+                                <Trash2 class="size-3.5" />
+                            </button>
                         </div>
 
                         <!-- Minute bubble (center) -->
@@ -391,15 +549,90 @@ function formatStatsDate(dateStr: string): string {
                 </div>
             </div>
 
+            <!-- ===== EDIT EVENTS (admin) ===== -->
+            <div v-if="isAdmin" class="mt-6">
+                <button
+                    class="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold transition-colors hover:bg-accent"
+                    @click="showEditEvents = !showEditEvents"
+                >
+                    <span class="flex items-center gap-2">
+                        <Pencil class="size-4 text-muted-foreground" />
+                        Editar eventos
+                    </span>
+                    <component :is="showEditEvents ? ChevronUp : ChevronDown" class="size-4 text-muted-foreground" />
+                </button>
+
+                <div v-if="showEditEvents" class="mt-3 rounded-xl border border-border bg-card p-4">
+                    <!-- Player selection -->
+                    <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Jugador</p>
+                    <div class="mb-3 grid grid-cols-2 gap-1.5">
+                        <button
+                            v-for="att in confirmedPlayers"
+                            :key="att.id"
+                            class="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-all active:scale-[0.97]"
+                            :class="editSelectedPlayerId === att.player_id
+                                ? 'border-primary bg-primary/15 ring-2 ring-primary/40'
+                                : 'border-border bg-accent/50 hover:bg-accent'"
+                            @click="selectEditPlayer(att.player_id, att.player?.display_name ?? '')"
+                        >
+                            <span
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                :class="editSelectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
+                            >{{ att.player?.display_name?.charAt(0) }}</span>
+                            <span class="min-w-0 truncate">{{ att.player?.display_name }}</span>
+                        </button>
+                    </div>
+
+                    <!-- Minute -->
+                    <div class="mb-3 flex items-center justify-between">
+                        <p class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Minuto</p>
+                        <div class="flex items-center gap-1">
+                            <button
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="editMinute = Math.max(0, editMinute - 1)"
+                            >
+                                <Minus class="size-3.5" />
+                            </button>
+                            <span class="w-10 text-center text-sm font-bold tabular-nums">{{ editMinute }}'</span>
+                            <button
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
+                                @click="editMinute = Math.min(200, editMinute + 1)"
+                            >
+                                <Plus class="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Event type buttons -->
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button
+                            v-for="et in editEventTypes"
+                            :key="et.value"
+                            :disabled="!editSelectedPlayerId || editSubmitting"
+                            class="flex flex-col items-center justify-center gap-1 rounded-xl border p-2.5 transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+                            :class="et.bg"
+                            @click="addEvent(et.value)"
+                        >
+                            <component :is="et.icon" class="size-5" :class="et.color" />
+                            <span class="whitespace-pre-line text-center text-[10px] font-semibold leading-tight" :class="et.color">{{ et.label }}</span>
+                        </button>
+                    </div>
+
+                    <p v-if="!editSelectedPlayerId" class="mt-2 text-center text-[10px] text-muted-foreground">
+                        Selecciona un jugador para agregar un evento
+                    </p>
+                </div>
+            </div>
+
             <!-- ===== ADMIN ACTIONS ===== -->
             <div v-if="isAdmin" class="mt-6 space-y-2">
                 <Button
-                    v-if="!match.stats_finalized_at && match.status === 'completed'"
+                    v-if="match.status === 'completed'"
                     class="w-full gap-2"
                     @click="finalizeStats"
                 >
                     <Star class="size-4" />
-                    Finalizar estadisticas
+                    {{ match.stats_finalized_at ? 'Re-registrar estadisticas' : 'Registrar estadisticas' }}
                 </Button>
 
                 <Dialog v-model:open="showDeleteDialog">

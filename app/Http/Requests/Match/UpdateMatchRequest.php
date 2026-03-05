@@ -33,6 +33,7 @@ class UpdateMatchRequest extends FormRequest
             'max_substitutes' => ['required', 'integer', 'min:0', 'max:50'],
             'registration_opens_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'youtube_url' => ['nullable', 'string', 'max:500', 'url'],
             'team_a_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_b_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_a_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],

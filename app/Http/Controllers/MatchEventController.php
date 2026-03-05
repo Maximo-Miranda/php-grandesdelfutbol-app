@@ -17,14 +17,14 @@ class MatchEventController extends Controller
 
         $validated = $request->validate([
             'player_id' => ['required', 'exists:players,id'],
-            'event_type' => ['required', 'string', 'in:goal,assist,yellow_card,red_card,penalty_scored,penalty_missed,free_kick,save,own_goal'],
+            'event_type' => ['required', 'string', 'in:goal,assist,yellow_card,red_card,penalty_scored,penalty_missed,free_kick,save,own_goal,substitution,injury,foul'],
             'minute' => ['required', 'integer', 'min:0', 'max:200'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         $match->events()->create($validated);
 
-        return back()->with('success', 'Event recorded.');
+        return back()->with('success', 'Evento registrado.');
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
@@ -33,6 +33,6 @@ class MatchEventController extends Controller
 
         $event->delete();
 
-        return back()->with('success', 'Event removed.');
+        return back()->with('success', 'Evento eliminado.');
     }
 }

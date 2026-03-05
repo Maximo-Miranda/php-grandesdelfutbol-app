@@ -26,7 +26,12 @@ class PlayerController extends Controller
 
         return Inertia::render('clubs/players/Index', [
             'club' => $club,
-            'players' => $club->players()->with('user.playerProfile')->get(),
+            'players' => Inertia::scroll(
+                fn () => $club->players()
+                    ->with('user.playerProfile')
+                    ->orderByRaw('(COALESCE(goals, 0) + COALESCE(assists, 0)) DESC')
+                    ->simplePaginate(20),
+            ),
         ]);
     }
 
@@ -45,7 +50,7 @@ class PlayerController extends Controller
         $club->players()->create($request->validated());
 
         return redirect()->route('clubs.players.index', $club)
-            ->with('success', 'Player added.');
+            ->with('success', 'Jugador agregado.');
     }
 
     public function show(Club $club, Player $player): Response
@@ -100,6 +105,6 @@ class PlayerController extends Controller
         $player->update($request->validated());
 
         return redirect()->route('clubs.players.show', [$club, $player])
-            ->with('success', 'Player updated.');
+            ->with('success', 'Jugador actualizado.');
     }
 }

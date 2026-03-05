@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\MatchEventType;
 use App\Models\FootballMatch;
+use App\Models\Player;
 use Illuminate\Support\Facades\DB;
 
 class MatchStatService
@@ -11,7 +12,11 @@ class MatchStatService
     public function finalizeStats(FootballMatch $match): void
     {
         DB::transaction(function () use ($match) {
-            $events = $match->events()->with('player')->get();
+            if ($match->stats_finalized_at) {
+                $this->revertStats($match);
+            }
+
+            $events = $match->events()->get();
 
             $playerStats = [];
 
@@ -37,9 +42,8 @@ class MatchStatService
                 };
             }
 
-            // Update each player's stats
             foreach ($playerStats as $playerId => $stats) {
-                $player = \App\Models\Player::find($playerId);
+                $player = Player::find($playerId);
                 if ($player) {
                     $player->increment('goals', $stats['goals']);
                     $player->increment('assists', $stats['assists']);
@@ -48,16 +52,53 @@ class MatchStatService
                 }
             }
 
-            // Increment matches_played for all confirmed attendees
             $confirmedPlayerIds = $match->attendances()
                 ->where('status', 'confirmed')
-                ->pluck('player_id');
+                ->pluck('player_id')
+                ->toArray();
 
-            \App\Models\Player::query()
+            Player::query()
                 ->whereIn('id', $confirmedPlayerIds)
                 ->increment('matches_played');
 
-            $match->update(['stats_finalized_at' => now()]);
+            $match->update([
+                'stats_finalized_at' => now(),
+                'applied_stats' => [
+                    'player_stats' => $playerStats,
+                    'confirmed_player_ids' => $confirmedPlayerIds,
+                ],
+            ]);
         });
+    }
+
+    public function revertStats(FootballMatch $match): void
+    {
+        $appliedStats = $match->applied_stats;
+
+        if (! $appliedStats) {
+            return;
+        }
+
+        $playerStats = $appliedStats['player_stats'] ?? [];
+        $confirmedPlayerIds = $appliedStats['confirmed_player_ids'] ?? [];
+
+        foreach ($playerStats as $playerId => $stats) {
+            $player = Player::find($playerId);
+            if ($player) {
+                $player->decrement('goals', $stats['goals']);
+                $player->decrement('assists', $stats['assists']);
+                $player->decrement('yellow_cards', $stats['yellow_cards']);
+                $player->decrement('red_cards', $stats['red_cards']);
+            }
+        }
+
+        Player::query()
+            ->whereIn('id', $confirmedPlayerIds)
+            ->decrement('matches_played');
+
+        $match->update([
+            'stats_finalized_at' => null,
+            'applied_stats' => null,
+        ]);
     }
 }

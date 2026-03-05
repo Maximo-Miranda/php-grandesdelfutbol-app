@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
 import { Plus, UserPlus } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 
-type Props = { club: Club; players: Player[] };
+type PaginatedPlayers = { data: Player[] };
+
+type Props = { club: Club; players: PaginatedPlayers };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -16,20 +16,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.club.name, href: `/clubs/${props.club.id}` },
     { title: 'Jugadores', href: `/clubs/${props.club.id}/players` },
 ];
-
-const search = ref('');
-
-const sortedPlayers = computed(() => {
-    const q = search.value.toLowerCase();
-    const filtered = props.players.filter(p =>
-        p.name.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q),
-    );
-    return [...filtered].sort((a, b) => {
-        const scoreA = (a.goals ?? 0) + (a.assists ?? 0);
-        const scoreB = (b.goals ?? 0) + (b.assists ?? 0);
-        return scoreB - scoreA;
-    });
-});
 
 function getMedal(index: number): string {
     if (index === 0) return '\u{1F947}';
@@ -61,11 +47,7 @@ function getGoalsPerMatch(player: Player): string {
                 </div>
             </div>
 
-            <div class="mb-6">
-                <Input v-model="search" placeholder="Buscar jugador..." class="max-w-xs" />
-            </div>
-
-            <div v-if="sortedPlayers.length === 0" class="rounded-lg border border-dashed p-8 text-center">
+            <div v-if="!players?.data?.length" class="rounded-lg border border-dashed p-8 text-center">
                 <p class="text-muted-foreground">No hay jugadores.</p>
             </div>
 
@@ -76,32 +58,40 @@ function getGoalsPerMatch(player: Player): string {
                     <span class="h-px flex-1 bg-border" />
                 </div>
 
-                <div class="space-y-2">
-                    <Link
-                        v-for="(player, i) in sortedPlayers"
-                        :key="player.id"
-                        :href="`/clubs/${club.id}/players/${player.id}`"
-                        class="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
-                    >
-                        <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>
-                        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                            {{ player.display_name.charAt(0) }}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate font-medium">{{ player.display_name }}</p>
-                            <div class="flex items-center gap-2">
-                                <Badge v-if="player.position" variant="outline" class="text-[10px]">{{ player.position }}</Badge>
-                                <span v-if="player.jersey_number" class="text-xs text-muted-foreground">#{{ player.jersey_number }}</span>
+                <InfiniteScroll data="players" only-next>
+                    <div class="space-y-2">
+                        <Link
+                            v-for="(player, i) in players.data"
+                            :key="player.id"
+                            :href="`/clubs/${club.id}/players/${player.id}`"
+                            class="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
+                        >
+                            <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>
+                            <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
+                                {{ player.display_name.charAt(0) }}
                             </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate font-medium">{{ player.display_name }}</p>
+                                <div class="flex items-center gap-2">
+                                    <Badge v-if="player.position" variant="outline" class="text-[10px]">{{ player.position }}</Badge>
+                                    <span v-if="player.jersey_number" class="text-xs text-muted-foreground">#{{ player.jersey_number }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-muted-foreground">
+                                <span>{{ player.matches_played ?? 0 }} PJ</span>
+                                <span class="text-primary">{{ player.goals ?? 0 }}</span>
+                                <span>{{ player.assists ?? 0 }}</span>
+                                <span>{{ getGoalsPerMatch(player) }} G+A</span>
+                            </div>
+                        </Link>
+                    </div>
+
+                    <template #loading>
+                        <div class="flex justify-center py-3">
+                            <div class="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                         </div>
-                        <div class="flex items-center gap-3 text-sm text-muted-foreground">
-                            <span>{{ player.matches_played ?? 0 }} PJ</span>
-                            <span class="text-primary">{{ player.goals ?? 0 }}</span>
-                            <span>{{ player.assists ?? 0 }}</span>
-                            <span>{{ getGoalsPerMatch(player) }} G+A</span>
-                        </div>
-                    </Link>
-                </div>
+                    </template>
+                </InfiniteScroll>
             </template>
         </div>
     </AppLayout>

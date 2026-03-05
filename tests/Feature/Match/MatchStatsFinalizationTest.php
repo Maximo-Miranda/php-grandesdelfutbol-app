@@ -49,19 +49,41 @@ test('cannot finalize stats for non-completed match', function () {
         ->assertSessionHas('error');
 });
 
-test('cannot finalize stats twice', function () {
+test('re-registering stats reverts previous and reapplies without duplication', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
-    $match = FootballMatch::factory()->completed()->create([
-        'club_id' => $club->id,
-        'stats_finalized_at' => now(),
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $player = Player::factory()->create(['club_id' => $club->id, 'goals' => 0, 'assists' => 0, 'matches_played' => 0]);
+
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
     ]);
+
+    // First finalization
+    $this->actingAs($user)
+        ->post(route('clubs.matches.finalizeStats', [$club, $match]))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $player->refresh();
+    expect($player->goals)->toBe(1)
+        ->and($player->matches_played)->toBe(1);
+
+    // Add another event and re-register
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
 
     $this->actingAs($user)
         ->post(route('clubs.matches.finalizeStats', [$club, $match]))
         ->assertRedirect()
-        ->assertSessionHas('error');
+        ->assertSessionHas('success');
+
+    $player->refresh();
+    expect($player->goals)->toBe(2)
+        ->and($player->matches_played)->toBe(1);
 });
 
 test('non-admin cannot finalize stats', function () {

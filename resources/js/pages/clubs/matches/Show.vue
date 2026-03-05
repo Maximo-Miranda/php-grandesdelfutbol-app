@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import {
     ArrowDownRight,
     Ban,
     CalendarPlus,
     Check,
-    ChevronDown,
     EllipsisVertical,
     Gamepad2,
     Lock,
@@ -42,12 +41,17 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
 
+type PaginatedPlayers = {
+    data: Player[];
+};
+
 type Props = {
     club: Club;
     match: FootballMatch;
     players: Player[];
     isAdmin: boolean;
     myPlayer: Player | null;
+    unregisteredPlayers: PaginatedPlayers | null;
 };
 const props = defineProps<Props>();
 
@@ -175,28 +179,8 @@ const myRoleLabel = computed(() => {
     return 'Sin asignar';
 });
 
-// --- Admin: unregistered players for manual registration ---
-const registeredPlayerIds = computed(() => {
-    const ids = new Set<number>();
-    for (const att of props.match.attendances ?? []) {
-        ids.add(att.player_id);
-    }
-    return ids;
-});
-
-const unregisteredPlayers = computed(() =>
-    props.players.filter(p => !registeredPlayerIds.value.has(p.id)),
-);
-
-// Pagination for admin player list (mobile-friendly)
-const PLAYERS_PER_PAGE = 10;
-const adminPlayerPage = ref(1);
-const paginatedPlayers = computed(() =>
-    unregisteredPlayers.value.slice(0, adminPlayerPage.value * PLAYERS_PER_PAGE),
-);
-const hasMorePlayers = computed(() =>
-    paginatedPlayers.value.length < unregisteredPlayers.value.length,
-);
+// --- Admin: unregistered players ---
+const isFull = computed(() => confirmedCount.value >= totalSlots.value);
 
 // --- Team selection dialog ---
 const showTeamDialog = ref(false);
@@ -829,46 +813,50 @@ function pad(n: number): string {
 
             <!-- Admin: Register players manually -->
             <div
-                v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress') && unregisteredPlayers.length"
+                v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress') && unregisteredPlayers?.data?.length"
                 class="mt-6 rounded-xl border border-border bg-card p-4"
             >
-                <h3 class="mb-3 font-semibold">Registrar jugadores ({{ unregisteredPlayers.length }})</h3>
-                <div class="space-y-2">
-                    <div
-                        v-for="player in paginatedPlayers"
-                        :key="player.id"
-                        class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                    >
-                        <div class="flex items-center gap-2">
-                            <div class="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                {{ player.display_name.charAt(0).toUpperCase() }}
+                <h3 class="mb-3 font-semibold">Registrar jugadores</h3>
+
+                <div v-if="isFull" class="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+                    Cupo lleno — {{ confirmedCount }}/{{ totalSlots }} confirmados
+                </div>
+
+                <InfiniteScroll data="unregisteredPlayers" preserve-url only-next>
+                    <div class="space-y-2">
+                        <div
+                            v-for="player in unregisteredPlayers.data"
+                            :key="player.id"
+                            class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                        >
+                            <div class="flex items-center gap-2">
+                                <div class="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                                    {{ player.display_name.charAt(0).toUpperCase() }}
+                                </div>
+                                <div>
+                                    <span class="text-sm">{{ player.display_name }}</span>
+                                    <p v-if="player.position_label" class="text-xs text-muted-foreground">{{ player.position_label }}</p>
+                                </div>
                             </div>
-                            <div>
-                                <span class="text-sm">{{ player.display_name }}</span>
-                                <p v-if="player.position_label" class="text-xs text-muted-foreground">{{ player.position_label }}</p>
+                            <div class="flex gap-1.5">
+                                <Button size="sm" class="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" :disabled="isFull" @click="registerPlayer(player.id, 'confirmed')">
+                                    <Check class="size-3.5" />
+                                    <span class="hidden sm:inline">Confirmar</span>
+                                </Button>
+                                <Button size="sm" variant="outline" class="h-8 gap-1" @click="registerPlayer(player.id, 'declined')">
+                                    <X class="size-3.5" />
+                                    <span class="hidden sm:inline">Rechazar</span>
+                                </Button>
                             </div>
-                        </div>
-                        <div class="flex gap-1.5">
-                            <Button size="sm" class="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" @click="registerPlayer(player.id, 'confirmed')">
-                                <Check class="size-3.5" />
-                                <span class="hidden sm:inline">Confirmar</span>
-                            </Button>
-                            <Button size="sm" variant="outline" class="h-8 gap-1" @click="registerPlayer(player.id, 'declined')">
-                                <X class="size-3.5" />
-                                <span class="hidden sm:inline">Rechazar</span>
-                            </Button>
                         </div>
                     </div>
-                </div>
-                <Button
-                    v-if="hasMorePlayers"
-                    variant="ghost"
-                    class="mt-3 w-full gap-2 text-muted-foreground"
-                    @click="adminPlayerPage++"
-                >
-                    <ChevronDown class="size-4" />
-                    Mostrar mas jugadores
-                </Button>
+
+                    <template #loading>
+                        <div class="flex justify-center py-3">
+                            <div class="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                        </div>
+                    </template>
+                </InfiniteScroll>
             </div>
 
             <!-- Events -->

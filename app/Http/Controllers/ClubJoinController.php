@@ -36,10 +36,10 @@ class ClubJoinController extends Controller
 
         if ($member->status->value === 'pending') {
             return redirect()->route('clubs.index')
-                ->with('success', 'Your request to join has been submitted for approval.');
+                ->with('success', 'Tu solicitud de unión ha sido enviada para aprobación.');
         }
 
         return redirect()->route('clubs.show', $club)
-            ->with('success', 'You have joined the club!');
+            ->with('success', 'Te has unido al club!');
     }
 }

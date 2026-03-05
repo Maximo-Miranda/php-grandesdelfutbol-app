@@ -44,6 +44,6 @@ class PlayerProfileController extends Controller
             $this->attachmentService->upload($profile, $request->file('photo'), AttachmentCollection::Photo);
         }
 
-        return back()->with('success', 'Profile updated.');
+        return back()->with('success', 'Perfil actualizado.');
     }
 }

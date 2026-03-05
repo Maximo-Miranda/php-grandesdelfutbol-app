@@ -17,7 +17,7 @@ class MatchService
 {
     public function createMatch(Club $club, array $data): FootballMatch
     {
-        $scheduledAt = Carbon::parse($data['scheduled_at']);
+        $scheduledAt = Carbon::parse($data['scheduled_at'])->setTimezone(config('app.timezone'));
         $isPast = $scheduledAt->isPast();
         $durationMinutes = $data['duration_minutes'] ?? 60;
 
@@ -56,6 +56,12 @@ class MatchService
                 ->where('status', AttendanceStatus::Confirmed)
                 ->where('player_id', '!=', $player->id)
                 ->count();
+
+            $totalSlots = $match->max_players + $match->max_substitutes;
+
+            if ($confirmedCount >= $totalSlots) {
+                throw new \App\Exceptions\MatchFullException;
+            }
 
             $role = $confirmedCount < $match->max_players
                 ? AttendanceRole::Starter

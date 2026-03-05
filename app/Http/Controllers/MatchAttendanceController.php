@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
+use App\Exceptions\MatchFullException;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
@@ -31,14 +32,18 @@ class MatchAttendanceController extends Controller
 
         $team = isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null;
 
-        $this->matchService->registerPlayer(
-            $match,
-            $player,
-            AttendanceStatus::from($validated['status']),
-            $team,
-        );
+        try {
+            $this->matchService->registerPlayer(
+                $match,
+                $player,
+                AttendanceStatus::from($validated['status']),
+                $team,
+            );
+        } catch (MatchFullException) {
+            return back()->with('error', 'El cupo del partido está lleno.');
+        }
 
-        return back()->with('success', 'Registration updated.');
+        return back()->with('success', 'Registro actualizado.');
     }
 
     public function update(Request $request, Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
@@ -67,6 +72,12 @@ class MatchAttendanceController extends Controller
                     ->where('id', '!=', $attendance->id)
                     ->count();
 
+                $totalSlots = $match->max_players + $match->max_substitutes;
+
+                if ($confirmedCount >= $totalSlots) {
+                    return back()->with('error', 'El cupo del partido está lleno.');
+                }
+
                 $role = $confirmedCount < $match->max_players
                     ? AttendanceRole::Starter
                     : AttendanceRole::Substitute;
@@ -78,7 +89,7 @@ class MatchAttendanceController extends Controller
                 ]);
             }
 
-            return back()->with('success', 'Attendance updated.');
+            return back()->with('success', 'Asistencia actualizada.');
         }
 
         $data = [];
@@ -91,7 +102,7 @@ class MatchAttendanceController extends Controller
 
         $attendance->update($data);
 
-        return back()->with('success', 'Attendance updated.');
+        return back()->with('success', 'Asistencia actualizada.');
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
@@ -100,7 +111,7 @@ class MatchAttendanceController extends Controller
 
         $attendance->delete();
 
-        return back()->with('success', 'Player removed from match.');
+        return back()->with('success', 'Jugador removido del partido.');
     }
 
     public function autoAssign(Club $club, FootballMatch $match): RedirectResponse
@@ -109,6 +120,6 @@ class MatchAttendanceController extends Controller
 
         $this->matchService->autoAssignTeams($match);
 
-        return back()->with('success', 'Teams auto-assigned.');
+        return back()->with('success', 'Equipos asignados automáticamente.');
     }
 }

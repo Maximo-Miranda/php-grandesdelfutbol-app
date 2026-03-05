@@ -71,7 +71,7 @@ class MatchController extends Controller
         $match = $this->matchService->createMatch($club, $request->validated());
 
         return redirect()->route('clubs.matches.show', [$club, $match])
-            ->with('success', 'Match created.');
+            ->with('success', 'Partido creado.');
     }
 
     public function show(Club $club, FootballMatch $match): Response
@@ -97,10 +97,15 @@ class MatchController extends Controller
                 'club' => $club,
                 'match' => $match,
                 'isAdmin' => $isAdmin,
+                'players' => $isAdmin
+                    ? $club->players()->active()->with('user.playerProfile')->get()
+                    : [],
             ]);
         }
 
         $myPlayer = $club->players()->where('user_id', $user->id)->first();
+
+        $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
         return Inertia::render('clubs/matches/Show', [
             'club' => $club,
@@ -108,6 +113,16 @@ class MatchController extends Controller
             'players' => $club->players()->active()->with('user.playerProfile')->get(),
             'isAdmin' => $isAdmin,
             'myPlayer' => $myPlayer,
+            'unregisteredPlayers' => $isAdmin
+                ? Inertia::scroll(
+                    fn () => $club->players()
+                        ->active()
+                        ->with('user.playerProfile')
+                        ->whereNotIn('id', $registeredPlayerIds)
+                        ->orderBy('name')
+                        ->simplePaginate(15, pageName: 'jugadores'),
+                )
+                : null,
         ]);
     }
 
@@ -127,7 +142,7 @@ class MatchController extends Controller
         $match->update($request->validated());
 
         return redirect()->route('clubs.matches.show', [$club, $match])
-            ->with('success', 'Match updated.');
+            ->with('success', 'Partido actualizado.');
     }
 
     public function destroy(Club $club, FootballMatch $match): RedirectResponse

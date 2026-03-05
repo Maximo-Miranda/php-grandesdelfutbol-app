@@ -133,7 +133,7 @@ test('player index returns display_name from nickname', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('clubs/players/Index')
-            ->has('players', 1)
-            ->where('players.0.display_name', 'Speedy')
+            ->has('players.data', 1)
+            ->where('players.data.0.display_name', 'Speedy')
         );
 });

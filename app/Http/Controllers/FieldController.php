@@ -15,13 +15,13 @@ class FieldController extends Controller
     {
         $venue->fields()->create($request->validated());
 
-        return redirect()->back()->with('success', 'Field added.');
+        return redirect()->back()->with('success', 'Cancha agregada.');
     }
 
     public function update(UpdateFieldRequest $request, Club $club, Venue $venue, Field $field): RedirectResponse
     {
         $field->update($request->validated());
 
-        return redirect()->back()->with('success', 'Field updated.');
+        return redirect()->back()->with('success', 'Cancha actualizada.');
     }
 }

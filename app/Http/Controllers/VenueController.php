@@ -37,7 +37,7 @@ class VenueController extends Controller
         $club->venues()->create($request->validated());
 
         return redirect()->route('clubs.venues.index', $club)
-            ->with('success', 'Venue created.');
+            ->with('success', 'Sede creada.');
     }
 
     public function show(Club $club, Venue $venue): Response
@@ -65,6 +65,6 @@ class VenueController extends Controller
         $venue->update($request->validated());
 
         return redirect()->route('clubs.venues.show', [$club, $venue])
-            ->with('success', 'Venue updated.');
+            ->with('success', 'Sede actualizada.');
     }
 }

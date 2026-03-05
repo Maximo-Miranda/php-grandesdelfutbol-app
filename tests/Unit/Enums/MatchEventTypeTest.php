@@ -11,7 +11,10 @@ test('it has the correct values', function () {
         ->and(MatchEventType::PenaltyMissed->value)->toBe('penalty_missed')
         ->and(MatchEventType::FreeKick->value)->toBe('free_kick')
         ->and(MatchEventType::Save->value)->toBe('save')
-        ->and(MatchEventType::OwnGoal->value)->toBe('own_goal');
+        ->and(MatchEventType::OwnGoal->value)->toBe('own_goal')
+        ->and(MatchEventType::Substitution->value)->toBe('substitution')
+        ->and(MatchEventType::Injury->value)->toBe('injury')
+        ->and(MatchEventType::Foul->value)->toBe('foul');
 });
 
 test('it can be created from value', function () {
@@ -24,8 +27,11 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(MatchEventType::Goal->label())->toBe('Goal')
-        ->and(MatchEventType::YellowCard->label())->toBe('Yellow Card')
-        ->and(MatchEventType::PenaltyScored->label())->toBe('Penalty Scored')
-        ->and(MatchEventType::OwnGoal->label())->toBe('Own Goal');
+    expect(MatchEventType::Goal->label())->toBe('Gol')
+        ->and(MatchEventType::YellowCard->label())->toBe('Tarjeta amarilla')
+        ->and(MatchEventType::PenaltyScored->label())->toBe('Penal anotado')
+        ->and(MatchEventType::OwnGoal->label())->toBe('Autogol')
+        ->and(MatchEventType::Substitution->label())->toBe('Cambio')
+        ->and(MatchEventType::Injury->label())->toBe('Lesión')
+        ->and(MatchEventType::Foul->label())->toBe('Falta');
 });

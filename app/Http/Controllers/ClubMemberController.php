@@ -43,7 +43,7 @@ class ClubMemberController extends Controller
             );
         }
 
-        return back()->with('success', 'Member approved.');
+        return back()->with('success', 'Miembro aprobado.');
     }
 
     public function reject(Club $club, ClubMember $member): RedirectResponse
@@ -52,7 +52,7 @@ class ClubMemberController extends Controller
 
         $member->delete();
 
-        return back()->with('success', 'Member request rejected.');
+        return back()->with('success', 'Solicitud de miembro rechazada.');
     }
 
     public function updateRole(Request $request, Club $club, ClubMember $member): RedirectResponse
@@ -65,7 +65,7 @@ class ClubMemberController extends Controller
 
         $member->update(['role' => ClubMemberRole::from($validated['role'])]);
 
-        return back()->with('success', 'Member role updated.');
+        return back()->with('success', 'Rol de miembro actualizado.');
     }
 
     public function remove(Club $club, ClubMember $member): RedirectResponse
@@ -73,11 +73,11 @@ class ClubMemberController extends Controller
         Gate::authorize('update', $club);
 
         if ($member->role === ClubMemberRole::Owner) {
-            return back()->with('error', 'Cannot remove the club owner.');
+            return back()->with('error', 'No se puede eliminar al dueño del club.');
         }
 
         $member->delete();
 
-        return back()->with('success', 'Member removed.');
+        return back()->with('success', 'Miembro eliminado.');
     }
 }
