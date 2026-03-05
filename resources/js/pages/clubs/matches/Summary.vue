@@ -286,7 +286,11 @@ function formatStatsDate(dateStr: string): string {
                             <CircleDot v-else class="size-3.5 shrink-0 text-muted-foreground" />
 
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ event.player?.display_name }}</p>
+                                <Link
+                                    v-if="event.player"
+                                    :href="`/clubs/${club.id}/players/${event.player.id}`"
+                                    class="block truncate text-sm font-medium hover:text-primary hover:underline"
+                                >{{ event.player.display_name }}</Link>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
                         </div>
@@ -331,7 +335,7 @@ function formatStatsDate(dateStr: string): string {
                                 {{ stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ stat.name }}</p>
+                                <Link :href="`/clubs/${club.id}/players/${stat.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
                                 <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
                                     <span v-if="stat.goals" class="flex items-center gap-1">
                                         <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}
@@ -368,7 +372,7 @@ function formatStatsDate(dateStr: string): string {
                                 {{ stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ stat.name }}</p>
+                                <Link :href="`/clubs/${club.id}/players/${stat.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
                                 <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
                                     <span v-if="stat.goals" class="flex items-center gap-1">
                                         <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}

@@ -587,7 +587,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -632,7 +632,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -674,7 +674,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -713,7 +713,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -760,7 +760,7 @@ function pad(n: number): string {
                                 {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                 <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                             </div>
                             <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
@@ -803,7 +803,7 @@ function pad(n: number): string {
                                 {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">{{ att.player?.display_name }}</p>
+                                <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                             </div>
                             <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
                                 <DropdownMenuTrigger as-child>
@@ -884,7 +884,11 @@ function pad(n: number): string {
                     >
                         <span class="w-8 text-right text-xs font-bold text-muted-foreground">{{ event.minute }}'</span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium">{{ event.player?.display_name }}</p>
+                            <Link
+                                v-if="event.player"
+                                :href="`/clubs/${club.id}/players/${event.player.id}`"
+                                class="block truncate text-sm font-medium hover:text-primary hover:underline"
+                            >{{ event.player.display_name }}</Link>
                         </div>
                         <Badge variant="outline" class="shrink-0 text-xs">{{ event.event_type.replace(/_/g, ' ') }}</Badge>
                     </div>

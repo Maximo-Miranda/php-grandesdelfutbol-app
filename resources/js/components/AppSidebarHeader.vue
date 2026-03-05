@@ -54,7 +54,7 @@ function toggleTheme() {
             <button
                 v-if="showBack"
                 type="button"
-                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
                 @click="goBack"
             >
                 <ArrowLeft class="size-5" />
