@@ -25,6 +25,15 @@ readonly class SetClubContext
             return $next($request);
         }
 
+        // When the route has a {club} parameter, use it as the active context
+        $routeClub = $request->route('club');
+
+        if ($routeClub instanceof Club) {
+            $this->ensureClubIsActive($request, $routeClub, $user);
+
+            return $next($request);
+        }
+
         $club = ($request->session()->get('active_club_id') ?? $user->last_club_id)
             |> (fn (?int $id) => $this->clubService->resolveForUser($user, $id));
 

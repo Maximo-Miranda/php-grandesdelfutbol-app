@@ -13,6 +13,7 @@ import {
     Navigation,
     Pencil,
     Shield,
+    Shuffle,
     Trash2,
     Undo2,
     UserMinus,
@@ -179,7 +180,8 @@ const myRoleLabel = computed(() => {
     return 'Sin asignar';
 });
 
-// --- Admin: unregistered players ---
+// --- Admin helpers ---
+const canManage = computed(() => props.isAdmin && (props.match.status === 'upcoming' || props.match.status === 'in_progress'));
 const isFull = computed(() => confirmedCount.value >= totalSlots.value);
 
 // --- Team selection dialog ---
@@ -224,6 +226,7 @@ function adminReconfirm(attendanceId: number) {
 function startMatch() { router.post(`${base}/start`); }
 function cancelMatch() { router.post(`${base}/cancel`); }
 function finalizeStats() { router.post(`${base}/finalize-stats`); }
+function autoAssignTeams() { router.post(`${base}/auto-assign`, {}, { preserveScroll: true }); }
 
 const showDeleteDialog = ref(false);
 function deleteMatch() {
@@ -272,7 +275,7 @@ function pad(n: number): string {
                         {{ statusLabel[match.status] ?? match.status }}
                     </span>
                     <div class="flex items-center gap-2">
-                        <Link v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')" :href="`${base}/edit`">
+                        <Link v-if="canManage" :href="`${base}/edit`">
                             <Button variant="ghost" size="icon" class="size-8">
                                 <Pencil class="size-4" />
                             </Button>
@@ -383,7 +386,7 @@ function pad(n: number): string {
 
             <!-- Admin Panel Button -->
             <Link
-                v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')"
+                v-if="canManage"
                 :href="`${base}/live`"
                 class="mt-4 block"
             >
@@ -392,6 +395,17 @@ function pad(n: number): string {
                     Panel de control
                 </Button>
             </Link>
+
+            <!-- Balanced Team Sort Button -->
+            <Button
+                v-if="canManage && confirmedCount >= 2"
+                variant="outline"
+                class="mt-3 w-full gap-2"
+                @click="autoAssignTeams"
+            >
+                <Shuffle class="size-4" />
+                Sortear equipos
+            </Button>
 
             <!-- Registration Countdown (closed) -->
             <div
@@ -574,7 +588,7 @@ function pad(n: number): string {
                                     <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
-                                <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                                <DropdownMenu v-if="canManage">
                                     <DropdownMenuTrigger as-child>
                                         <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                             <EllipsisVertical class="size-4" />
@@ -619,7 +633,7 @@ function pad(n: number): string {
                                     <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
-                                <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                                <DropdownMenu v-if="canManage">
                                     <DropdownMenuTrigger as-child>
                                         <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                             <EllipsisVertical class="size-4" />
@@ -661,7 +675,7 @@ function pad(n: number): string {
                                     <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
-                                <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                                <DropdownMenu v-if="canManage">
                                     <DropdownMenuTrigger as-child>
                                         <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                             <EllipsisVertical class="size-4" />
@@ -700,7 +714,7 @@ function pad(n: number): string {
                                     <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
-                                <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                                <DropdownMenu v-if="canManage">
                                     <DropdownMenuTrigger as-child>
                                         <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                             <EllipsisVertical class="size-4" />
@@ -747,7 +761,7 @@ function pad(n: number): string {
                                 <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                 <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                             </div>
-                            <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                            <DropdownMenu v-if="canManage">
                                 <DropdownMenuTrigger as-child>
                                     <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                         <EllipsisVertical class="size-4" />
@@ -789,7 +803,7 @@ function pad(n: number): string {
                             <div class="min-w-0 flex-1">
                                 <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                             </div>
-                            <DropdownMenu v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')">
+                            <DropdownMenu v-if="canManage">
                                 <DropdownMenuTrigger as-child>
                                     <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                                         <EllipsisVertical class="size-4" />
@@ -813,7 +827,7 @@ function pad(n: number): string {
 
             <!-- Admin: Register players manually -->
             <div
-                v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress') && unregisteredPlayers?.data?.length"
+                v-if="canManage && unregisteredPlayers?.data?.length"
                 class="mt-6 rounded-xl border border-border bg-card p-4"
             >
                 <h3 class="mb-3 font-semibold">Registrar jugadores</h3>
@@ -884,7 +898,7 @@ function pad(n: number): string {
             </div>
 
             <!-- Admin: Cancel + Delete -->
-            <div v-if="isAdmin && (match.status === 'upcoming' || match.status === 'in_progress')" class="mt-6 flex gap-2">
+            <div v-if="canManage" class="mt-6 flex gap-2">
                 <Button variant="outline" class="flex-1 gap-2" @click="cancelMatch">
                     <Ban class="size-4" />
                     Cancelar partido
