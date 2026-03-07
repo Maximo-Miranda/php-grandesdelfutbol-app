@@ -117,15 +117,15 @@ function formatDate(dateStr: string): string {
 
                 <Link
                     v-if="isAdmin"
-                    :href="`${base}/invite`"
+                    :href="`${base}/members`"
                     class="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-accent"
                 >
                     <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserPlus class="size-5" />
                     </div>
                     <div>
-                        <p class="font-semibold">Invitar</p>
-                        <p class="text-sm text-muted-foreground">Suma amigos al club</p>
+                        <p class="font-semibold">Miembros</p>
+                        <p class="text-sm text-muted-foreground">Gestionar miembros del club</p>
                     </div>
                 </Link>
 

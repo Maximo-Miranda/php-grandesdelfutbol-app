@@ -11,6 +11,7 @@ use App\Models\ClubMember;
 use App\Models\Player;
 use App\Models\User;
 use App\Notifications\ClubInvitationNotification;
+use App\Notifications\NewMemberRequestNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -89,6 +90,11 @@ class InvitationService
             if ($status === ClubMemberStatus::Approved) {
                 $this->ensurePlayerExists($club->id, $user);
                 $this->clubService->switchToClub($user, $club);
+            } else {
+                Notification::send(
+                    $club->adminUsers(),
+                    new NewMemberRequestNotification($club, $user),
+                );
             }
 
             return $member;

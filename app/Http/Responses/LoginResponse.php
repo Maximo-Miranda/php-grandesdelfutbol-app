@@ -13,6 +13,6 @@ class LoginResponse implements LoginResponseContract
             return new JsonResponse(['two_factor' => false]);
         }
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route('home'));
     }
 }

@@ -77,6 +77,7 @@ readonly class SetClubContext
         }
 
         return $request->routeIs(
+            'home',
             'clubs.create',
             'clubs.store',
             'invitations.*',

@@ -4,11 +4,11 @@ import {
     CalendarDays,
     Home,
     LayoutGrid,
-    Mail,
     MapPin,
     Settings,
     Shield,
     UserCircle,
+    Users,
     UsersRound,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -52,7 +52,7 @@ const clubNavItems = computed<NavItem[]>(() => {
 
     if (isAdmin.value) {
         items.push(
-            { title: 'Invitar', href: `${base}/invite`, icon: Mail },
+            { title: 'Miembros', href: `${base}/members`, icon: Users },
             { title: 'Ajustes', href: `${base}/edit`, icon: Settings },
         );
     }

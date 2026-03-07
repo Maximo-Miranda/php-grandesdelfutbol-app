@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Concerns\HasAttachments;
 use App\Concerns\HasPublicUlid;
 use App\Enums\AttachmentCollection;
+use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -147,5 +149,16 @@ class Club extends Model
     public function isOwner(User $user): bool
     {
         return $this->owner_id === $user->id;
+    }
+
+    /** @return Collection<int, User> */
+    public function adminUsers(): Collection
+    {
+        return User::query()
+            ->whereIn('id', $this->members()
+                ->where('status', ClubMemberStatus::Approved)
+                ->whereIn('role', [ClubMemberRole::Owner, ClubMemberRole::Admin])
+                ->select('user_id'))
+            ->get();
     }
 }

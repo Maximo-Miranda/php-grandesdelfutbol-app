@@ -7,6 +7,7 @@ use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\Player;
+use App\Notifications\MemberApprovedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,9 +20,31 @@ class ClubMemberController extends Controller
     {
         Gate::authorize('view', $club);
 
+        $actorMembership = $club->getMembership(request()->user());
+        $isAdmin = $actorMembership && in_array($actorMembership->role->value, ['owner', 'admin']);
+
         return Inertia::render('clubs/Members', [
             'club' => $club,
-            'members' => $club->members()->with('user')->get(),
+            'pendingMembers' => $club->members()
+                ->with('user')
+                ->where('status', ClubMemberStatus::Pending)
+                ->latest()
+                ->get(),
+            'members' => Inertia::scroll(
+                fn () => $club->members()
+                    ->with('user')
+                    ->where('status', ClubMemberStatus::Approved)
+                    ->latest('approved_at')
+                    ->simplePaginate(20, pageName: 'members'),
+            ),
+            'invitations' => $isAdmin
+                ? Inertia::scroll(
+                    fn () => $club->invitations()
+                        ->with('inviter')
+                        ->latest()
+                        ->simplePaginate(15, pageName: 'invitations'),
+                )
+                : [],
         ]);
     }
 
@@ -41,6 +64,8 @@ class ClubMemberController extends Controller
                 ['club_id' => $club->id, 'user_id' => $user->id],
                 ['name' => $user->name, 'is_active' => true],
             );
+
+            $user->notify(new MemberApprovedNotification($club));
         }
 
         return back()->with('success', 'Miembro aprobado.');

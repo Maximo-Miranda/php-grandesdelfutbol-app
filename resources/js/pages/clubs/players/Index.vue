@@ -56,7 +56,7 @@ function getGoalsPerMatch(player: Player): string {
                     <Link :href="`/clubs/${club.ulid}/players/create`">
                         <Button><Plus class="mr-2 size-4" />Crear</Button>
                     </Link>
-                    <Link :href="`/clubs/${club.ulid}/invite`">
+                    <Link :href="`/clubs/${club.ulid}/members`">
                         <Button variant="outline"><UserPlus class="mr-2 size-4" />Invitar</Button>
                     </Link>
                 </div>

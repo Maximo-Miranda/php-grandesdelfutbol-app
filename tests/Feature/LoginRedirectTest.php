@@ -4,7 +4,7 @@ use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\User;
 
-test('login always redirects to dashboard', function () {
+test('login redirects to home', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
@@ -12,7 +12,7 @@ test('login always redirects to dashboard', function () {
     $this->post('/login', [
         'email' => $user->email,
         'password' => 'password',
-    ])->assertRedirect(route('dashboard'));
+    ])->assertRedirect(route('home'));
 });
 
 test('middleware sets session from last_club_id on first request after login', function () {

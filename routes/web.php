@@ -8,6 +8,7 @@ use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationCodeController;
 use App\Http\Controllers\FieldController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MatchAttendanceController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchEventController;
@@ -17,11 +18,8 @@ use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 
-Route::inertia('/', 'Welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
