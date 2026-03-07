@@ -55,8 +55,15 @@ class ClubInvitationController extends Controller
             ->firstOrFail();
 
         if (Auth::check()) {
+            $user = Auth::user();
+
+            // Clicking the invitation link proves email ownership
+            if (! $user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
+            }
+
             if ($invitation->status === InvitationStatus::Pending) {
-                $this->invitationService->acceptInvitation($invitation, Auth::user());
+                $this->invitationService->acceptInvitation($invitation, $user);
             }
 
             return redirect()->route('clubs.show', $invitation->club)
@@ -88,7 +95,14 @@ class ClubInvitationController extends Controller
 
         $invitation->load('club');
 
-        $this->invitationService->acceptInvitation($invitation, auth()->user());
+        $user = auth()->user();
+
+        // Clicking the invitation link proves email ownership
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        $this->invitationService->acceptInvitation($invitation, $user);
 
         return redirect()->route('clubs.show', $invitation->club)
             ->with('success', 'Te has unido al club!');

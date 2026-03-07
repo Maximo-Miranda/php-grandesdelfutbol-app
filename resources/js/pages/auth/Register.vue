@@ -4,6 +4,7 @@ import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
@@ -56,28 +57,28 @@ import { store } from '@/routes/register';
 
                 <div class="grid gap-2">
                     <Label for="password">Contrasena</Label>
-                    <Input
+                    <PasswordInput
                         id="password"
-                        type="password"
                         required
                         :tabindex="3"
                         autocomplete="new-password"
                         name="password"
-                        placeholder="Contrasena"
+                        placeholder="Minimo 8 caracteres"
+                        minlength="8"
                     />
                     <InputError :message="errors.password" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password_confirmation">Confirmar contrasena</Label>
-                    <Input
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
                         required
                         :tabindex="4"
                         autocomplete="new-password"
                         name="password_confirmation"
                         placeholder="Confirmar contrasena"
+                        minlength="8"
                     />
                     <InputError :message="errors.password_confirmation" />
                 </div>
