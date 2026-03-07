@@ -19,7 +19,7 @@ RUN composer dump-autoload --optimize --no-dev
 # ==============================================================================
 # Stage 2: Frontend assets build (needs PHP for Wayfinder route generation)
 # ==============================================================================
-FROM php:8.5-cli-alpine AS frontend
+FROM php:8.4-cli-alpine AS frontend
 
 # Install Node.js
 RUN apk add --no-cache nodejs npm
@@ -36,7 +36,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 3: Production image
 # ==============================================================================
-FROM php:8.5-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \

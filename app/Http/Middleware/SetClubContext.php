@@ -34,8 +34,8 @@ readonly class SetClubContext
             return $next($request);
         }
 
-        $club = ($request->session()->get('active_club_id') ?? $user->last_club_id)
-            |> (fn (?int $id) => $this->clubService->resolveForUser($user, $id));
+        $clubId = $request->session()->get('active_club_id') ?? $user->last_club_id;
+        $club = $this->clubService->resolveForUser($user, $clubId);
 
         if (! $club) {
             return $this->handleNoClub($request, $next, $user);
