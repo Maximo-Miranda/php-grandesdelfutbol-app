@@ -14,6 +14,10 @@ import {
     Play,
     Plus,
     Check,
+    Search,
+    Users,
+    UserMinus,
+    UserPlus,
     Video,
     RectangleVertical,
     Shield,
@@ -216,6 +220,50 @@ function saveYoutubeUrl() {
 function formatStatsDate(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// --- Manage players (admin) ---
+const showManagePlayers = ref(false);
+const playerSearchQuery = ref('');
+const addingPlayerId = ref<number | null>(null);
+const removingAttendanceUlid = ref<string | null>(null);
+
+const registeredPlayerIds = computed(() =>
+    new Set((props.match.attendances ?? []).map(a => a.player_id)),
+);
+
+const unregisteredPlayers = computed(() =>
+    (props.players ?? []).filter(p => !registeredPlayerIds.value.has(p.id)),
+);
+
+const filteredUnregisteredPlayers = computed(() => {
+    const q = playerSearchQuery.value.toLowerCase().trim();
+    if (!q) return unregisteredPlayers.value;
+    return unregisteredPlayers.value.filter(p =>
+        p.display_name.toLowerCase().includes(q)
+        || p.position_label?.toLowerCase().includes(q)
+        || String(p.jersey_number ?? '').includes(q),
+    );
+});
+
+function addPlayerToMatch(playerId: number, team: 'a' | 'b') {
+    addingPlayerId.value = playerId;
+    router.post(`${base}/${props.match.ulid}/attendance`, {
+        player_id: playerId,
+        status: 'confirmed',
+        team,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { addingPlayerId.value = null; },
+    });
+}
+
+function removePlayerFromMatch(attendanceUlid: string) {
+    removingAttendanceUlid.value = attendanceUlid;
+    router.delete(`${base}/${props.match.ulid}/attendance/${attendanceUlid}`, {
+        preserveScroll: true,
+        onFinish: () => { removingAttendanceUlid.value = null; },
+    });
 }
 
 // --- Edit events (admin) ---
@@ -622,6 +670,108 @@ function removeEvent(eventUlid: string) {
 
                     <p v-if="!editSelectedPlayerId" class="mt-2 text-center text-[10px] text-muted-foreground">
                         Selecciona un jugador para agregar un evento
+                    </p>
+                </div>
+            </div>
+
+            <!-- ===== MANAGE PLAYERS (admin) ===== -->
+            <div v-if="isAdmin" class="mt-3">
+                <button
+                    class="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold transition-colors hover:bg-accent"
+                    @click="showManagePlayers = !showManagePlayers"
+                >
+                    <span class="flex items-center gap-2">
+                        <Users class="size-4 text-muted-foreground" />
+                        Gestionar jugadores ({{ confirmedPlayers.length }})
+                    </span>
+                    <component :is="showManagePlayers ? ChevronUp : ChevronDown" class="size-4 text-muted-foreground" />
+                </button>
+
+                <div v-if="showManagePlayers" class="mt-3 rounded-xl border border-border bg-card p-4">
+                    <!-- Registered players -->
+                    <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                        Jugadores registrados ({{ confirmedPlayers.length }})
+                    </p>
+                    <div v-if="confirmedPlayers.length" class="mb-4 max-h-64 space-y-1.5 overflow-y-auto">
+                        <div
+                            v-for="att in confirmedPlayers"
+                            :key="att.id"
+                            class="flex items-center gap-2 rounded-lg border border-border bg-accent/50 px-2.5 py-2"
+                        >
+                            <span
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                                :style="{ backgroundColor: att.team ? teamColor(att.team as 'a' | 'b') : '#6b7280' }"
+                            >{{ att.player?.display_name?.charAt(0) }}</span>
+                            <div class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium">{{ att.player?.display_name }}</span>
+                                <span v-if="att.team" class="text-[10px] text-muted-foreground">
+                                    {{ att.team === 'a' ? match.team_a_name : match.team_b_name }}
+                                </span>
+                            </div>
+                            <button
+                                :disabled="removingAttendanceUlid === att.ulid"
+                                class="shrink-0 rounded-md p-1 text-destructive/60 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                @click="removePlayerFromMatch(att.ulid)"
+                            >
+                                <UserMinus class="size-4" />
+                            </button>
+                        </div>
+                    </div>
+                    <p v-else class="mb-4 text-center text-xs text-muted-foreground">
+                        No hay jugadores registrados.
+                    </p>
+
+                    <!-- Add players -->
+                    <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                        Agregar jugadores
+                    </p>
+                    <div class="relative mb-2">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <Search class="size-4 text-muted-foreground" />
+                        </div>
+                        <Input
+                            v-model="playerSearchQuery"
+                            placeholder="Buscar jugador..."
+                            class="pl-9 text-sm"
+                        />
+                    </div>
+                    <div v-if="filteredUnregisteredPlayers.length" class="max-h-64 space-y-1.5 overflow-y-auto">
+                        <div
+                            v-for="player in filteredUnregisteredPlayers"
+                            :key="player.id"
+                            class="flex items-center gap-2 rounded-lg border border-border bg-accent/50 px-2.5 py-2"
+                        >
+                            <span
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
+                            >{{ player.display_name.charAt(0) }}</span>
+                            <div class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium">{{ player.display_name }}</span>
+                                <span v-if="player.position_label || player.jersey_number" class="text-[10px] text-muted-foreground">
+                                    {{ [player.position_label, player.jersey_number ? `#${player.jersey_number}` : ''].filter(Boolean).join(' · ') }}
+                                </span>
+                            </div>
+                            <div class="flex shrink-0 gap-1">
+                                <button
+                                    :disabled="addingPlayerId === player.id"
+                                    class="rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+                                    :style="{ borderColor: match.team_a_color + '60', backgroundColor: match.team_a_color + '20', color: match.team_a_color }"
+                                    @click="addPlayerToMatch(player.id, 'a')"
+                                >
+                                    <UserPlus class="inline size-3" /> {{ match.team_a_name }}
+                                </button>
+                                <button
+                                    :disabled="addingPlayerId === player.id"
+                                    class="rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+                                    :style="{ borderColor: match.team_b_color + '60', backgroundColor: match.team_b_color + '20', color: match.team_b_color }"
+                                    @click="addPlayerToMatch(player.id, 'b')"
+                                >
+                                    <UserPlus class="inline size-3" /> {{ match.team_b_name }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-center text-xs text-muted-foreground">
+                        {{ playerSearchQuery ? 'No se encontraron jugadores.' : 'Todos los jugadores activos ya están registrados.' }}
                     </p>
                 </div>
             </div>

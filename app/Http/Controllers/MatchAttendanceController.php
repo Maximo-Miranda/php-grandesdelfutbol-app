@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
+use App\Enums\MatchStatus;
 use App\Exceptions\MatchFullException;
 use App\Models\Club;
 use App\Models\FootballMatch;
@@ -20,7 +21,11 @@ class MatchAttendanceController extends Controller
 
     public function store(Request $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        Gate::authorize('register', $match);
+        if ($match->status === MatchStatus::Completed) {
+            Gate::authorize('update', $match);
+        } else {
+            Gate::authorize('register', $match);
+        }
 
         $validated = $request->validate([
             'player_id' => ['required', 'exists:players,id'],

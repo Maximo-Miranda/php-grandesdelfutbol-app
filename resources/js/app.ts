@@ -6,7 +6,7 @@ import '../css/app.css';
 import { initializeTheme } from '@/composables/useAppearance';
 import { useToast } from '@/composables/useToast';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Grandes del Fútbol';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

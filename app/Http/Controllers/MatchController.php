@@ -182,6 +182,9 @@ class MatchController extends Controller
             'club' => $club,
             'match' => $match,
             'isAdmin' => $isAdmin,
+            'players' => $isAdmin
+                ? $club->players()->active()->with('user.playerProfile')->get()
+                : [],
         ]);
     }
 }
