@@ -113,27 +113,57 @@ class MatchService
 
         $maxPerTeam = intdiv($match->max_players, 2);
 
-        // Reset all team assignments for a fresh balanced sort
-        foreach ($confirmedAttendances as $attendance) {
-            $attendance->update(['team' => null, 'role' => AttendanceRole::Pending]);
+        // Separate pre-assigned and unassigned players
+        $preAssigned = $confirmedAttendances->whereNotNull('team');
+        $unassigned = $confirmedAttendances->whereNull('team');
+
+        // Reset only unassigned players' roles
+        foreach ($unassigned as $attendance) {
+            $attendance->update(['role' => AttendanceRole::Pending]);
         }
 
-        // Score and sort players by skill rating (highest first)
-        $scored = $confirmedAttendances->map(fn (MatchAttendance $att) => [
-            'attendance' => $att,
-            'score' => $this->calculatePlayerScore($att->player),
-            'position_group' => $this->positionGroup($att->player?->position),
-        ])->sortByDesc('score')->values();
+        // Reset previously auto-assigned players (those with a team but reassignable)
+        // When all players already have teams, reset all for a fresh sort
+        if ($unassigned->isEmpty() && $preAssigned->isNotEmpty()) {
+            foreach ($confirmedAttendances as $attendance) {
+                $attendance->update(['team' => null, 'role' => AttendanceRole::Pending]);
+            }
+            $preAssigned = collect();
+            $unassigned = $confirmedAttendances;
+        }
 
-        $starters = $scored->take($maxPerTeam * 2);
-        $subs = $scored->slice($maxPerTeam * 2);
-
-        // Balanced distribution: snake draft sorted by score
+        // Initialize teams with pre-assigned players
         $teams = [
             AttendanceTeam::A->value => ['score' => 0.0, 'positions' => [], 'count' => 0],
             AttendanceTeam::B->value => ['score' => 0.0, 'positions' => [], 'count' => 0],
         ];
 
+        foreach ($preAssigned as $attendance) {
+            $score = $this->calculatePlayerScore($attendance->player);
+            $posGroup = $this->positionGroup($attendance->player?->position);
+            $t = &$teams[$attendance->team->value];
+            $t['score'] += $score;
+            $t['positions'][$posGroup] = ($t['positions'][$posGroup] ?? 0) + 1;
+            $t['count']++;
+            $attendance->update(['role' => AttendanceRole::Starter]);
+        }
+
+        // Score and sort unassigned players by skill rating (highest first)
+        $scored = $unassigned->map(fn (MatchAttendance $att) => [
+            'attendance' => $att,
+            'score' => $this->calculatePlayerScore($att->player),
+            'position_group' => $this->positionGroup($att->player?->position),
+        ])->sortByDesc('score')->values();
+
+        $starterSlots = ($maxPerTeam * 2) - $preAssigned->count();
+        $starters = $scored->take($starterSlots);
+        $subs = $scored->slice($starterSlots);
+
+        // Cap per team to ensure even distribution when fewer players than max
+        $totalStarters = $preAssigned->count() + $starters->count();
+        $effectiveMaxPerTeam = (int) ceil($totalStarters / 2);
+
+        // Balanced distribution: snake draft sorted by score
         foreach ($starters as $item) {
             $posGroup = $item['position_group'];
             $a = &$teams[AttendanceTeam::A->value];
@@ -142,7 +172,7 @@ class MatchService
             $preferA = $a['score'] < $b['score']
                 || ($a['score'] === $b['score'] && ($a['positions'][$posGroup] ?? 0) <= ($b['positions'][$posGroup] ?? 0));
 
-            $team = ($preferA && $a['count'] < $maxPerTeam) || $b['count'] >= $maxPerTeam
+            $team = ($preferA && $a['count'] < $effectiveMaxPerTeam) || $b['count'] >= $effectiveMaxPerTeam
                 ? AttendanceTeam::A
                 : AttendanceTeam::B;
 
