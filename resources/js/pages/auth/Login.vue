@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,8 @@ defineProps<{
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
+
+const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').matches);
 </script>
 
 <template>
@@ -79,12 +82,13 @@ defineProps<{
                     <InputError :message="errors.password" />
                 </div>
 
-                <div class="flex items-center justify-between">
+                <div v-if="!isPwa" class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
                         <Checkbox id="remember" name="remember" :tabindex="3" />
                         <span>Recordarme</span>
                     </Label>
                 </div>
+                <input v-else type="hidden" name="remember" value="on" />
 
                 <Button
                     type="submit"
