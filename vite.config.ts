@@ -37,6 +37,11 @@ export default defineConfig({
                 orientation: 'portrait',
                 start_url: '/dashboard',
                 scope: '/',
+                id: '/dashboard',
+                lang: 'es',
+                dir: 'ltr',
+                categories: ['sports', 'utilities'],
+                prefer_related_applications: false,
                 icons: [
                     {
                         src: '/pwa-192x192.png',
@@ -55,13 +60,39 @@ export default defineConfig({
                         purpose: 'maskable',
                     },
                 ],
+                shortcuts: [
+                    {
+                        name: 'Dashboard',
+                        url: '/dashboard',
+                        icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+                    },
+                    {
+                        name: 'Mis Clubes',
+                        url: '/clubs',
+                        icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+                    },
+                ],
+                screenshots: [
+                    {
+                        src: '/screenshots/dashboard-wide.png',
+                        sizes: '1280x720',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                    },
+                    {
+                        src: '/screenshots/dashboard-narrow.png',
+                        sizes: '750x1334',
+                        type: 'image/png',
+                        form_factor: 'narrow',
+                    },
+                ],
             },
             workbox: {
                 navigateFallback: null,
                 runtimeCaching: [
                     {
                         urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-                        handler: 'CacheFirst',
+                        handler: 'StaleWhileRevalidate',
                         options: {
                             cacheName: 'images',
                             expiration: {
