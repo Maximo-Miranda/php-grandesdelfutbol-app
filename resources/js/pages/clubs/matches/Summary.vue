@@ -735,11 +735,21 @@ function removeEvent(eventUlid: string) {
                             class="pl-9 text-sm"
                         />
                     </div>
-                    <div v-if="filteredUnregisteredPlayers.length" class="max-h-64 space-y-1.5 overflow-y-auto">
+                    <div v-if="filteredUnregisteredPlayers.length" class="max-h-64 divide-y divide-border/50 overflow-y-auto rounded-lg border border-border">
+                        <div class="sticky top-0 z-10 flex items-center justify-end gap-3 border-b border-border bg-card px-3 py-1.5 text-[10px] font-medium text-muted-foreground">
+                            <span class="flex items-center gap-1.5">
+                                <span class="size-3 rounded-full" :style="{ backgroundColor: match.team_a_color }"></span>
+                                {{ match.team_a_name }}
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="size-3 rounded-full" :style="{ backgroundColor: match.team_b_color }"></span>
+                                {{ match.team_b_name }}
+                            </span>
+                        </div>
                         <div
                             v-for="player in filteredUnregisteredPlayers"
                             :key="player.id"
-                            class="flex items-center gap-2 rounded-lg border border-border bg-accent/50 px-2.5 py-2"
+                            class="flex items-center gap-2 px-1 py-2"
                         >
                             <span
                                 class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
@@ -753,19 +763,21 @@ function removeEvent(eventUlid: string) {
                             <div class="flex shrink-0 gap-1">
                                 <button
                                     :disabled="addingPlayerId === player.id"
-                                    class="rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-                                    :style="{ borderColor: match.team_a_color + '60', backgroundColor: match.team_a_color + '20', color: match.team_a_color }"
+                                    :title="`Agregar a ${match.team_a_name}`"
+                                    class="flex size-7 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                    :style="{ backgroundColor: match.team_a_color }"
                                     @click="addPlayerToMatch(player.id, 'a')"
                                 >
-                                    <UserPlus class="inline size-3" /> {{ match.team_a_name }}
+                                    <Plus class="size-3.5" />
                                 </button>
                                 <button
                                     :disabled="addingPlayerId === player.id"
-                                    class="rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-                                    :style="{ borderColor: match.team_b_color + '60', backgroundColor: match.team_b_color + '20', color: match.team_b_color }"
+                                    :title="`Agregar a ${match.team_b_name}`"
+                                    class="flex size-7 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                    :style="{ backgroundColor: match.team_b_color }"
                                     @click="addPlayerToMatch(player.id, 'b')"
                                 >
-                                    <UserPlus class="inline size-3" /> {{ match.team_b_name }}
+                                    <Plus class="size-3.5" />
                                 </button>
                             </div>
                         </div>
