@@ -224,7 +224,7 @@ function formatStatsDate(dateStr: string): string {
 // --- Manage players (admin) ---
 const showManagePlayers = ref(false);
 const playerSearchQuery = ref('');
-const addingPlayerId = ref<number | null>(null);
+const addingPlayerKey = ref<string | null>(null);
 const removingAttendanceUlid = ref<string | null>(null);
 
 const registeredPlayerIds = computed(() =>
@@ -246,14 +246,14 @@ const filteredUnregisteredPlayers = computed(() => {
 });
 
 function addPlayerToMatch(playerId: number, team: 'a' | 'b') {
-    addingPlayerId.value = playerId;
+    addingPlayerKey.value = `${playerId}-${team}`;
     router.post(`${base}/${props.match.ulid}/attendance`, {
         player_id: playerId,
         status: 'confirmed',
         team,
     }, {
         preserveScroll: true,
-        onFinish: () => { addingPlayerId.value = null; },
+        onFinish: () => { addingPlayerKey.value = null; },
     });
 }
 
@@ -761,7 +761,7 @@ function removeEvent(eventUlid: string) {
                             </div>
                             <div class="flex shrink-0 gap-1">
                                 <button
-                                    :disabled="addingPlayerId === player.id"
+                                    :disabled="addingPlayerKey === `${player.id}-a`"
                                     :title="`Agregar a ${match.team_a_name}`"
                                     class="flex size-7 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-90 disabled:opacity-40"
                                     :style="{ backgroundColor: match.team_a_color }"
@@ -770,7 +770,7 @@ function removeEvent(eventUlid: string) {
                                     <Plus class="size-3.5" />
                                 </button>
                                 <button
-                                    :disabled="addingPlayerId === player.id"
+                                    :disabled="addingPlayerKey === `${player.id}-b`"
                                     :title="`Agregar a ${match.team_b_name}`"
                                     class="flex size-7 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-90 disabled:opacity-40"
                                     :style="{ backgroundColor: match.team_b_color }"

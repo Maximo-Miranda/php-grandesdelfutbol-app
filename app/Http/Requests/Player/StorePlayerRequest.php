@@ -19,7 +19,7 @@ class StorePlayerRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'position' => ['nullable', Rule::in(PlayerPosition::cases())],
-            'jersey_number' => ['nullable', 'integer', 'min:1', 'max:99', Rule::unique('players', 'jersey_number')->where('club_id', $this->route('club')->id)],
+            'jersey_number' => ['nullable', 'integer', 'min:1', 'max:99'],
             'user_id' => ['nullable', 'exists:users,id'],
         ];
     }
