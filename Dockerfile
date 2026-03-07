@@ -1,18 +1,5 @@
 # ==============================================================================
-# Stage 1: Frontend assets build
-# ==============================================================================
-FROM node:22-alpine AS frontend
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-# ==============================================================================
-# Stage 2: Composer dependencies
+# Stage 1: Composer dependencies
 # ==============================================================================
 FROM composer:2 AS vendor
 
@@ -28,6 +15,23 @@ RUN composer install \
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev
+
+# ==============================================================================
+# Stage 2: Frontend assets build (needs PHP for Wayfinder route generation)
+# ==============================================================================
+FROM php:8.4-cli-alpine AS frontend
+
+# Install Node.js
+RUN apk add --no-cache nodejs npm
+
+WORKDIR /app
+
+# Copy vendor first (Wayfinder needs Laravel autoload)
+COPY --from=vendor /app/vendor ./vendor
+COPY . .
+
+RUN npm ci
+RUN npm run build
 
 # ==============================================================================
 # Stage 3: Production image
