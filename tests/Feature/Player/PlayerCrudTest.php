@@ -55,7 +55,7 @@ test('admins can update players', function () {
         ->and($player->is_active)->toBeFalse();
 });
 
-test('cannot create player with duplicate jersey number in same club', function () {
+test('can create player with same jersey number as another in same club', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
@@ -67,36 +67,9 @@ test('cannot create player with duplicate jersey number in same club', function 
             'position' => 'ST',
             'jersey_number' => 9,
         ])
-        ->assertSessionHasErrors('jersey_number');
-});
-
-test('cannot update player with duplicate jersey number in same club', function () {
-    $user = User::factory()->create();
-    $club = Club::factory()->create();
-    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
-    Player::factory()->create(['club_id' => $club->id, 'jersey_number' => 9]);
-    $player = Player::factory()->create(['club_id' => $club->id, 'jersey_number' => 10]);
-
-    $this->actingAs($user)
-        ->put(route('clubs.players.update', [$club, $player]), [
-            'name' => $player->name,
-            'jersey_number' => 9,
-        ])
-        ->assertSessionHasErrors('jersey_number');
-});
-
-test('can update player keeping same jersey number', function () {
-    $user = User::factory()->create();
-    $club = Club::factory()->create();
-    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
-    $player = Player::factory()->create(['club_id' => $club->id, 'jersey_number' => 9]);
-
-    $this->actingAs($user)
-        ->put(route('clubs.players.update', [$club, $player]), [
-            'name' => 'Updated Name',
-            'jersey_number' => 9,
-        ])
         ->assertRedirect();
+
+    expect(Player::where('club_id', $club->id)->where('jersey_number', 9)->count())->toBe(2);
 });
 
 test('members can view a player', function () {

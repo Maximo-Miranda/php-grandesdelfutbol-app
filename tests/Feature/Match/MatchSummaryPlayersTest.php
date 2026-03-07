@@ -62,6 +62,44 @@ test('admin can add player to completed match', function () {
     ]);
 });
 
+test('admin can add player to completed match even when slots are full', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'max_players' => 2,
+        'max_substitutes' => 0,
+    ]);
+
+    $existingPlayers = Player::factory()->count(2)->create(['club_id' => $club->id]);
+    foreach ($existingPlayers as $p) {
+        MatchAttendance::factory()->create([
+            'match_id' => $match->id,
+            'player_id' => $p->id,
+            'status' => 'confirmed',
+            'team' => 'a',
+        ]);
+    }
+
+    $newPlayer = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $newPlayer->id,
+            'status' => 'confirmed',
+            'team' => 'b',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_attendances', [
+        'match_id' => $match->id,
+        'player_id' => $newPlayer->id,
+        'status' => 'confirmed',
+        'team' => 'b',
+    ]);
+});
+
 test('non-admin cannot add player to completed match', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -68,10 +68,12 @@ class MatchService
                 ->where('player_id', '!=', $player->id)
                 ->count();
 
-            $totalSlots = $match->max_players + $match->max_substitutes;
+            if ($match->status !== MatchStatus::Completed) {
+                $totalSlots = $match->max_players + $match->max_substitutes;
 
-            if ($confirmedCount >= $totalSlots) {
-                throw new \App\Exceptions\MatchFullException;
+                if ($confirmedCount >= $totalSlots) {
+                    throw new \App\Exceptions\MatchFullException;
+                }
             }
 
             $role = $confirmedCount < $match->max_players
