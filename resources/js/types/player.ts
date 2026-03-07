@@ -3,6 +3,7 @@ import type { Club } from './club';
 
 export type Player = {
     id: number;
+    ulid: string;
     club_id: number;
     user_id: number | null;
     name: string;

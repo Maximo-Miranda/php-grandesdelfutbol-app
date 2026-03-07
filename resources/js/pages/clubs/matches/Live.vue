@@ -23,14 +23,14 @@ import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/
 type Props = { club: Club; match: FootballMatch; players: Player[] };
 const props = defineProps<Props>();
 
-const base = `/clubs/${props.club.id}/matches`;
+const base = `/clubs/${props.club.ulid}/matches`;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: base },
-    { title: props.match.title, href: `${base}/${props.match.id}` },
-    { title: 'Live', href: `${base}/${props.match.id}/live` },
+    { title: props.match.title, href: `${base}/${props.match.ulid}` },
+    { title: 'Live', href: `${base}/${props.match.ulid}/live` },
 ];
 
 const primaryEventTypes = [
@@ -58,7 +58,7 @@ const minute = ref(0);
 const manualMode = ref(false);
 const submitting = ref(false);
 const lastRecorded = ref<{ player: string; event: string; minute: number } | null>(null);
-const confirmingDeleteId = ref<number | null>(null);
+const confirmingDeleteId = ref<string | null>(null);
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
 let deleteTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -189,7 +189,7 @@ function recordEvent(eventType: string) {
     const eventName = eventLabel[eventType] ?? eventType;
     const recordedMinute = minute.value;
 
-    router.post(`${base}/${props.match.id}/events`, {
+    router.post(`${base}/${props.match.ulid}/events`, {
         player_id: selectedPlayerId.value,
         event_type: eventType,
         minute: recordedMinute,
@@ -209,24 +209,24 @@ function recordEvent(eventType: string) {
     });
 }
 
-function confirmRemoveEvent(eventId: number) {
-    if (confirmingDeleteId.value === eventId) {
+function confirmRemoveEvent(eventUlid: string) {
+    if (confirmingDeleteId.value === eventUlid) {
         if (deleteTimeout) clearTimeout(deleteTimeout);
         confirmingDeleteId.value = null;
-        router.delete(`${base}/${props.match.id}/events/${eventId}`, { preserveScroll: true });
+        router.delete(`${base}/${props.match.ulid}/events/${eventUlid}`, { preserveScroll: true });
     } else {
-        confirmingDeleteId.value = eventId;
+        confirmingDeleteId.value = eventUlid;
         if (deleteTimeout) clearTimeout(deleteTimeout);
         deleteTimeout = setTimeout(() => { confirmingDeleteId.value = null; }, 3000);
     }
 }
 
 function autoAssignTeams() {
-    router.post(`${base}/${props.match.id}/auto-assign`, {}, { preserveScroll: true });
+    router.post(`${base}/${props.match.ulid}/auto-assign`, {}, { preserveScroll: true });
 }
 
 function completeMatch() {
-    router.post(`${base}/${props.match.id}/complete`);
+    router.post(`${base}/${props.match.ulid}/complete`);
 }
 
 function getPlayerTeam(playerId: number): 'a' | 'b' | null {
@@ -468,7 +468,7 @@ const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
                             <div class="min-w-0 flex-1">
                                 <Link
                                     v-if="event.player"
-                                    :href="`/clubs/${club.id}/players/${event.player.id}`"
+                                    :href="`/clubs/${club.ulid}/players/${event.player.ulid}`"
                                     class="block truncate text-sm font-medium hover:text-primary hover:underline"
                                 >{{ event.player.display_name }}</Link>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
@@ -484,10 +484,10 @@ const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
 
                             <button
                                 class="shrink-0 rounded-md p-1 transition-colors"
-                                :class="confirmingDeleteId === event.id
+                                :class="confirmingDeleteId === event.ulid
                                     ? 'bg-destructive/20 text-destructive'
                                     : 'text-destructive/60 hover:bg-destructive/10 hover:text-destructive'"
-                                @click="confirmRemoveEvent(event.id)"
+                                @click="confirmRemoveEvent(event.ulid)"
                             >
                                 <Trash2 v-if="confirmingDeleteId !== event.id" class="size-4" />
                                 <Check v-else class="size-4" />

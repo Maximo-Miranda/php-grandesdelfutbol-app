@@ -46,7 +46,7 @@ function submit() {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Checkbox id="requires_approval" :checked="form.requires_approval" @update:checked="form.requires_approval = $event" />
+                    <Checkbox id="requires_approval" v-model="form.requires_approval" />
                     <Label for="requires_approval">Require approval for new members</Label>
                 </div>
 

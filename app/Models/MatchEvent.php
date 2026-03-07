@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasPublicUlid;
 use App\Enums\MatchEventType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $match_id
  * @property int $player_id
  * @property MatchEventType $event_type
@@ -37,7 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MatchEvent extends Model
 {
     /** @use HasFactory<\Database\Factories\MatchEventFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'match_id',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\FootballMatch;
@@ -30,7 +31,12 @@ class DashboardController extends Controller
             ])
             ->get();
 
-        if ($clubs->isEmpty()) {
+        $pendingMemberships = $user->clubMemberships()
+            ->with('club')
+            ->where('status', ClubMemberStatus::Pending)
+            ->get();
+
+        if ($clubs->isEmpty() && $pendingMemberships->isEmpty()) {
             $invitation = ClubInvitation::query()
                 ->where('email', $user->email)
                 ->valid()
@@ -90,6 +96,7 @@ class DashboardController extends Controller
                 ->valid()
                 ->with('club')
                 ->get(),
+            'pendingMemberships' => $pendingMemberships,
         ]);
     }
 }

@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\HasPublicUlid;
 use App\Enums\AttachmentCollection;
+use App\Enums\ClubMemberStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property string $name
  * @property string|null $description
  * @property int $owner_id
@@ -54,7 +57,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Club extends Model
 {
     /** @use HasFactory<\Database\Factories\ClubFactory> */
-    use HasAttachments, HasFactory;
+    use HasAttachments, HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'name',
@@ -116,5 +119,33 @@ class Club extends Model
         $attachment = $this->getAttachment(AttachmentCollection::Logo);
 
         return $attachment?->url;
+    }
+
+    public function getMembership(User $user): ?ClubMember
+    {
+        return $this->members()
+            ->where('user_id', $user->id)
+            ->where('status', ClubMemberStatus::Approved)
+            ->first();
+    }
+
+    public function isApprovedMember(User $user): bool
+    {
+        return $this->members()
+            ->where('user_id', $user->id)
+            ->where('status', ClubMemberStatus::Approved)
+            ->exists();
+    }
+
+    public function isAdminOrOwner(User $user): bool
+    {
+        $membership = $this->getMembership($user);
+
+        return $membership !== null && $membership->isAtLeastAdmin();
+    }
+
+    public function isOwner(User $user): bool
+    {
+        return $this->owner_id === $user->id;
     }
 }

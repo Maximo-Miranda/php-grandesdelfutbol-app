@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, WhenVisible } from '@inertiajs/vue3';
-import { CalendarDays, ChevronRight, Goal, Handshake, Shield, Trophy, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, ChevronRight, Clock, Goal, Handshake, Shield, Trophy, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
-import type { BreadcrumbItem, Club, ClubInvitation, FootballMatch } from '@/types';
+import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 
 type PlayerStats = {
     goals: number;
@@ -25,6 +25,7 @@ type Props = {
     upcomingMatches: PaginatedMatches;
     recentMatches?: FootballMatch[];
     pendingInvitations: ClubInvitation[];
+    pendingMemberships: ClubMember[];
 };
 
 const props = defineProps<Props>();
@@ -77,11 +78,26 @@ function formatShortDate(dateStr: string): string {
                 <ChevronRight class="size-5 shrink-0 text-muted-foreground" />
             </Link>
 
+            <!-- Pending memberships (waiting for admin approval) -->
+            <div
+                v-for="membership in pendingMemberships"
+                :key="membership.id"
+                class="mt-4 flex items-center gap-3 rounded-lg border border-yellow-300/50 bg-yellow-50/50 p-4 dark:border-yellow-700/50 dark:bg-yellow-950/20"
+            >
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                    <Clock class="size-5" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold">{{ membership.club?.name }}</p>
+                    <p class="text-sm text-muted-foreground">Esperando aprobacion del admin</p>
+                </div>
+            </div>
+
             <!-- Next match (featured) -->
             <div class="mt-6">
                 <Link
                     v-if="nextMatch"
-                    :href="`/clubs/${nextMatch.club_id}/matches/${nextMatch.id}`"
+                    :href="`/clubs/${nextMatch.club?.ulid}/matches/${nextMatch.ulid}`"
                     class="block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
                 >
                     <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
@@ -145,7 +161,7 @@ function formatShortDate(dateStr: string): string {
                     <Link
                         v-for="(club, index) in topClubs"
                         :key="club.id"
-                        :href="`/clubs/${club.id}`"
+                        :href="`/clubs/${club.ulid}`"
                         class="flex items-center gap-3 rounded-xl border border-border/60 bg-gradient-to-r from-card to-card/60 p-3 transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"
                     >
                         <div
@@ -197,7 +213,7 @@ function formatShortDate(dateStr: string): string {
                             <Link
                                 v-for="match in upcomingMatches.data.slice(1)"
                                 :key="match.id"
-                                :href="`/clubs/${match.club_id}/matches/${match.id}`"
+                                :href="`/clubs/${match.club?.ulid}/matches/${match.ulid}`"
                                 class="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-accent"
                             >
                                 <div class="min-w-0">
@@ -245,7 +261,7 @@ function formatShortDate(dateStr: string): string {
                         <Link
                             v-for="match in recentMatches"
                             :key="match.id"
-                            :href="`/clubs/${match.club_id}/matches/${match.id}`"
+                            :href="`/clubs/${match.club?.ulid}/matches/${match.ulid}`"
                             class="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-accent"
                         >
                             <div class="min-w-0">

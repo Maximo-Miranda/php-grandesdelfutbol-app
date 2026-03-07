@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
+use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\User;
 use App\Services\InvitationService;
@@ -25,6 +26,7 @@ class CreateNewUser implements CreatesNewUsers
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
             'invite_token' => ['nullable', 'string'],
+            'join_token' => ['nullable', 'string'],
         ])->validate();
 
         $user = User::create([
@@ -35,6 +37,10 @@ class CreateNewUser implements CreatesNewUsers
 
         if (! empty($input['invite_token'])) {
             $this->handleInviteToken($input['invite_token'], $user);
+        }
+
+        if (! empty($input['join_token'])) {
+            $this->handleJoinToken($input['join_token'], $user);
         }
 
         return $user;
@@ -53,6 +59,21 @@ class CreateNewUser implements CreatesNewUsers
 
             // Auto-verify: clicking the invitation link proves email ownership
             $user->markEmailAsVerified();
+        }
+    }
+
+    private function handleJoinToken(string $token, User $user): void
+    {
+        // Store the join token in session so the intended redirect
+        // can complete the join after email verification.
+        // We intentionally do NOT auto-verify email for shared links.
+        $club = Club::query()
+            ->where('invite_token', $token)
+            ->where('is_invite_active', true)
+            ->first();
+
+        if ($club) {
+            session()->put('join_token', $token);
         }
     }
 }

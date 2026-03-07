@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToClub;
+use App\Concerns\HasPublicUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $club_id
  * @property string $name
  * @property string|null $address
@@ -41,7 +43,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Venue extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, HasPublicUlid;
 
     /** @use HasFactory<\Database\Factories\VenueFactory> */
     use HasFactory;

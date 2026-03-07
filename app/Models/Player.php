@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToClub;
+use App\Concerns\HasPublicUlid;
 use App\Enums\PlayerPosition;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $club_id
  * @property int|null $user_id
  * @property string $name
@@ -54,7 +56,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Player extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, HasPublicUlid;
 
     /** @use HasFactory<\Database\Factories\PlayerFactory> */
     use HasFactory;

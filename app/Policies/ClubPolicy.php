@@ -2,8 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\ClubMemberRole;
-use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\User;
 
@@ -16,10 +14,7 @@ class ClubPolicy
 
     public function view(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $club->isApprovedMember($user);
     }
 
     public function create(User $user): bool
@@ -29,15 +24,11 @@ class ClubPolicy
 
     public function update(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->exists();
+        return $club->isAdminOrOwner($user);
     }
 
     public function delete(User $user, Club $club): bool
     {
-        return $club->owner_id === $user->id;
+        return $club->isOwner($user);
     }
 }

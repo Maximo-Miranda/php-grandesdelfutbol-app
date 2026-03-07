@@ -57,11 +57,18 @@ class ClubMemberController extends Controller
 
     public function updateRole(Request $request, Club $club, ClubMember $member): RedirectResponse
     {
-        Gate::authorize('update', $club);
+        Gate::authorize('updateRole', $member);
 
         $validated = $request->validate([
             'role' => ['required', 'string', 'in:admin,player'],
         ]);
+
+        $actorMembership = $club->getMembership($request->user());
+
+        // Only Owner can promote to admin
+        if ($validated['role'] === 'admin' && ! $actorMembership->isOwner()) {
+            abort(403, 'Solo el dueño puede promover a admin.');
+        }
 
         $member->update(['role' => ClubMemberRole::from($validated['role'])]);
 
@@ -70,14 +77,25 @@ class ClubMemberController extends Controller
 
     public function remove(Club $club, ClubMember $member): RedirectResponse
     {
-        Gate::authorize('update', $club);
-
-        if ($member->role === ClubMemberRole::Owner) {
-            return back()->with('error', 'No se puede eliminar al dueño del club.');
-        }
+        Gate::authorize('remove', $member);
 
         $member->delete();
 
         return back()->with('success', 'Miembro eliminado.');
+    }
+
+    public function leave(Request $request, Club $club): RedirectResponse
+    {
+        $membership = $club->getMembership($request->user());
+
+        if (! $membership) {
+            abort(403);
+        }
+
+        Gate::authorize('leave', $membership);
+
+        $membership->delete();
+
+        return redirect()->route('clubs.index')->with('success', 'Has salido del club.');
     }
 }

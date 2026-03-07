@@ -2,11 +2,12 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { CalendarCheck, Pencil, Target, Trophy, Shirt, SquareIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 
 type LastGoal = {
-    match_id: number;
+    match_ulid: string;
     match_title: string;
     match_date: string;
     minute: number;
@@ -19,12 +20,13 @@ type Props = {
     attendanceRate: number | null;
 };
 const props = defineProps<Props>();
+const { isAdmin } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Jugadores', href: `/clubs/${props.club.id}/players` },
-    { title: props.player.name, href: `/clubs/${props.club.id}/players/${props.player.id}` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
+    { title: props.player.name, href: `/clubs/${props.club.ulid}/players/${props.player.ulid}` },
 ];
 
 const initials = computed(() => {
@@ -82,7 +84,8 @@ const goalsRatio = computed(() => {
                                 {{ player.display_name }}
                             </h1>
                             <Link
-                                :href="`/clubs/${club.id}/players/${player.id}/edit`"
+                                v-if="isAdmin"
+                                :href="`/clubs/${club.ulid}/players/${player.ulid}/edit`"
                                 class="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
                                 <Pencil class="size-4" />
@@ -232,7 +235,7 @@ const goalsRatio = computed(() => {
             <!-- Last Goal -->
             <Link
                 v-if="lastGoal"
-                :href="`/clubs/${club.id}/matches/${lastGoal.match_id}`"
+                :href="`/clubs/${club.ulid}/matches/${lastGoal.match_ulid}`"
                 class="mt-4 block overflow-hidden rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30"
             >
                 <h3 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">

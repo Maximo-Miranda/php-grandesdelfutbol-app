@@ -162,6 +162,19 @@
     --sidebar: hsl(222 47% 11%);
 }
 
+@layer utilities {
+    .gradient-primary-text {
+        background: linear-gradient(135deg, #00DC82, #75EDAE);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .gradient-primary-bg {
+        background: linear-gradient(135deg, #00A155, #00DC82);
+    }
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;

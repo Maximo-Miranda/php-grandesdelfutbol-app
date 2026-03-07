@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasPublicUlid;
 use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $match_id
  * @property int $player_id
  * @property AttendanceStatus $status
@@ -41,7 +43,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MatchAttendance extends Model
 {
     /** @use HasFactory<\Database\Factories\MatchAttendanceFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'match_id',

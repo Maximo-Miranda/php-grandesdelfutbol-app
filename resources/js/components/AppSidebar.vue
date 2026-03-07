@@ -22,33 +22,42 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import type { Club, NavItem } from '@/types';
 
 const page = usePage<{ currentClub: Club | null }>();
 const { isCurrentOrParentUrl } = useCurrentUrl();
+const { isAdmin } = useClubPermissions();
 
 const currentClub = computed(() => page.props.currentClub);
 
 const globalNavItems: NavItem[] = [
-    { title: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
-    { title: 'My Clubs', href: '/clubs', icon: Shield },
-    { title: 'Player Profile', href: '/player-profile', icon: UserCircle },
+    { title: 'Inicio', href: '/dashboard', icon: LayoutGrid },
+    { title: 'Mis Clubes', href: '/clubs', icon: Shield },
+    { title: 'Perfil de Jugador', href: '/player-profile', icon: UserCircle },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {
     const club = currentClub.value;
     if (!club) return [];
 
-    const base = `/clubs/${club.id}`;
-    return [
+    const base = `/clubs/${club.ulid}`;
+    const items: NavItem[] = [
         { title: 'Inicio', href: base, icon: Home },
         { title: 'Partidos', href: `${base}/matches`, icon: CalendarDays },
         { title: 'Jugadores', href: `${base}/players`, icon: UsersRound },
         { title: 'Canchas', href: `${base}/venues`, icon: MapPin },
-        { title: 'Invitar', href: `${base}/invite`, icon: Mail },
-        { title: 'Ajustes', href: `${base}/edit`, icon: Settings },
     ];
+
+    if (isAdmin.value) {
+        items.push(
+            { title: 'Invitar', href: `${base}/invite`, icon: Mail },
+            { title: 'Ajustes', href: `${base}/edit`, icon: Settings },
+        );
+    }
+
+    return items;
 });
 
 const navItems = computed(() => {
@@ -61,7 +70,7 @@ const navItems = computed(() => {
 
 function isActive(item: NavItem, allItems: NavItem[]): boolean {
     if (item.title === 'Inicio' || item.title === 'Dashboard') {
-        return isCurrentOrParentUrl(item.href) && !allItems.slice(1).some(i => isCurrentOrParentUrl(i.href));
+        return isCurrentOrParentUrl(item.href) && !allItems.filter(i => i !== item).some(i => isCurrentOrParentUrl(i.href));
     }
     return isCurrentOrParentUrl(item.href);
 }
@@ -73,9 +82,9 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link href="/clubs">
-                            <AppLogoIcon class="size-6 text-primary" />
-                            <span class="font-bold">GDF</span>
+                        <Link href="/clubs" class="flex items-center gap-3">
+                            <AppLogoIcon class="size-8 shrink-0 text-primary" />
+                            <span class="text-lg font-bold tracking-tight">GDF</span>
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

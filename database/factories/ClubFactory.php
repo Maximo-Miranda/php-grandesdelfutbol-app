@@ -14,6 +14,7 @@ class ClubFactory extends Factory
     public function definition(): array
     {
         return [
+            'ulid' => (string) Str::ulid(),
             'name' => fake()->company(),
             'description' => fake()->sentence(),
             'owner_id' => User::factory(),

@@ -17,9 +17,9 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Partidos', href: `/clubs/${props.club.id}/matches` },
-    { title: 'Crear', href: `/clubs/${props.club.id}/matches/create` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
+    { title: 'Crear', href: `/clubs/${props.club.ulid}/matches/create` },
 ];
 
 const {
@@ -43,7 +43,7 @@ const {
 
 function submit() {
     resolveBeforeSubmit();
-    form.post(`/clubs/${props.club.id}/matches`);
+    form.post(`/clubs/${props.club.ulid}/matches`);
 }
 </script>
 
@@ -275,7 +275,7 @@ function submit() {
                         Crear partido
                     </Button>
                     <Button variant="outline" as-child>
-                        <Link :href="`/clubs/${club.id}/matches`">
+                        <Link :href="`/clubs/${club.ulid}/matches`">
                             Cancelar
                         </Link>
                     </Button>

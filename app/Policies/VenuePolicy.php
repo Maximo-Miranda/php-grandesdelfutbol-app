@@ -2,8 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\ClubMemberRole;
-use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\User;
 use App\Models\Venue;
@@ -12,36 +10,22 @@ class VenuePolicy
 {
     public function viewAny(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $club->isApprovedMember($user);
     }
 
     public function view(User $user, Venue $venue): bool
     {
-        return $venue->club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $venue->club->isApprovedMember($user);
     }
 
     public function create(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->exists();
+        return $club->isAdminOrOwner($user);
     }
 
     public function update(User $user, Venue $venue): bool
     {
-        return $venue->club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->exists();
+        return $venue->club->isAdminOrOwner($user);
     }
 
     public function delete(User $user, Venue $venue): bool

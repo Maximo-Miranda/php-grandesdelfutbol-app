@@ -15,9 +15,9 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Players', href: `/clubs/${props.club.id}/players` },
-    { title: 'Add', href: `/clubs/${props.club.id}/players/create` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Players', href: `/clubs/${props.club.ulid}/players` },
+    { title: 'Add', href: `/clubs/${props.club.ulid}/players/create` },
 ];
 
 const form = useForm({ name: '', position: '', jersey_number: '' });
@@ -26,7 +26,7 @@ function submit() {
     form.transform((data) => ({
         ...data,
         position: data.position === 'none' ? null : data.position,
-    })).post(`/clubs/${props.club.id}/players`);
+    })).post(`/clubs/${props.club.ulid}/players`);
 }
 </script>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttachmentCollection;
+use App\Enums\PlayerPosition;
 use App\Models\PlayerProfile;
 use App\Services\AttachmentService;
 use Illuminate\Http\RedirectResponse;
@@ -18,8 +19,14 @@ class PlayerProfileController extends Controller
     {
         $profile = $request->user()->playerProfile ?? new PlayerProfile;
 
+        $positions = collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => [
+            'value' => $p->value,
+            'label' => $p->label(),
+        ])->values()->all();
+
         return Inertia::render('profile/PlayerProfile', [
             'profile' => $profile,
+            'positions' => $positions,
         ]);
     }
 

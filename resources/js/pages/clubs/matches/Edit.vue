@@ -17,10 +17,10 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Partidos', href: `/clubs/${props.club.id}/matches` },
-    { title: props.match.title, href: `/clubs/${props.club.id}/matches/${props.match.id}` },
-    { title: 'Editar', href: `/clubs/${props.club.id}/matches/${props.match.id}/edit` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
+    { title: props.match.title, href: `/clubs/${props.club.ulid}/matches/${props.match.ulid}` },
+    { title: 'Editar', href: `/clubs/${props.club.ulid}/matches/${props.match.ulid}/edit` },
 ];
 
 const {
@@ -45,7 +45,7 @@ const {
 
 function submit() {
     resolveBeforeSubmit();
-    form.put(`/clubs/${props.club.id}/matches/${props.match.id}`);
+    form.put(`/clubs/${props.club.ulid}/matches/${props.match.ulid}`);
 }
 </script>
 
@@ -289,7 +289,7 @@ function submit() {
                         Guardar cambios
                     </Button>
                     <Button variant="outline" as-child>
-                        <Link :href="`/clubs/${club.id}/matches/${match.id}`">
+                        <Link :href="`/clubs/${club.ulid}/matches/${match.ulid}`">
                             Cancelar
                         </Link>
                     </Button>

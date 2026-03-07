@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { Mail, Send } from 'lucide-vue-next';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { Check, Mail, Send, X } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem, Club } from '@/types';
+import type { BreadcrumbItem, Club, ClubMember } from '@/types';
 
 type Invitation = {
     id: number;
@@ -20,22 +20,31 @@ type Invitation = {
 type Props = {
     club: Club;
     invitations: Invitation[];
+    pendingMembers: ClubMember[];
 };
 
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Invitar', href: `/clubs/${props.club.id}/invite` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Invitar', href: `/clubs/${props.club.ulid}/invite` },
 ];
 
 const form = useForm({ email: '' });
 
 function submit() {
-    form.post(`/clubs/${props.club.id}/invite`, {
+    form.post(`/clubs/${props.club.ulid}/invite`, {
         onSuccess: () => form.reset(),
     });
+}
+
+function approveMember(member: ClubMember) {
+    router.patch(`/clubs/${props.club.ulid}/members/${member.ulid}/approve`);
+}
+
+function rejectMember(member: ClubMember) {
+    router.delete(`/clubs/${props.club.ulid}/members/${member.ulid}/reject`);
 }
 </script>
 
@@ -46,6 +55,29 @@ function submit() {
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <h1 class="text-2xl font-bold">Invitar Jugadores</h1>
             <p class="mt-1 text-sm text-muted-foreground">Suma amigos a tu club.</p>
+
+            <!-- Pending members section -->
+            <div v-if="pendingMembers.length > 0" class="mt-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4 dark:border-yellow-700 dark:bg-yellow-950/30">
+                <h3 class="mb-3 text-sm font-semibold">Solicitudes pendientes</h3>
+                <div class="space-y-2">
+                    <div v-for="member in pendingMembers" :key="member.id" class="flex items-center justify-between rounded-lg border border-border bg-background p-3">
+                        <div>
+                            <span class="text-sm font-medium">{{ member.user?.name }}</span>
+                            <span class="ml-2 text-xs text-muted-foreground">{{ member.user?.email }}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <Button variant="outline" size="sm" class="text-green-600 hover:bg-green-50 hover:text-green-700" @click="approveMember(member)">
+                                <Check class="mr-1 size-3.5" />
+                                Aprobar
+                            </Button>
+                            <Button variant="outline" size="sm" class="text-red-600 hover:bg-red-50 hover:text-red-700" @click="rejectMember(member)">
+                                <X class="mr-1 size-3.5" />
+                                Rechazar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="mt-6 rounded-lg border border-border p-4">
                 <p class="mb-4 font-medium">Invitar por email</p>

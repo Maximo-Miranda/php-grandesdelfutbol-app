@@ -18,6 +18,7 @@ class FootballMatchFactory extends Factory
     public function definition(): array
     {
         return [
+            'ulid' => (string) Str::ulid(),
             'club_id' => Club::factory(),
             'field_id' => null,
             'title' => fake()->words(3, true).' Match',

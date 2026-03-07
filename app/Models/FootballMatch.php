@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToClub;
+use App\Concerns\HasPublicUlid;
 use App\Enums\MatchStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $club_id
  * @property int|null $field_id
  * @property string $title
@@ -68,11 +70,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereUpdatedAt($value)
  *
+ * @property bool $auto_started
+ * @property array<array-key, mixed>|null $applied_stats
+ * @property string|null $youtube_url
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAutoStarted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereYoutubeUrl($value)
+ *
  * @mixin \Eloquent
  */
 class FootballMatch extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, HasPublicUlid;
 
     /** @use HasFactory<\Database\Factories\FootballMatchFactory> */
     use HasFactory;

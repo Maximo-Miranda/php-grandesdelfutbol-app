@@ -26,3 +26,16 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// Register PWA service worker...
+if (typeof window !== 'undefined') {
+    import('virtual:pwa-register').then(({ registerSW }) => {
+        registerSW({
+            onNeedRefresh() {
+                if (confirm('Hay una nueva version disponible. Deseas actualizar?')) {
+                    window.location.reload();
+                }
+            },
+        });
+    });
+}

@@ -3,6 +3,7 @@ import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import { CalendarDays, Clock, MapPin, Plus, Users } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch } from '@/types';
 
@@ -10,11 +11,12 @@ type Paginated<T> = { data: T[]; next_page_url: string | null };
 
 type Props = { club: Club; matches: Paginated<FootballMatch>; filter: string };
 const props = defineProps<Props>();
+const { isAdmin } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Partidos', href: `/clubs/${props.club.id}/matches` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
 ];
 
 const tabs = [
@@ -28,7 +30,7 @@ function switchTab(tab: string) {
     if (tab !== 'all') {
         params.filter = tab;
     }
-    router.get(`/clubs/${props.club.id}/matches`, params, {
+    router.get(`/clubs/${props.club.ulid}/matches`, params, {
         preserveState: false,
     });
 }
@@ -57,7 +59,7 @@ function formatTime(dateStr: string): string {
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-2xl font-bold">Partidos</h1>
-                <Link :href="`/clubs/${club.id}/matches/create`">
+                <Link v-if="isAdmin" :href="`/clubs/${club.ulid}/matches/create`">
                     <Button><Plus class="mr-2 size-4" />Crear</Button>
                 </Link>
             </div>
@@ -83,8 +85,8 @@ function formatTime(dateStr: string): string {
                 <div class="space-y-3">
                     <Link
                         v-for="m in matches.data"
-                        :key="m.id"
-                        :href="`/clubs/${club.id}/matches/${m.id}`"
+                        :key="m.ulid"
+                        :href="`/clubs/${club.ulid}/matches/${m.ulid}`"
                         class="block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
                     >
                         <div class="flex items-start justify-between">

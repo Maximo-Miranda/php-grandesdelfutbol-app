@@ -2,8 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\ClubMemberRole;
-use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\User;
@@ -12,36 +10,22 @@ class FootballMatchPolicy
 {
     public function viewAny(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $club->isApprovedMember($user);
     }
 
     public function view(User $user, FootballMatch $match): bool
     {
-        return $match->club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $match->club->isApprovedMember($user);
     }
 
     public function create(User $user, Club $club): bool
     {
-        return $club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->exists();
+        return $club->isAdminOrOwner($user);
     }
 
     public function update(User $user, FootballMatch $match): bool
     {
-        return $match->club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->exists();
+        return $match->club->isAdminOrOwner($user);
     }
 
     public function delete(User $user, FootballMatch $match): bool
@@ -51,9 +35,6 @@ class FootballMatchPolicy
 
     public function register(User $user, FootballMatch $match): bool
     {
-        return $match->club->members()
-            ->where('user_id', $user->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->exists();
+        return $match->club->isApprovedMember($user);
     }
 }

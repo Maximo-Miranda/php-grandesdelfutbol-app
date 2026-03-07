@@ -8,6 +8,7 @@ use App\Models\Club;
 use App\Models\Field;
 use App\Models\Venue;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 
 class FieldController extends Controller
 {
@@ -23,5 +24,14 @@ class FieldController extends Controller
         $field->update($request->validated());
 
         return redirect()->back()->with('success', 'Cancha actualizada.');
+    }
+
+    public function destroy(Club $club, Venue $venue, Field $field): RedirectResponse
+    {
+        Gate::authorize('update', $venue);
+
+        $field->delete();
+
+        return redirect()->back()->with('success', 'Cancha eliminada.');
     }
 }

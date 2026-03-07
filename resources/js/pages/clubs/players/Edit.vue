@@ -16,9 +16,9 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Players', href: `/clubs/${props.club.id}/players` },
-    { title: 'Edit', href: `/clubs/${props.club.id}/players/${props.player.id}/edit` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
+    { title: 'Editar', href: `/clubs/${props.club.ulid}/players/${props.player.ulid}/edit` },
 ];
 
 const form = useForm({
@@ -32,23 +32,25 @@ function submit() {
     form.transform((data) => ({
         ...data,
         position: data.position === 'none' ? null : data.position,
-    })).put(`/clubs/${props.club.id}/players/${props.player.id}`);
+        jersey_number: data.jersey_number === '' ? null : Number(data.jersey_number),
+        is_active: !!data.is_active,
+    })).put(`/clubs/${props.club.ulid}/players/${props.player.ulid}`);
 }
 </script>
 
 <template>
-    <Head :title="`Edit ${player.name}`" />
+    <Head :title="`Editar ${player.name}`" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl p-4">
-            <Heading title="Edit Player" />
+            <Heading title="Editar jugador" />
             <form class="mt-6 space-y-6" @submit.prevent="submit">
                 <div class="grid gap-2">
-                    <Label for="name">Name</Label>
+                    <Label for="name">Nombre</Label>
                     <Input id="name" v-model="form.name" required />
                     <InputError :message="form.errors.name" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="position">Position</Label>
+                    <Label for="position">Posicion</Label>
                     <Select v-model="form.position">
                         <SelectTrigger id="position">
                             <SelectValue placeholder="Seleccionar posicion" />
@@ -63,15 +65,15 @@ function submit() {
                     <InputError :message="form.errors.position" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="jersey_number">Jersey Number</Label>
+                    <Label for="jersey_number">Numero de camiseta</Label>
                     <Input id="jersey_number" v-model="form.jersey_number" type="number" min="1" max="99" />
                     <InputError :message="form.errors.jersey_number" />
                 </div>
                 <div class="flex items-center gap-2">
-                    <Checkbox id="is_active" :checked="form.is_active" @update:checked="form.is_active = $event" />
-                    <Label for="is_active">Active</Label>
+                    <Checkbox id="is_active" v-model="form.is_active" />
+                    <Label for="is_active">Activo</Label>
                 </div>
-                <Button type="submit" :disabled="form.processing">Save Changes</Button>
+                <Button type="submit" :disabled="form.processing">Guardar cambios</Button>
             </form>
         </div>
     </AppLayout>

@@ -2,6 +2,7 @@ import type { User } from './auth';
 
 export type Club = {
     id: number;
+    ulid: string;
     name: string;
     description: string | null;
     owner_id: number;
@@ -19,6 +20,7 @@ export type Club = {
 
 export type ClubMember = {
     id: number;
+    ulid: string;
     club_id: number;
     user_id: number;
     role: 'owner' | 'admin' | 'player';

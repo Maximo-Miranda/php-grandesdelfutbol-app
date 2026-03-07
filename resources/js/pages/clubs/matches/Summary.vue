@@ -42,13 +42,13 @@ import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/
 type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[] };
 const props = defineProps<Props>();
 
-const base = `/clubs/${props.club.id}/matches`;
+const base = `/clubs/${props.club.ulid}/matches`;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: base },
-    { title: props.match.title, href: `${base}/${props.match.id}` },
+    { title: props.match.title, href: `${base}/${props.match.ulid}` },
 ];
 
 // --- Goals ---
@@ -91,6 +91,7 @@ function getPlayerTeam(playerId: number): 'a' | 'b' | null {
 // --- Player stats ---
 type PlayerStat = {
     name: string;
+    ulid: string;
     team: 'a' | 'b' | null;
     goals: number;
     assists: number;
@@ -105,6 +106,7 @@ const playerStats = computed(() => {
             const att = props.match.attendances?.find(a => a.player_id === event.player_id);
             map.set(event.player_id, {
                 name: event.player?.display_name ?? 'Unknown',
+                ulid: event.player?.ulid ?? '',
                 team: att?.team as 'a' | 'b' | null ?? null,
                 goals: 0,
                 assists: 0,
@@ -173,12 +175,12 @@ function teamColor(team: 'a' | 'b' | null): string {
 }
 
 function finalizeStats() {
-    router.post(`${base}/${props.match.id}/finalize-stats`);
+    router.post(`${base}/${props.match.ulid}/finalize-stats`);
 }
 
 const showDeleteDialog = ref(false);
 function deleteMatch() {
-    router.delete(`${base}/${props.match.id}`, {
+    router.delete(`${base}/${props.match.ulid}`, {
         onSuccess: () => { showDeleteDialog.value = false; },
     });
 }
@@ -196,7 +198,7 @@ const savingYoutube = ref(false);
 
 function saveYoutubeUrl() {
     savingYoutube.value = true;
-    router.put(`${base}/${props.match.id}`, {
+    router.put(`${base}/${props.match.ulid}`, {
         title: props.match.title,
         scheduled_at: props.match.scheduled_at,
         duration_minutes: props.match.duration_minutes,
@@ -256,7 +258,7 @@ function addEvent(eventType: string) {
     if (!editSelectedPlayerId.value || editSubmitting.value) return;
     editSubmitting.value = true;
 
-    router.post(`${base}/${props.match.id}/events`, {
+    router.post(`${base}/${props.match.ulid}/events`, {
         player_id: editSelectedPlayerId.value,
         event_type: eventType,
         minute: editMinute.value,
@@ -271,8 +273,8 @@ function addEvent(eventType: string) {
     });
 }
 
-function removeEvent(eventId: number) {
-    router.delete(`${base}/${props.match.id}/events/${eventId}`, { preserveScroll: true });
+function removeEvent(eventUlid: string) {
+    router.delete(`${base}/${props.match.ulid}/events/${eventUlid}`, { preserveScroll: true });
 }
 </script>
 
@@ -439,7 +441,7 @@ function removeEvent(eventId: number) {
                             <div class="min-w-0 flex-1">
                                 <Link
                                     v-if="event.player"
-                                    :href="`/clubs/${club.id}/players/${event.player.id}`"
+                                    :href="`/clubs/${club.ulid}/players/${event.player.ulid}`"
                                     class="block truncate text-sm font-medium hover:text-primary hover:underline"
                                 >{{ event.player.display_name }}</Link>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
@@ -447,7 +449,7 @@ function removeEvent(eventId: number) {
                             <button
                                 v-if="isAdmin && showEditEvents"
                                 class="shrink-0 text-destructive/50 transition-opacity hover:text-destructive"
-                                @click="removeEvent(event.id)"
+                                @click="removeEvent(event.ulid)"
                             >
                                 <Trash2 class="size-3.5" />
                             </button>
@@ -493,7 +495,7 @@ function removeEvent(eventId: number) {
                                 {{ stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <Link :href="`/clubs/${club.id}/players/${stat.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
+                                <Link :href="`/clubs/${club.ulid}/players/${stat.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
                                 <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
                                     <span v-if="stat.goals" class="flex items-center gap-1">
                                         <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}
@@ -530,7 +532,7 @@ function removeEvent(eventId: number) {
                                 {{ stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <Link :href="`/clubs/${club.id}/players/${stat.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
+                                <Link :href="`/clubs/${club.ulid}/players/${stat.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
                                 <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
                                     <span v-if="stat.goals" class="flex items-center gap-1">
                                         <CircleDot class="size-3 text-emerald-400" /> {{ stat.goals }} {{ stat.goals === 1 ? 'gol' : 'goles' }}

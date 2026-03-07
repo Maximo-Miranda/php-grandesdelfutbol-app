@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Enums\ClubMemberStatus;
 use App\Http\Responses\LoginResponse;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -66,9 +67,24 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
-            'status' => $request->session()->get('status'),
-        ]));
+        Fortify::verifyEmailView(function (Request $request) {
+            $pendingClub = null;
+            $user = $request->user();
+
+            if ($user) {
+                $pendingMembership = $user->clubMemberships()
+                    ->with('club')
+                    ->where('status', ClubMemberStatus::Pending)
+                    ->first();
+
+                $pendingClub = $pendingMembership?->club?->only('name', 'description');
+            }
+
+            return Inertia::render('auth/VerifyEmail', [
+                'status' => $request->session()->get('status'),
+                'pendingClub' => $pendingClub,
+            ]);
+        });
 
         Fortify::registerView(fn () => Inertia::render('auth/Register'));
 

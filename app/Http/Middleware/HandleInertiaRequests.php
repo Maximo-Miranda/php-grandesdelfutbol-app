@@ -46,9 +46,12 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'userClubs' => fn () => $user
-                ? \App\Models\Club::query()->forUser($user)->get(['id', 'name'])
+                ? \App\Models\Club::query()->forUser($user)->get(['id', 'ulid', 'name'])
                 : [],
             'currentClub' => fn () => app(ClubContext::class)->get(),
+            'currentMemberRole' => fn () => $user && app(ClubContext::class)->get()
+                ? app(ClubContext::class)->get()->getMembership($user)?->role->value
+                : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

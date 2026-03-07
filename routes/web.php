@@ -6,6 +6,7 @@ use App\Http\Controllers\ClubJoinController;
 use App\Http\Controllers\ClubMemberController;
 use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmailVerificationCodeController;
 use App\Http\Controllers\FieldController;
 use App\Http\Controllers\MatchAttendanceController;
 use App\Http\Controllers\MatchController;
@@ -24,6 +25,14 @@ Route::inertia('/', 'Welcome', [
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
+Route::get('join/{token}', [ClubJoinController::class, 'show'])->name('clubs.join');
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('join/{token}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
+    Route::post('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'accept'])->name('invitations.accept');
+    Route::post('email/verify-code', [EmailVerificationCodeController::class, 'verify'])->name('verification.verify-code');
+    Route::post('email/resend-code', [EmailVerificationCodeController::class, 'resend'])->name('verification.resend-code');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -41,12 +50,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('members/{member}/reject', [ClubMemberController::class, 'reject'])->name('members.reject');
         Route::patch('members/{member}/role', [ClubMemberController::class, 'updateRole'])->name('members.updateRole');
         Route::delete('members/{member}', [ClubMemberController::class, 'remove'])->name('members.remove');
+        Route::post('leave', [ClubMemberController::class, 'leave'])->name('leave');
 
         Route::resource('players', PlayerController::class)->except('destroy');
 
         Route::resource('venues', VenueController::class)->except('destroy');
         Route::post('venues/{venue}/fields', [FieldController::class, 'store'])->name('venues.fields.store');
         Route::put('venues/{venue}/fields/{field}', [FieldController::class, 'update'])->name('venues.fields.update');
+        Route::delete('venues/{venue}/fields/{field}', [FieldController::class, 'destroy'])->name('venues.fields.destroy');
 
         Route::resource('matches', MatchController::class);
         Route::get('matches/{match}/live', [MatchController::class, 'live'])->name('matches.live');
@@ -64,11 +75,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/cancel', [MatchLifecycleController::class, 'cancel'])->name('matches.cancel');
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
     });
-
-    Route::post('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'accept'])->name('invitations.accept');
-
-    Route::get('join/{token}', [ClubJoinController::class, 'show'])->name('clubs.join');
-    Route::post('join/{token}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
 
     Route::get('player-profile', [PlayerProfileController::class, 'edit'])->name('player-profile.edit');
     Route::patch('player-profile', [PlayerProfileController::class, 'update'])->name('player-profile.update');

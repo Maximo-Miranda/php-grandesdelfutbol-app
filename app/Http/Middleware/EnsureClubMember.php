@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use Closure;
 use Illuminate\Http\Request;
@@ -18,10 +17,7 @@ class EnsureClubMember
             abort(404);
         }
 
-        $membership = $club->members()
-            ->where('user_id', $request->user()->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->first();
+        $membership = $club->getMembership($request->user());
 
         if (! $membership) {
             abort(403, 'You are not a member of this club.');

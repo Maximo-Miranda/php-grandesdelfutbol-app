@@ -7,6 +7,7 @@ use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ClubMember>
@@ -16,6 +17,7 @@ class ClubMemberFactory extends Factory
     public function definition(): array
     {
         return [
+            'ulid' => (string) Str::ulid(),
             'club_id' => Club::factory(),
             'user_id' => User::factory(),
             'role' => ClubMemberRole::Player,

@@ -1,8 +1,10 @@
+import type { Club } from './club';
 import type { Player } from './player';
 import type { Field } from './venue';
 
 export type FootballMatch = {
     id: number;
+    ulid: string;
     club_id: number;
     field_id: number | null;
     title: string;
@@ -23,6 +25,7 @@ export type FootballMatch = {
     team_b_name: string;
     team_a_color: string | null;
     team_b_color: string | null;
+    club?: Club;
     field?: Field;
     attendances?: MatchAttendance[];
     events?: MatchEvent[];
@@ -33,6 +36,7 @@ export type FootballMatch = {
 
 export type MatchAttendance = {
     id: number;
+    ulid: string;
     match_id: number;
     player_id: number;
     status: 'confirmed' | 'declined';
@@ -46,6 +50,7 @@ export type MatchAttendance = {
 
 export type MatchEvent = {
     id: number;
+    ulid: string;
     match_id: number;
     player_id: number;
     event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul';

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasPublicUlid;
 use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $club_id
  * @property int $user_id
  * @property ClubMemberRole $role
@@ -38,7 +40,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ClubMember extends Model
 {
     /** @use HasFactory<\Database\Factories\ClubMemberFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'club_id',
@@ -65,5 +67,20 @@ class ClubMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->role === ClubMemberRole::Owner;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === ClubMemberRole::Admin;
+    }
+
+    public function isAtLeastAdmin(): bool
+    {
+        return $this->role === ClubMemberRole::Admin || $this->role === ClubMemberRole::Owner;
     }
 }

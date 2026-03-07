@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Club } from '@/types';
 
-const page = usePage<{ userClubs: Pick<Club, 'id' | 'name'>[]; currentClub: Club | null }>();
+const page = usePage<{ userClubs: Pick<Club, 'id' | 'ulid' | 'name'>[]; currentClub: Club | null }>();
 const clubs = computed(() => page.props.userClubs ?? []);
 const currentClub = computed(() => page.props.currentClub);
 </script>
@@ -30,7 +30,7 @@ const currentClub = computed(() => page.props.currentClub);
             <DropdownMenuLabel>Switch Club</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem v-for="club in clubs" :key="club.id" as-child>
-                <Link :href="`/clubs/${club.id}`" class="w-full cursor-pointer">
+                <Link :href="`/clubs/${club.ulid}`" class="w-full cursor-pointer">
                     {{ club.name }}
                 </Link>
             </DropdownMenuItem>

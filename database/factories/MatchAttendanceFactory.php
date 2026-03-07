@@ -8,6 +8,7 @@ use App\Enums\AttendanceTeam;
 use App\Models\FootballMatch;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MatchAttendance>
@@ -17,6 +18,7 @@ class MatchAttendanceFactory extends Factory
     public function definition(): array
     {
         return [
+            'ulid' => (string) Str::ulid(),
             'match_id' => FootballMatch::factory(),
             'player_id' => Player::factory(),
             'status' => AttendanceStatus::Confirmed,

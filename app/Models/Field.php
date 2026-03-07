@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasPublicUlid;
 use App\Enums\FieldType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $ulid
  * @property int $venue_id
  * @property string $name
  * @property FieldType $field_type
@@ -36,7 +38,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Field extends Model
 {
     /** @use HasFactory<\Database\Factories\FieldFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'venue_id',

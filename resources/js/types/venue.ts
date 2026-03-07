@@ -1,5 +1,6 @@
 export type Venue = {
     id: number;
+    ulid: string;
     club_id: number;
     name: string;
     address: string | null;
@@ -13,6 +14,7 @@ export type Venue = {
 
 export type Field = {
     id: number;
+    ulid: string;
     venue_id: number;
     name: string;
     field_type: '5v5' | '6v6' | '7v7' | '8v8' | '9v9' | '10v10' | '11v11';

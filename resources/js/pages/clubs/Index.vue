@@ -44,7 +44,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             </div>
 
             <div v-else class="grid gap-4 md:grid-cols-2">
-                <Link v-for="club in clubs" :key="club.id" :href="`/clubs/${club.id}`">
+                <Link v-for="club in clubs" :key="club.id" :href="`/clubs/${club.ulid}`">
                     <Card class="transition-shadow hover:shadow-md">
                         <CardHeader>
                             <CardTitle>{{ club.name }}</CardTitle>

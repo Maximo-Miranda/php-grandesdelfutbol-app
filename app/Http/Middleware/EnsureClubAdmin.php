@@ -2,8 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\ClubMemberRole;
-use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,13 +17,9 @@ class EnsureClubAdmin
             abort(404);
         }
 
-        $membership = $club->members()
-            ->where('user_id', $request->user()->id)
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereIn('role', [ClubMemberRole::Admin, ClubMemberRole::Owner])
-            ->first();
+        $membership = $club->getMembership($request->user());
 
-        if (! $membership) {
+        if (! $membership || ! $membership->isAtLeastAdmin()) {
             abort(403, 'You must be an admin to perform this action.');
         }
 

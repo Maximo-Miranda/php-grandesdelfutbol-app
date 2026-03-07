@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ClubMemberStatus;
 use App\Enums\InvitationStatus;
 use App\Http\Requests\ClubInvitation\StoreInvitationRequest;
 use App\Models\Club;
@@ -21,6 +22,11 @@ class ClubInvitationController extends Controller
         return Inertia::render('clubs/Invite', [
             'club' => $club,
             'invitations' => $club->invitations()->with('inviter')->latest()->get(),
+            'pendingMembers' => $club->members()
+                ->with('user')
+                ->where('status', ClubMemberStatus::Pending)
+                ->latest()
+                ->get(),
         ]);
     }
 
@@ -53,7 +59,7 @@ class ClubInvitationController extends Controller
                 $this->invitationService->acceptInvitation($invitation, Auth::user());
             }
 
-            return redirect()->route('clubs.show', $invitation->club_id)
+            return redirect()->route('clubs.show', $invitation->club)
                 ->with('success', 'Te has unido al club!');
         }
 
@@ -80,9 +86,11 @@ class ClubInvitationController extends Controller
             ->where('token', $token)
             ->firstOrFail();
 
+        $invitation->load('club');
+
         $this->invitationService->acceptInvitation($invitation, auth()->user());
 
-        return redirect()->route('clubs.show', $invitation->club_id)
+        return redirect()->route('clubs.show', $invitation->club)
             ->with('success', 'Te has unido al club!');
     }
 }

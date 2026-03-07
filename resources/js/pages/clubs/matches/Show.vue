@@ -56,12 +56,12 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const base = `/clubs/${props.club.id}/matches/${props.match.id}`;
+const base = `/clubs/${props.club.ulid}/matches/${props.match.ulid}`;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Partidos', href: `/clubs/${props.club.id}/matches` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
     { title: props.match.title, href: base },
 ];
 
@@ -211,16 +211,16 @@ function declineAttendance() {
     if (props.myPlayer) registerPlayer(props.myPlayer.id, 'declined');
 }
 
-function adminRemoveFromMatch(attendanceId: number) {
-    router.delete(`${base}/attendance/${attendanceId}`, { preserveScroll: true });
+function adminRemoveFromMatch(attendanceUlid: string) {
+    router.delete(`${base}/attendance/${attendanceUlid}`, { preserveScroll: true });
 }
 
-function adminMarkDeclined(attendanceId: number) {
-    router.patch(`${base}/attendance/${attendanceId}`, { status: 'declined' }, { preserveScroll: true });
+function adminMarkDeclined(attendanceUlid: string) {
+    router.patch(`${base}/attendance/${attendanceUlid}`, { status: 'declined' }, { preserveScroll: true });
 }
 
-function adminReconfirm(attendanceId: number) {
-    router.patch(`${base}/attendance/${attendanceId}`, { status: 'confirmed' }, { preserveScroll: true });
+function adminReconfirm(attendanceUlid: string) {
+    router.patch(`${base}/attendance/${attendanceUlid}`, { status: 'confirmed' }, { preserveScroll: true });
 }
 
 function startMatch() { router.post(`${base}/start`); }
@@ -585,7 +585,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="canManage">
@@ -595,11 +595,11 @@ function pad(n: number): string {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
-                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.id)">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                             <Undo2 class="size-4" />
                                             Quitar del partido
                                         </DropdownMenuItem>
@@ -630,7 +630,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="canManage">
@@ -640,11 +640,11 @@ function pad(n: number): string {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
-                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.id)">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                             <Undo2 class="size-4" />
                                             Quitar del partido
                                         </DropdownMenuItem>
@@ -672,7 +672,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="canManage">
@@ -682,11 +682,11 @@ function pad(n: number): string {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
-                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.id)">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                             <Undo2 class="size-4" />
                                             Quitar del partido
                                         </DropdownMenuItem>
@@ -711,7 +711,7 @@ function pad(n: number): string {
                                     {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                                 </div>
                                 <DropdownMenu v-if="canManage">
@@ -721,11 +721,11 @@ function pad(n: number): string {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
-                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.id)">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                             <Undo2 class="size-4" />
                                             Quitar del partido
                                         </DropdownMenuItem>
@@ -758,7 +758,7 @@ function pad(n: number): string {
                                 {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                 <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
                             </div>
                             <DropdownMenu v-if="canManage">
@@ -768,11 +768,11 @@ function pad(n: number): string {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" class="w-48">
-                                    <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.id)">
+                                    <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                         <UserMinus class="size-4" />
                                         No asiste
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                         <Undo2 class="size-4" />
                                         Quitar del partido
                                     </DropdownMenuItem>
@@ -801,7 +801,7 @@ function pad(n: number): string {
                                 {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <Link v-if="att.player" :href="`/clubs/${club.id}/players/${att.player.id}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                             </div>
                             <DropdownMenu v-if="canManage">
                                 <DropdownMenuTrigger as-child>
@@ -810,11 +810,11 @@ function pad(n: number): string {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" class="w-48">
-                                    <DropdownMenuItem class="gap-2" @click="adminReconfirm(att.id)">
+                                    <DropdownMenuItem class="gap-2" @click="adminReconfirm(att.ulid)">
                                         <Check class="size-4 text-emerald-500" />
                                         Confirmar
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.id)">
+                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
                                         <Undo2 class="size-4" />
                                         Quitar del partido
                                     </DropdownMenuItem>
@@ -888,7 +888,7 @@ function pad(n: number): string {
                         <div class="min-w-0 flex-1">
                             <Link
                                 v-if="event.player"
-                                :href="`/clubs/${club.id}/players/${event.player.id}`"
+                                :href="`/clubs/${club.ulid}/players/${event.player.ulid}`"
                                 class="block truncate text-sm font-medium hover:text-primary hover:underline"
                             >{{ event.player.display_name }}</Link>
                         </div>

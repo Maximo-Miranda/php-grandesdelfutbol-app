@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\FootballMatch;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MatchEvent>
@@ -14,6 +15,7 @@ class MatchEventFactory extends Factory
     public function definition(): array
     {
         return [
+            'ulid' => (string) Str::ulid(),
             'match_id' => FootballMatch::factory(),
             'player_id' => Player::factory(),
             'event_type' => fake()->randomElement(['goal', 'assist', 'yellow_card', 'red_card']),

@@ -3,16 +3,18 @@ import { Head, Link } from '@inertiajs/vue3';
 import { MapPin, Plus } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Venue } from '@/types';
 
 type Props = { club: Club; venues: Venue[] };
 const props = defineProps<Props>();
+const { isAdmin } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Canchas', href: `/clubs/${props.club.id}/venues` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Canchas', href: `/clubs/${props.club.ulid}/venues` },
 ];
 </script>
 
@@ -22,7 +24,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-2xl font-bold">Canchas</h1>
-                <Link :href="`/clubs/${club.id}/venues/create`">
+                <Link v-if="isAdmin" :href="`/clubs/${club.ulid}/venues/create`">
                     <Button><Plus class="mr-2 size-4" />Crear</Button>
                 </Link>
             </div>
@@ -35,7 +37,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <Link
                     v-for="venue in venues"
                     :key="venue.id"
-                    :href="`/clubs/${club.id}/venues/${venue.id}`"
+                    :href="`/clubs/${club.ulid}/venues/${venue.ulid}`"
                     class="flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-accent"
                 >
                     <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">

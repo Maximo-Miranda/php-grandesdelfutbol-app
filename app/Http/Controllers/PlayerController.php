@@ -61,7 +61,7 @@ class PlayerController extends Controller
 
         $lastGoal = MatchEvent::where('player_id', $player->id)
             ->whereIn('event_type', [MatchEventType::Goal, MatchEventType::PenaltyScored])
-            ->with('match:id,title,scheduled_at')
+            ->with('match:id,ulid,title,scheduled_at')
             ->latest('created_at')
             ->first();
 
@@ -78,7 +78,7 @@ class PlayerController extends Controller
             'club' => $club,
             'player' => $player,
             'lastGoal' => $lastGoal ? [
-                'match_id' => $lastGoal->match->id,
+                'match_ulid' => $lastGoal->match->ulid,
                 'match_title' => $lastGoal->match->title,
                 'match_date' => $lastGoal->match->scheduled_at->format('d M Y'),
                 'minute' => $lastGoal->minute,

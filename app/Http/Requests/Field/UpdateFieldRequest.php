@@ -16,7 +16,7 @@ class UpdateFieldRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'field_type' => ['required', 'string', 'in:5v5,7v7,11v11'],
+            'field_type' => ['required', 'string', 'in:5v5,6v6,7v7,8v8,9v9,10v10,11v11'],
             'surface_type' => ['nullable', 'string', 'max:100'],
             'is_active' => ['boolean'],
         ];

@@ -89,7 +89,7 @@ test('logged in user is auto-accepted when visiting invitation link', function (
 
     $this->actingAs($user)
         ->get(route('invitations.show', $invitation->token))
-        ->assertRedirect(route('clubs.show', $invitation->club_id));
+        ->assertRedirect(route('clubs.show', $invitation->club));
 
     $this->assertDatabaseHas('club_members', [
         'club_id' => $invitation->club_id,
@@ -103,7 +103,7 @@ test('logged in user visiting already-accepted invitation is redirected to club'
 
     $this->actingAs($user)
         ->get(route('invitations.show', $invitation->token))
-        ->assertRedirect(route('clubs.show', $invitation->club_id));
+        ->assertRedirect(route('clubs.show', $invitation->club));
 });
 
 test('authenticated users can accept via POST', function () {

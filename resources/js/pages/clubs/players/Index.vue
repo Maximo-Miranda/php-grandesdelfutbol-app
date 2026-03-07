@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
-import { Plus, UserPlus } from 'lucide-vue-next';
+import { Plus, Search, UserPlus } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 
@@ -10,11 +13,23 @@ type PaginatedPlayers = { data: Player[] };
 
 type Props = { club: Club; players: PaginatedPlayers };
 const props = defineProps<Props>();
+const { isAdmin } = useClubPermissions();
+
+const search = ref('');
+const filteredPlayers = computed(() => {
+    const q = search.value.toLowerCase().trim();
+    if (!q) return props.players.data;
+    return props.players.data.filter((p) =>
+        p.display_name.toLowerCase().includes(q)
+        || p.position?.toLowerCase().includes(q)
+        || String(p.jersey_number ?? '').includes(q),
+    );
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
-    { title: props.club.name, href: `/clubs/${props.club.id}` },
-    { title: 'Jugadores', href: `/clubs/${props.club.id}/players` },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
 ];
 
 function getMedal(index: number): string {
@@ -37,11 +52,11 @@ function getGoalsPerMatch(player: Player): string {
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-2xl font-bold">Jugadores</h1>
-                <div class="flex gap-2">
-                    <Link :href="`/clubs/${club.id}/players/create`">
+                <div v-if="isAdmin" class="flex gap-2">
+                    <Link :href="`/clubs/${club.ulid}/players/create`">
                         <Button><Plus class="mr-2 size-4" />Crear</Button>
                     </Link>
-                    <Link :href="`/clubs/${club.id}/invite`">
+                    <Link :href="`/clubs/${club.ulid}/invite`">
                         <Button variant="outline"><UserPlus class="mr-2 size-4" />Invitar</Button>
                     </Link>
                 </div>
@@ -52,18 +67,31 @@ function getGoalsPerMatch(player: Player): string {
             </div>
 
             <template v-else>
+                <div class="relative mb-4">
+                    <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        v-model="search"
+                        placeholder="Buscar jugador..."
+                        class="pl-9"
+                    />
+                </div>
+
                 <div class="mb-4 flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <span class="h-px flex-1 bg-border" />
                     <span>Tabla de posiciones</span>
                     <span class="h-px flex-1 bg-border" />
                 </div>
 
+                <div v-if="filteredPlayers.length === 0" class="rounded-lg border border-dashed p-8 text-center">
+                    <p class="text-muted-foreground">No se encontraron jugadores.</p>
+                </div>
+
                 <InfiniteScroll data="players" only-next>
                     <div class="space-y-2">
                         <Link
-                            v-for="(player, i) in players.data"
+                            v-for="(player, i) in filteredPlayers"
                             :key="player.id"
-                            :href="`/clubs/${club.id}/players/${player.id}`"
+                            :href="`/clubs/${club.ulid}/players/${player.ulid}`"
                             class="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
                         >
                             <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>

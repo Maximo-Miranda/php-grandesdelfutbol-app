@@ -1,3 +1,5 @@
+/// <reference types="vite-plugin-pwa/client" />
+
 import type { Auth } from '@/types/auth';
 
 // Extend ImportMeta interface for Vite...
@@ -19,6 +21,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            currentMemberRole: 'owner' | 'admin' | 'player' | null;
             [key: string]: unknown;
         };
     }
