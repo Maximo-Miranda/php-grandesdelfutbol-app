@@ -16,11 +16,17 @@ class UpdatePlayerRequest extends FormRequest
     /** @return array<string, array<mixed>> */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'position' => ['nullable', Rule::in(PlayerPosition::cases())],
             'jersey_number' => ['nullable', 'integer', 'min:1', 'max:99'],
-            'is_active' => ['boolean'],
         ];
+
+        $player = $this->route('player');
+        if ($player->club->isAdminOrOwner($this->user())) {
+            $rules['is_active'] = ['boolean'];
+        }
+
+        return $rules;
     }
 }

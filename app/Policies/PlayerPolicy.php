@@ -25,7 +25,8 @@ class PlayerPolicy
 
     public function update(User $user, Player $player): bool
     {
-        return $player->club->isAdminOrOwner($user);
+        return $player->club->isAdminOrOwner($user)
+            || ($player->user_id !== null && $player->user_id === $user->id);
     }
 
     public function delete(User $user, Player $player): bool

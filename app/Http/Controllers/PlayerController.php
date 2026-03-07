@@ -14,6 +14,7 @@ use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
 use App\Models\Player;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -77,6 +78,7 @@ class PlayerController extends Controller
         return Inertia::render('clubs/players/Show', [
             'club' => $club,
             'player' => $player,
+            'canEdit' => Gate::allows('update', $player),
             'lastGoal' => $lastGoal ? [
                 'match_ulid' => $lastGoal->match->ulid,
                 'match_title' => $lastGoal->match->title,
@@ -89,7 +91,7 @@ class PlayerController extends Controller
         ]);
     }
 
-    public function edit(Club $club, Player $player): Response
+    public function edit(Request $request, Club $club, Player $player): Response
     {
         Gate::authorize('update', $player);
 
@@ -97,6 +99,7 @@ class PlayerController extends Controller
             'club' => $club,
             'player' => $player,
             'positions' => collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()]),
+            'isAdmin' => $player->club->isAdminOrOwner($request->user()),
         ]);
     }
 

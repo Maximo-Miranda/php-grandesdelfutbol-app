@@ -24,7 +24,7 @@ test('regular members cannot create players', function () {
         ->assertForbidden();
 });
 
-test('regular members cannot update players', function () {
+test('regular members cannot update other players', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
@@ -33,4 +33,59 @@ test('regular members cannot update players', function () {
     $this->actingAs($user)
         ->put(route('clubs.players.update', [$club, $player]), ['name' => 'Hack'])
         ->assertForbidden();
+});
+
+test('players can update their own profile', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'name' => 'Old Name']);
+
+    $this->actingAs($user)
+        ->put(route('clubs.players.update', [$club, $player]), [
+            'name' => 'New Name',
+            'position' => null,
+            'jersey_number' => null,
+        ])
+        ->assertRedirect(route('clubs.players.show', [$club, $player]));
+
+    expect($player->fresh()->name)->toBe('New Name');
+});
+
+test('players cannot set is_active on their own profile', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'is_active' => true]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.players.update', [$club, $player]), [
+            'name' => $player->name,
+            'position' => null,
+            'jersey_number' => null,
+            'is_active' => false,
+        ])
+        ->assertRedirect();
+
+    expect($player->fresh()->is_active)->toBeTrue();
+});
+
+test('admins can update any player including is_active', function () {
+    $admin = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $admin->id, 'role' => 'admin']);
+    $player = Player::factory()->create(['club_id' => $club->id, 'is_active' => true]);
+
+    $this->actingAs($admin)
+        ->put(route('clubs.players.update', [$club, $player]), [
+            'name' => 'Admin Changed',
+            'position' => null,
+            'jersey_number' => null,
+            'is_active' => false,
+        ])
+        ->assertRedirect();
+
+    $player->refresh();
+    expect($player->name)->toBe('Admin Changed');
+    expect($player->is_active)->toBeFalse();
 });

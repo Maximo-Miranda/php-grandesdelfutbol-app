@@ -4,6 +4,8 @@ import { ref } from 'vue';
 import { Eye, EyeOff } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 
+defineOptions({ inheritAttrs: false });
+
 defineProps<{
     class?: HTMLAttributes['class'];
 }>();
@@ -14,6 +16,7 @@ const visible = ref(false);
 <template>
     <div class="relative">
         <input
+            v-bind="$attrs"
             :type="visible ? 'text' : 'password'"
             data-slot="input"
             :class="

@@ -11,7 +11,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 
 type PositionOption = { value: string; label: string };
-type Props = { club: Club; player: Player; positions: PositionOption[] };
+type Props = { club: Club; player: Player; positions: PositionOption[]; isAdmin: boolean };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -29,12 +29,18 @@ const form = useForm({
 });
 
 function submit() {
-    form.transform((data) => ({
-        ...data,
-        position: data.position === 'none' ? null : data.position,
-        jersey_number: data.jersey_number === '' ? null : Number(data.jersey_number),
-        is_active: !!data.is_active,
-    })).put(`/clubs/${props.club.ulid}/players/${props.player.ulid}`);
+    form.transform((data) => {
+        const transformed: Record<string, unknown> = {
+            name: data.name,
+            position: data.position === 'none' ? null : data.position,
+            jersey_number: data.jersey_number === '' ? null : Number(data.jersey_number),
+        };
+        if (props.isAdmin) {
+            transformed.is_active = !!data.is_active;
+        }
+
+        return transformed;
+    }).put(`/clubs/${props.club.ulid}/players/${props.player.ulid}`);
 }
 </script>
 
@@ -69,7 +75,7 @@ function submit() {
                     <Input id="jersey_number" v-model="form.jersey_number" type="number" min="1" max="99" />
                     <InputError :message="form.errors.jersey_number" />
                 </div>
-                <div class="flex items-center gap-2">
+                <div v-if="isAdmin" class="flex items-center gap-2">
                     <Checkbox id="is_active" v-model="form.is_active" />
                     <Label for="is_active">Activo</Label>
                 </div>

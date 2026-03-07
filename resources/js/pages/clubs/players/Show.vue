@@ -2,7 +2,6 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { CalendarCheck, Pencil, Target, Trophy, Shirt, SquareIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 
@@ -16,11 +15,11 @@ type LastGoal = {
 type Props = {
     club: Club;
     player: Player;
+    canEdit: boolean;
     lastGoal: LastGoal | null;
     attendanceRate: number | null;
 };
 const props = defineProps<Props>();
-const { isAdmin } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
@@ -84,7 +83,7 @@ const goalsRatio = computed(() => {
                                 {{ player.display_name }}
                             </h1>
                             <Link
-                                v-if="isAdmin"
+                                v-if="canEdit"
                                 :href="`/clubs/${club.ulid}/players/${player.ulid}/edit`"
                                 class="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
