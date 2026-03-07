@@ -19,7 +19,7 @@ type Props = {
     pendingClub?: { name: string; description: string | null } | null;
 };
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const code = ref('');
 

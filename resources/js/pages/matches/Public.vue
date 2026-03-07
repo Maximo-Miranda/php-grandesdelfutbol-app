@@ -2,16 +2,10 @@
 import { Head } from '@inertiajs/vue3';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { FootballMatch, MatchEvent } from '@/types';
+import type { FootballMatch } from '@/types';
 
 type Props = { match: FootballMatch & { club: { name: string } } };
-const props = defineProps<Props>();
-
-function eventsByType(type: string): MatchEvent[] {
-    return props.match.events?.filter(e => e.event_type === type) ?? [];
-}
-
-const goals = [...eventsByType('goal'), ...eventsByType('penalty_scored'), ...eventsByType('own_goal')];
+defineProps<Props>();
 </script>
 
 <template>

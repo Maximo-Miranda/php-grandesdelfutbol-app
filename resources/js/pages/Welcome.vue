@@ -16,7 +16,7 @@ withDefaults(
     },
 );
 
-const { appearance, updateAppearance, resolvedAppearance } = useAppearance();
+const { updateAppearance, resolvedAppearance } = useAppearance();
 
 const isDark = computed(() => resolvedAppearance.value === 'dark');
 

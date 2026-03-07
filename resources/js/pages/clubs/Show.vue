@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { CalendarDays, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { CalendarDays, Mail, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
