@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ArrowLeftRight,
@@ -17,6 +17,7 @@ import {
     Search,
     Users,
     UserMinus,
+    UserPlus,
     Video,
     RectangleVertical,
     Shield,
@@ -39,10 +40,14 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import InputError from '@/components/InputError.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/types';
 
-type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[] };
+type PositionOption = { value: string; label: string };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[] };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.ulid}/matches`;
@@ -324,6 +329,30 @@ function addEvent(eventType: string) {
 
 function removeEvent(eventUlid: string) {
     router.delete(`${base}/${props.match.ulid}/events/${eventUlid}`, { preserveScroll: true });
+}
+
+// --- Create player inline (admin) ---
+const showCreatePlayer = ref(false);
+const createPlayerForm = useForm({
+    name: '',
+    position: 'none',
+    jersey_number: '',
+    _redirect_back: true,
+});
+
+function submitCreatePlayer() {
+    createPlayerForm.transform((data) => ({
+        ...data,
+        position: data.position === 'none' ? null : data.position,
+        jersey_number: data.jersey_number || null,
+    })).post(`/clubs/${props.club.ulid}/players`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            createPlayerForm.reset();
+            createPlayerForm.position = 'none';
+            showCreatePlayer.value = false;
+        },
+    });
 }
 </script>
 
@@ -722,6 +751,51 @@ function removeEvent(eventUlid: string) {
                     <p v-else class="mb-4 text-center text-xs text-muted-foreground">
                         No hay jugadores registrados.
                     </p>
+
+                    <!-- Create new player inline -->
+                    <div class="mb-4">
+                        <button
+                            class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                            @click="showCreatePlayer = !showCreatePlayer"
+                        >
+                            <UserPlus class="size-3.5" />
+                            {{ showCreatePlayer ? 'Cancelar' : 'Crear nuevo jugador' }}
+                        </button>
+
+                        <form v-if="showCreatePlayer" class="mt-2 space-y-3 rounded-lg border border-border bg-accent/30 p-3" @submit.prevent="submitCreatePlayer">
+                            <div class="grid gap-1.5">
+                                <Label for="new-player-name" class="text-xs">Nombre</Label>
+                                <Input id="new-player-name" v-model="createPlayerForm.name" placeholder="Nombre del jugador" class="h-8 text-sm" required />
+                                <InputError :message="createPlayerForm.errors.name" />
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="grid gap-1.5">
+                                    <Label for="new-player-position" class="text-xs">Posicion</Label>
+                                    <Select v-model="createPlayerForm.position">
+                                        <SelectTrigger id="new-player-position" class="h-8 text-sm">
+                                            <SelectValue placeholder="Seleccionar" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Sin posicion</SelectItem>
+                                            <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
+                                                {{ pos.label }} ({{ pos.value }})
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError :message="createPlayerForm.errors.position" />
+                                </div>
+                                <div class="grid gap-1.5">
+                                    <Label for="new-player-jersey" class="text-xs">Dorsal</Label>
+                                    <Input id="new-player-jersey" v-model="createPlayerForm.jersey_number" type="number" min="1" max="99" placeholder="#" class="h-8 text-sm" />
+                                    <InputError :message="createPlayerForm.errors.jersey_number" />
+                                </div>
+                            </div>
+                            <Button type="submit" size="sm" class="w-full gap-1.5" :disabled="createPlayerForm.processing">
+                                <UserPlus class="size-3.5" />
+                                Crear jugador
+                            </Button>
+                        </form>
+                    </div>
 
                     <!-- Add players -->
                     <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">

@@ -50,6 +50,10 @@ class PlayerController extends Controller
     {
         $club->players()->create($request->validated());
 
+        if ($request->boolean('_redirect_back')) {
+            return redirect()->back()->with('success', 'Jugador agregado.');
+        }
+
         return redirect()->route('clubs.players.index', $club)
             ->with('success', 'Jugador agregado.');
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MatchStatus;
+use App\Enums\PlayerPosition;
 use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
 use App\Models\Club;
@@ -100,6 +101,9 @@ class MatchController extends Controller
                 'players' => $isAdmin
                     ? $club->players()->active()->with('user.playerProfile')->get()
                     : [],
+                'positions' => $isAdmin
+                    ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
+                    : [],
             ]);
         }
 
@@ -184,6 +188,9 @@ class MatchController extends Controller
             'isAdmin' => $isAdmin,
             'players' => $isAdmin
                 ? $club->players()->active()->with('user.playerProfile')->get()
+                : [],
+            'positions' => $isAdmin
+                ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
         ]);
     }
