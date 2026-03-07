@@ -17,7 +17,6 @@ import {
     Search,
     Users,
     UserMinus,
-    UserPlus,
     Video,
     RectangleVertical,
     Shield,
@@ -331,9 +330,9 @@ function removeEvent(eventUlid: string) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <!-- ===== SCOREBOARD HERO ===== -->
-            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 p-6 shadow-lg dark:from-zinc-900/80 dark:to-black/60">
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-emerald-950 via-emerald-950/90 to-zinc-950 p-6 shadow-lg">
                 <!-- Pitch decoration -->
-                <div class="pointer-events-none absolute inset-0 opacity-[0.03]">
+                <div class="pointer-events-none absolute inset-0 opacity-[0.05]">
                     <div class="absolute top-1/2 left-1/2 size-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"></div>
                     <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
                 </div>

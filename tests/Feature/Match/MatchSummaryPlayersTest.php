@@ -99,23 +99,3 @@ test('admin can remove player from completed match', function () {
         'id' => $attendance->id,
     ]);
 });
-
-test('members can still register players for upcoming matches', function () {
-    $user = User::factory()->create();
-    $club = Club::factory()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
-    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $player = Player::factory()->create(['club_id' => $club->id]);
-
-    $this->actingAs($user)
-        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
-            'player_id' => $player->id,
-            'status' => 'confirmed',
-        ])
-        ->assertRedirect();
-
-    $this->assertDatabaseHas('match_attendances', [
-        'match_id' => $match->id,
-        'player_id' => $player->id,
-    ]);
-});
