@@ -96,6 +96,7 @@ type PlayerStat = {
     name: string;
     ulid: string;
     team: 'a' | 'b' | null;
+    jerseyNumber: number | null;
     goals: number;
     assists: number;
     yellowCards: number;
@@ -111,6 +112,7 @@ const playerStats = computed(() => {
                 name: event.player?.display_name ?? 'Unknown',
                 ulid: event.player?.ulid ?? '',
                 team: att?.team as 'a' | 'b' | null ?? null,
+                jerseyNumber: event.player?.jersey_number ?? null,
                 goals: 0,
                 assists: 0,
                 yellowCards: 0,
@@ -539,7 +541,7 @@ function removeEvent(eventUlid: string) {
                                 class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                                 :style="{ backgroundColor: match.team_a_color + '30' }"
                             >
-                                {{ stat.name.charAt(0).toUpperCase() }}
+                                {{ stat.jerseyNumber ?? stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
                                 <Link :href="`/clubs/${club.ulid}/players/${stat.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
@@ -576,7 +578,7 @@ function removeEvent(eventUlid: string) {
                                 class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                                 :style="{ backgroundColor: match.team_b_color + '30' }"
                             >
-                                {{ stat.name.charAt(0).toUpperCase() }}
+                                {{ stat.jerseyNumber ?? stat.name.charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0 flex-1">
                                 <Link :href="`/clubs/${club.ulid}/players/${stat.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ stat.name }}</Link>
@@ -625,9 +627,10 @@ function removeEvent(eventUlid: string) {
                             @click="selectEditPlayer(att.player_id, att.player?.display_name ?? '')"
                         >
                             <span
-                                class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                                :class="editSelectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
-                            >{{ att.player?.display_name?.charAt(0) }}</span>
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                                :style="{ backgroundColor: att.team ? teamColor(att.team as 'a' | 'b') : (editSelectedPlayerId === att.player_id ? undefined : '#6b7280') }"
+                                :class="!att.team && editSelectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : ''"
+                            >{{ att.player?.jersey_number ?? att.player?.display_name?.charAt(0) }}</span>
                             <span class="min-w-0 truncate">{{ att.player?.display_name }}</span>
                         </button>
                     </div>
@@ -700,7 +703,7 @@ function removeEvent(eventUlid: string) {
                             <span
                                 class="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
                                 :style="{ backgroundColor: att.team ? teamColor(att.team as 'a' | 'b') : '#6b7280' }"
-                            >{{ att.player?.display_name?.charAt(0) }}</span>
+                            >{{ att.player?.jersey_number ?? att.player?.display_name?.charAt(0) }}</span>
                             <div class="min-w-0 flex-1">
                                 <span class="block truncate text-sm font-medium">{{ att.player?.display_name }}</span>
                                 <span v-if="att.team" class="text-[10px] text-muted-foreground">
@@ -752,7 +755,7 @@ function removeEvent(eventUlid: string) {
                         >
                             <span
                                 class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
-                            >{{ player.display_name.charAt(0) }}</span>
+                            >{{ player.jersey_number ?? player.display_name.charAt(0) }}</span>
                             <div class="min-w-0 flex-1">
                                 <span class="block truncate text-sm font-medium">{{ player.display_name }}</span>
                                 <span v-if="player.position_label || player.jersey_number" class="text-[10px] text-muted-foreground">

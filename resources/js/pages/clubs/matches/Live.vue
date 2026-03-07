@@ -345,9 +345,10 @@ const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
                                 @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
-                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
-                                >{{ att.player?.display_name?.charAt(0) }}</span>
+                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                                    :style="{ backgroundColor: selectedPlayerId === att.player_id ? undefined : (match.team_a_color ?? '#6b7280') }"
+                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : ''"
+                                >{{ att.player?.jersey_number ?? att.player?.display_name?.charAt(0) }}</span>
                                 <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
                             </button>
                         </div>
@@ -367,9 +368,10 @@ const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
                                 @click="selectPlayer(att.player_id, att.player?.display_name ?? '')"
                             >
                                 <span
-                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
-                                >{{ att.player?.display_name?.charAt(0) }}</span>
+                                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                                    :style="{ backgroundColor: selectedPlayerId === att.player_id ? undefined : (match.team_b_color ?? '#6b7280') }"
+                                    :class="selectedPlayerId === att.player_id ? 'bg-primary text-primary-foreground' : ''"
+                                >{{ att.player?.jersey_number ?? att.player?.display_name?.charAt(0) }}</span>
                                 <span class="min-w-0 truncate text-xs font-medium sm:text-sm">{{ att.player?.display_name }}</span>
                             </button>
                         </div>
