@@ -38,23 +38,36 @@ if (typeof window !== 'undefined') {
 
         const updateSW = registerSW({
             immediate: true,
+
             onNeedRefresh() {
-                showToast({
+                const toastId = showToast({
                     message: 'Nueva version disponible',
                     actionLabel: 'Actualizar',
-                    onAction: () => updateSW(true),
+                    onAction: () => {
+                        dismissToast(toastId);
+                        showToast({ message: 'Actualizando...', duration: 0 });
+                        void updateSW(true);
+                    },
                 });
             },
-            onRegisteredSW(_url, registration) {
+
+            onRegisteredSW(_swUrl, registration) {
                 if (!registration) return;
-                setInterval(
-                    () => {
-                        if (document.visibilityState === 'visible') {
-                            registration.update();
-                        }
-                    },
-                    60 * 60 * 1000,
-                );
+
+                // Polling every hour (registration.update() fetches the SW script internally)
+                setInterval(() => {
+                    if (registration.installing) return;
+                    if ('connection' in navigator && !navigator.onLine) return;
+
+                    registration.update().catch(() => {});
+                }, 60 * 60 * 1000);
+
+                // Check when returning from background (iOS main trigger)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        registration.update();
+                    }
+                });
             },
         });
     });

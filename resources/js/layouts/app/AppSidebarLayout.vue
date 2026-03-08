@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePoll } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppContent from '@/components/AppContent.vue';
@@ -18,6 +18,9 @@ const props = withDefaults(
         breadcrumbs: () => [],
     },
 );
+
+// Poll server every 5 min — Inertia detects version change (409) and forces full reload
+usePoll(5 * 60 * 1000);
 
 const showBack = computed(() => props.breadcrumbs.length >= 2);
 const backFallback = computed(() => {

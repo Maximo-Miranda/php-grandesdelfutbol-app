@@ -27,6 +27,7 @@ export default defineConfig({
         VitePWA({
             registerType: 'prompt',
             injectRegister: null,
+            scope: '/',
             manifest: {
                 name: 'Grandes del Futbol',
                 short_name: 'GDF',
