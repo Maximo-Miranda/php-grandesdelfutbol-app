@@ -27,6 +27,12 @@ class PlayerFactory extends Factory
             'matches_played' => 0,
             'yellow_cards' => 0,
             'red_cards' => 0,
+            'fouls' => 0,
+            'saves' => 0,
+            'handballs' => 0,
+            'own_goals' => 0,
+            'penalties_scored' => 0,
+            'penalties_missed' => 0,
             'is_active' => true,
         ];
     }
@@ -53,6 +59,12 @@ class PlayerFactory extends Factory
             'matches_played' => fake()->numberBetween(1, 100),
             'yellow_cards' => fake()->numberBetween(0, 10),
             'red_cards' => fake()->numberBetween(0, 3),
+            'fouls' => fake()->numberBetween(0, 20),
+            'saves' => fake()->numberBetween(0, 15),
+            'handballs' => fake()->numberBetween(0, 5),
+            'own_goals' => fake()->numberBetween(0, 5),
+            'penalties_scored' => fake()->numberBetween(0, 10),
+            'penalties_missed' => fake()->numberBetween(0, 5),
         ]);
     }
 }

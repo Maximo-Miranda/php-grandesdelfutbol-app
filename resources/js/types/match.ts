@@ -53,7 +53,7 @@ export type MatchEvent = {
     ulid: string;
     match_id: number;
     player_id: number;
-    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul';
+    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul' | 'handball' | 'timeout';
     minute: number;
     notes: string | null;
     player?: Player;

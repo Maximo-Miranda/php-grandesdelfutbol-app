@@ -72,20 +72,11 @@ class MatchAttendanceController extends Controller
                     'confirmed_at' => null,
                 ]);
             } else {
-                $confirmedCount = $match->attendances()
-                    ->where('status', AttendanceStatus::Confirmed)
-                    ->where('id', '!=', $attendance->id)
-                    ->count();
-
-                $totalSlots = $match->max_players + $match->max_substitutes;
-
-                if ($confirmedCount >= $totalSlots) {
+                try {
+                    $role = $this->matchService->determineRole($match, $attendance->player_id, $attendance->team);
+                } catch (MatchFullException) {
                     return back()->with('error', 'El cupo del partido está lleno.');
                 }
-
-                $role = $confirmedCount < $match->max_players
-                    ? AttendanceRole::Starter
-                    : AttendanceRole::Substitute;
 
                 $attendance->update([
                     'status' => $status,
@@ -102,7 +93,7 @@ class MatchAttendanceController extends Controller
             $data['team'] = AttendanceTeam::from($validated['team']);
         }
         if (isset($validated['role'])) {
-            $data['role'] = $validated['role'];
+            $data['role'] = AttendanceRole::from($validated['role']);
         }
 
         $attendance->update($data);

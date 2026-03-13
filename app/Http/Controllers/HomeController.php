@@ -17,6 +17,7 @@ class HomeController extends Controller
         if (! $user) {
             return Inertia::render('Welcome', [
                 'canRegister' => Features::enabled(Features::registration()),
+                'appUrl' => config('app.url'),
             ]);
         }
 

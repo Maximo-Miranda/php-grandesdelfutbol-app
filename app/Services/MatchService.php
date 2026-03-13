@@ -7,6 +7,7 @@ use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
 use App\Enums\MatchStatus;
 use App\Enums\PlayerPosition;
+use App\Exceptions\MatchFullException;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
@@ -63,22 +64,7 @@ class MatchService
         $role = AttendanceRole::Pending;
 
         if ($status === AttendanceStatus::Confirmed) {
-            $confirmedCount = $match->attendances()
-                ->where('status', AttendanceStatus::Confirmed)
-                ->where('player_id', '!=', $player->id)
-                ->count();
-
-            if ($match->status !== MatchStatus::Completed) {
-                $totalSlots = $match->max_players + $match->max_substitutes;
-
-                if ($confirmedCount >= $totalSlots) {
-                    throw new \App\Exceptions\MatchFullException;
-                }
-            }
-
-            $role = $confirmedCount < $match->max_players
-                ? AttendanceRole::Starter
-                : AttendanceRole::Substitute;
+            $role = $this->determineRole($match, $player->id, $team);
         }
 
         return MatchAttendance::query()->updateOrCreate(
@@ -104,6 +90,73 @@ class MatchService
         $opensAt = $match->scheduled_at->subHours($match->registration_opens_hours);
 
         return now()->gte($opensAt);
+    }
+
+    /**
+     * Determine whether a player should be starter or substitute based on per-team counts.
+     */
+    public function determineRole(FootballMatch $match, int $excludePlayerId, ?AttendanceTeam $team): AttendanceRole
+    {
+        $query = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('player_id', '!=', $excludePlayerId);
+
+        if ($team) {
+            $query->where('team', $team);
+            $maxStarters = intdiv($match->max_players, 2);
+            $maxTotal = $maxStarters + intdiv($match->max_substitutes, 2);
+        } else {
+            $maxStarters = $match->max_players;
+            $maxTotal = $match->max_players + $match->max_substitutes;
+        }
+
+        $starterCount = (clone $query)->where('role', AttendanceRole::Starter)->count();
+        $totalCount = $query->count();
+
+        if ($match->status !== MatchStatus::Completed && $totalCount >= $maxTotal) {
+            throw new MatchFullException;
+        }
+
+        return $starterCount < $maxStarters
+            ? AttendanceRole::Starter
+            : AttendanceRole::Substitute;
+    }
+
+    /**
+     * Recalculate roles for all confirmed attendances per team, ordered by confirmed_at.
+     */
+    public function recalculateRoles(FootballMatch $match): void
+    {
+        $maxPerTeam = intdiv($match->max_players, 2);
+
+        $attendances = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->whereNotNull('team')
+            ->orderBy('confirmed_at')
+            ->get();
+
+        $starterIds = [];
+        $subIds = [];
+        $teamCounts = [AttendanceTeam::A->value => 0, AttendanceTeam::B->value => 0];
+
+        foreach ($attendances as $attendance) {
+            $teamKey = $attendance->team->value;
+
+            if ($teamCounts[$teamKey] < $maxPerTeam) {
+                $starterIds[] = $attendance->id;
+                $teamCounts[$teamKey]++;
+            } else {
+                $subIds[] = $attendance->id;
+            }
+        }
+
+        if ($starterIds) {
+            MatchAttendance::whereIn('id', $starterIds)->update(['role' => AttendanceRole::Starter]);
+        }
+
+        if ($subIds) {
+            MatchAttendance::whereIn('id', $subIds)->update(['role' => AttendanceRole::Substitute]);
+        }
     }
 
     public function autoAssignTeams(FootballMatch $match): void

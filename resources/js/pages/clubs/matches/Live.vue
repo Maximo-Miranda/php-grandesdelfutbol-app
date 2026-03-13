@@ -5,12 +5,14 @@ import {
     ArrowLeftRight,
     Check,
     CircleDot,
+    Hand,
     Minus,
     Plus,
     RectangleVertical,
     RefreshCw,
     Shield,
     Shuffle,
+    Timer,
     Trash2,
     X,
 } from 'lucide-vue-next';
@@ -49,6 +51,8 @@ const secondaryEventTypes = [
     { value: 'injury', label: 'Lesión', icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20' },
     { value: 'save', label: 'Atajada', icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20' },
     { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
+    { value: 'handball', label: 'Mano', icon: Hand, color: 'text-orange-300', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+    { value: 'timeout', label: 'Tiempo', icon: Timer, color: 'text-zinc-300', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
 ];
 
 const selectedPlayerId = ref<number | null>(null);
@@ -154,6 +158,8 @@ const eventLabel: Record<string, string> = {
     substitution: 'Cambio',
     injury: 'Lesión',
     foul: 'Falta',
+    handball: 'Mano',
+    timeout: 'Tiempo',
 };
 
 const eventIcon: Record<string, { color: string }> = {
@@ -169,6 +175,8 @@ const eventIcon: Record<string, { color: string }> = {
     substitution: { color: 'text-blue-400' },
     injury: { color: 'text-rose-400' },
     foul: { color: 'text-amber-400' },
+    handball: { color: 'text-orange-300' },
+    timeout: { color: 'text-zinc-300' },
 };
 
 function selectPlayer(playerId: number, playerName: string) {

@@ -31,7 +31,7 @@ export default defineConfig({
             manifest: {
                 name: 'Grandes del Futbol',
                 short_name: 'GDF',
-                description: 'Gestiona tus partidos y estadisticas de futbol',
+                description: 'Organiza partidos con tus amigos, controla asistencia y sigue estadisticas de cada jugador',
                 theme_color: '#16a34a',
                 background_color: '#0f172a',
                 display: 'standalone',
@@ -41,7 +41,7 @@ export default defineConfig({
                 id: '/dashboard',
                 lang: 'es',
                 dir: 'ltr',
-                categories: ['sports', 'utilities'],
+                categories: ['sports'],
                 prefer_related_applications: false,
                 icons: [
                     {

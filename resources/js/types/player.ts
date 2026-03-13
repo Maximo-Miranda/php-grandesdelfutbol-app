@@ -17,6 +17,12 @@ export type Player = {
     matches_played: number;
     yellow_cards: number;
     red_cards: number;
+    fouls: number;
+    saves: number;
+    handballs: number;
+    own_goals: number;
+    penalties_scored: number;
+    penalties_missed: number;
     is_active: boolean;
     user?: User;
     club?: Club;

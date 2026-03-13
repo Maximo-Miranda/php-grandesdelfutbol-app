@@ -22,6 +22,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $matches_played
  * @property int $yellow_cards
  * @property int $red_cards
+ * @property int $fouls
+ * @property int $saves
+ * @property int $handballs
+ * @property int $own_goals
+ * @property int $penalties_scored
+ * @property int $penalties_missed
  * @property bool $is_active
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
@@ -72,6 +78,12 @@ class Player extends Model
         'matches_played',
         'yellow_cards',
         'red_cards',
+        'fouls',
+        'saves',
+        'handballs',
+        'own_goals',
+        'penalties_scored',
+        'penalties_missed',
         'is_active',
     ];
 
@@ -87,6 +99,12 @@ class Player extends Model
             'matches_played' => 'integer',
             'yellow_cards' => 'integer',
             'red_cards' => 'integer',
+            'fouls' => 'integer',
+            'saves' => 'integer',
+            'handballs' => 'integer',
+            'own_goals' => 'integer',
+            'penalties_scored' => 'integer',
+            'penalties_missed' => 'integer',
         ];
     }
 

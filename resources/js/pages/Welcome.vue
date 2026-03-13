@@ -7,12 +7,14 @@ import { useAppearance } from '@/composables/useAppearance';
 import { dashboard, login, register } from '@/routes';
 import heroImage from '../../images/hero-football.jpg';
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         canRegister: boolean;
+        appUrl: string;
     }>(),
     {
         canRegister: true,
+        appUrl: '',
     },
 );
 
@@ -26,7 +28,15 @@ function toggleDarkMode() {
 </script>
 
 <template>
-    <Head title="Bienvenido" />
+    <Head title="Organiza partidos de futbol con tu grupo de amigos">
+        <meta head-key="description" name="description" content="Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y sigue las estadisticas de cada jugador de tu grupo en cancha sintetica." />
+        <meta head-key="og:title" property="og:title" content="Grandes del Futbol — Organiza el futbol con tu grupo de amigos" />
+        <meta head-key="og:description" property="og:description" content="Controla asistencia, arma equipos y sigue las estadisticas de cada jugador. Servicio de grabacion y estadisticas desde $60.000 por partido." />
+        <meta head-key="og:type" property="og:type" content="website" />
+        <meta head-key="og:image" property="og:image" :content="`${props.appUrl}/pwa-512x512.png`" />
+        <meta head-key="og:locale" property="og:locale" content="es_CO" />
+        <meta head-key="twitter:card" name="twitter:card" content="summary" />
+    </Head>
 
     <div class="min-h-screen bg-background text-foreground">
         <!-- Header -->
@@ -86,12 +96,11 @@ function toggleDarkMode() {
 
             <div class="relative z-10 mx-auto max-w-4xl px-4 text-center">
                 <h1 class="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                    Gestiona tus partidos y
-                    <span class="gradient-primary-text">estadisticas</span>
-                    como un profesional
+                    Organiza el futbol con tu
+                    <span class="gradient-primary-text">grupo de amigos</span>
                 </h1>
                 <p class="mx-auto mb-10 max-w-2xl text-lg text-gray-300 sm:text-xl">
-                    La plataforma definitiva para organizar partidos de futbol, registrar goles, asistencias y seguir el rendimiento de cada jugador.
+                    Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y lleva las estadisticas de cada jugador en un solo lugar.
                 </p>
                 <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
                     <Link
@@ -126,7 +135,7 @@ function toggleDarkMode() {
                         Como funciona
                     </h2>
                     <p class="mx-auto max-w-2xl text-lg text-muted-foreground">
-                        En tres simples pasos, tendras todo listo para gestionar tus partidos de futbol.
+                        En tres simples pasos, tu grupo de amigos tiene todo listo para jugar organizado.
                     </p>
                 </div>
 
@@ -137,7 +146,7 @@ function toggleDarkMode() {
                         </div>
                         <h3 class="mb-3 text-xl font-semibold">1. Crea tu club</h3>
                         <p class="text-muted-foreground">
-                            Registrate y crea tu club de futbol. Invita a tus amigos y comienza a organizar.
+                            Registrate gratis y crea tu club. Invita a tu grupo de amigos con un simple link.
                         </p>
                     </div>
 
@@ -147,7 +156,7 @@ function toggleDarkMode() {
                         </div>
                         <h3 class="mb-3 text-xl font-semibold">2. Organiza partidos</h3>
                         <p class="text-muted-foreground">
-                            Programa partidos, arma los equipos automaticamente y lleva el control de asistencia.
+                            Confirma asistencia, arma equipos y programa tus partidos de cancha sintetica sin depender de un chat.
                         </p>
                     </div>
 
@@ -155,16 +164,16 @@ function toggleDarkMode() {
                         <div class="gradient-primary-bg mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl">
                             <Trophy class="size-8 text-white" />
                         </div>
-                        <h3 class="mb-3 text-xl font-semibold">3. Registra estadisticas</h3>
+                        <h3 class="mb-3 text-xl font-semibold">3. Sigue el rendimiento</h3>
                         <p class="text-muted-foreground">
-                            Goles, asistencias, tarjetas y mas. Lleva un registro detallado de cada partido en tiempo real.
+                            Goles, atajadas, tarjetas y mas. Cada jugador tiene su perfil con estadisticas detalladas.
                         </p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- CTA Grabacion -->
+        <!-- Servicio de grabacion -->
         <section class="py-20 sm:py-28">
             <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
                 <div class="rounded-3xl border border-border bg-card p-10 text-center sm:p-16">
@@ -172,10 +181,16 @@ function toggleDarkMode() {
                         <Video class="size-8 text-white" />
                     </div>
                     <h2 class="mb-4 text-3xl font-bold sm:text-4xl">
-                        Proximamente: Grabacion de partidos
+                        Grabacion de partidos + estadisticas
                     </h2>
-                    <p class="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-                        Graba tus partidos y revive las mejores jugadas. Comparte los highlights con tu equipo y revisa cada momento clave.
+                    <p class="mx-auto mb-4 max-w-2xl text-lg text-muted-foreground">
+                        Vamos a tu cancha, grabamos el partido completo y cargamos las estadisticas de cada jugador en la app. Goles, atajadas, tarjetas — todo registrado.
+                    </p>
+                    <p class="mb-8 text-2xl font-bold">
+                        $60.000 por partido
+                        <span class="block text-base font-normal text-muted-foreground">
+                            Entre 12 jugadores son solo $5.000 cada uno
+                        </span>
                     </p>
                     <Link
                         v-if="!$page.props.auth.user"

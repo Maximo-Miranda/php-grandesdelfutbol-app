@@ -62,21 +62,38 @@ test('registerPlayer auto-assigns starter role when under max_players', function
         ->and($attendance->confirmed_at)->not->toBeNull();
 });
 
-test('registerPlayer auto-assigns substitute role when at max_players', function () {
-    $match = FootballMatch::factory()->create(['max_players' => 2]);
+test('registerPlayer auto-assigns substitute role when team starters are full', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
     $service = new MatchService;
 
-    // Fill up starters
+    // Fill up team A starters (2 max)
     $players = Player::factory()->count(2)->create(['club_id' => $match->club_id]);
     foreach ($players as $player) {
-        $service->registerPlayer($match, $player, AttendanceStatus::Confirmed);
+        $service->registerPlayer($match, $player, AttendanceStatus::Confirmed, AttendanceTeam::A);
     }
 
-    // Next player should be substitute
+    // Next player on team A should be substitute
     $extraPlayer = Player::factory()->create(['club_id' => $match->club_id]);
-    $attendance = $service->registerPlayer($match, $extraPlayer, AttendanceStatus::Confirmed);
+    $attendance = $service->registerPlayer($match, $extraPlayer, AttendanceStatus::Confirmed, AttendanceTeam::A);
 
     expect($attendance->role)->toBe(AttendanceRole::Substitute);
+});
+
+test('registerPlayer assigns starter when other team is full but this team has room', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Fill up team A starters
+    $playersA = Player::factory()->count(2)->create(['club_id' => $match->club_id]);
+    foreach ($playersA as $player) {
+        $service->registerPlayer($match, $player, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    }
+
+    // Team B should still get starter role
+    $playerB = Player::factory()->create(['club_id' => $match->club_id]);
+    $attendance = $service->registerPlayer($match, $playerB, AttendanceStatus::Confirmed, AttendanceTeam::B);
+
+    expect($attendance->role)->toBe(AttendanceRole::Starter);
 });
 
 test('registerPlayer resets role and team when declining', function () {
@@ -126,6 +143,33 @@ test('isRegistrationOpen checks status and timing', function () {
         'registration_opens_hours' => 24,
     ]);
     expect($service->isRegistrationOpen($futureMatch))->toBeFalse();
+});
+
+test('recalculateRoles fixes roles per team based on confirmed_at order', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Create 3 players on team A — all incorrectly marked as starters
+    $players = Player::factory()->count(3)->create(['club_id' => $match->club_id]);
+    foreach ($players as $i => $player) {
+        MatchAttendance::factory()->create([
+            'match_id' => $match->id,
+            'player_id' => $player->id,
+            'status' => AttendanceStatus::Confirmed,
+            'team' => AttendanceTeam::A,
+            'role' => AttendanceRole::Starter, // all incorrectly starters
+            'confirmed_at' => now()->addMinutes($i),
+        ]);
+    }
+
+    $service->recalculateRoles($match);
+
+    $match->load('attendances');
+    $teamA = $match->attendances->where('team', AttendanceTeam::A)->sortBy('confirmed_at')->values();
+
+    expect($teamA[0]->role)->toBe(AttendanceRole::Starter)
+        ->and($teamA[1]->role)->toBe(AttendanceRole::Starter)
+        ->and($teamA[2]->role)->toBe(AttendanceRole::Substitute);
 });
 
 test('autoAssignTeams distributes players into teams', function () {

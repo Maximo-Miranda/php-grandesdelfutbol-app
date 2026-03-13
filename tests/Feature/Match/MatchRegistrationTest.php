@@ -89,23 +89,25 @@ test('player can register without team choice', function () {
     ]);
 });
 
-test('cannot confirm player when match is full', function () {
+test('cannot confirm player when team is full', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
     $match = FootballMatch::factory()->create([
         'club_id' => $club->id,
-        'max_players' => 2,
-        'max_substitutes' => 1,
+        'max_players' => 2, // 1 per team
+        'max_substitutes' => 2, // 1 sub per team
     ]);
 
-    // Fill all 3 slots
-    for ($i = 0; $i < 3; $i++) {
+    // Fill team A: 1 starter + 1 sub = full
+    for ($i = 0; $i < 2; $i++) {
         $player = Player::factory()->create(['club_id' => $club->id]);
         MatchAttendance::factory()->create([
             'match_id' => $match->id,
             'player_id' => $player->id,
             'status' => 'confirmed',
+            'team' => 'a',
+            'role' => $i === 0 ? 'starter' : 'substitute',
         ]);
     }
 
@@ -115,6 +117,7 @@ test('cannot confirm player when match is full', function () {
         ->post(route('clubs.matches.attendance.store', [$club, $match]), [
             'player_id' => $newPlayer->id,
             'status' => 'confirmed',
+            'team' => 'a',
         ])
         ->assertRedirect()
         ->assertSessionHas('error', 'El cupo del partido está lleno.');
@@ -122,6 +125,48 @@ test('cannot confirm player when match is full', function () {
     $this->assertDatabaseMissing('match_attendances', [
         'match_id' => $match->id,
         'player_id' => $newPlayer->id,
+    ]);
+});
+
+test('can confirm player on team with room even when other team is full', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'max_players' => 4, // 2 per team
+        'max_substitutes' => 2, // 1 sub per team
+    ]);
+
+    // Fill team A completely (2 starters + 1 sub)
+    for ($i = 0; $i < 3; $i++) {
+        $player = Player::factory()->create(['club_id' => $club->id]);
+        MatchAttendance::factory()->create([
+            'match_id' => $match->id,
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+            'team' => 'a',
+            'role' => $i < 2 ? 'starter' : 'substitute',
+        ]);
+    }
+
+    // Team B should still accept players
+    $newPlayer = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $newPlayer->id,
+            'status' => 'confirmed',
+            'team' => 'b',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertDatabaseHas('match_attendances', [
+        'match_id' => $match->id,
+        'player_id' => $newPlayer->id,
+        'role' => 'starter',
+        'team' => 'b',
     ]);
 });
 

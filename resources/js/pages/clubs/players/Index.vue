@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
-import { Plus, Search, UserPlus } from 'lucide-vue-next';
+import { Plus, Search, UserPlus, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,6 +103,9 @@ function getGoalsPerMatch(player: Player): string {
                                 <div class="flex items-center gap-2">
                                     <Badge v-if="player.position" variant="outline" class="text-[10px]">{{ player.position }}</Badge>
                                     <span v-if="player.jersey_number" class="text-xs text-muted-foreground">#{{ player.jersey_number }}</span>
+                                    <span v-if="isAdmin && !player.user_id" class="text-amber-500" title="Sin usuario asociado">
+                                        <UserX class="size-3.5" />
+                                    </span>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 text-sm text-muted-foreground">

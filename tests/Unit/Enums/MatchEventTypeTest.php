@@ -14,7 +14,9 @@ test('it has the correct values', function () {
         ->and(MatchEventType::OwnGoal->value)->toBe('own_goal')
         ->and(MatchEventType::Substitution->value)->toBe('substitution')
         ->and(MatchEventType::Injury->value)->toBe('injury')
-        ->and(MatchEventType::Foul->value)->toBe('foul');
+        ->and(MatchEventType::Foul->value)->toBe('foul')
+        ->and(MatchEventType::Handball->value)->toBe('handball')
+        ->and(MatchEventType::Timeout->value)->toBe('timeout');
 });
 
 test('it can be created from value', function () {
@@ -33,5 +35,7 @@ test('it has labels', function () {
         ->and(MatchEventType::OwnGoal->label())->toBe('Autogol')
         ->and(MatchEventType::Substitution->label())->toBe('Cambio')
         ->and(MatchEventType::Injury->label())->toBe('Lesión')
-        ->and(MatchEventType::Foul->label())->toBe('Falta');
+        ->and(MatchEventType::Foul->label())->toBe('Falta')
+        ->and(MatchEventType::Handball->label())->toBe('Mano')
+        ->and(MatchEventType::Timeout->label())->toBe('Tiempo');
 });

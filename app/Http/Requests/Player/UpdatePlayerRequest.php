@@ -25,6 +25,7 @@ class UpdatePlayerRequest extends FormRequest
         ];
         if ($player->club->isAdminOrOwner($this->user())) {
             $rules['is_active'] = ['boolean'];
+            $rules['user_id'] = ['nullable', 'exists:users,id'];
         }
 
         return $rules;

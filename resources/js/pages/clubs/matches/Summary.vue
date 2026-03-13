@@ -21,7 +21,9 @@ import {
     Video,
     RectangleVertical,
     Shield,
+    Hand,
     Star,
+    Timer,
     Trash2,
     Trophy,
     X,
@@ -89,6 +91,8 @@ const eventLabel: Record<string, string> = {
     substitution: 'Cambio',
     injury: 'Lesión',
     foul: 'Falta',
+    handball: 'Mano',
+    timeout: 'Tiempo',
 };
 
 function getPlayerTeam(playerId: number): 'a' | 'b' | null {
@@ -292,6 +296,8 @@ const editEventTypes = [
     { value: 'substitution', label: 'Cambio', icon: ArrowLeftRight, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
     { value: 'injury', label: 'Lesión', icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20' },
     { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
+    { value: 'handball', label: 'Mano', icon: Hand, color: 'text-orange-300', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+    { value: 'timeout', label: 'Tiempo', icon: Timer, color: 'text-zinc-300', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
 ];
 
 const confirmedPlayers = computed(() =>

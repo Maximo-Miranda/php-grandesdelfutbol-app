@@ -51,4 +51,46 @@ class MatchEventFactory extends Factory
             'event_type' => 'red_card',
         ]);
     }
+
+    public function foul(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'foul',
+        ]);
+    }
+
+    public function save(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'save',
+        ]);
+    }
+
+    public function handball(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'handball',
+        ]);
+    }
+
+    public function ownGoal(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'own_goal',
+        ]);
+    }
+
+    public function penaltyScored(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'penalty_scored',
+        ]);
+    }
+
+    public function penaltyMissed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'event_type' => 'penalty_missed',
+        ]);
+    }
 }

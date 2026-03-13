@@ -31,6 +31,6 @@ class PlayerPolicy
 
     public function delete(User $user, Player $player): bool
     {
-        return $this->update($user, $player);
+        return $player->club->isAdminOrOwner($user);
     }
 }

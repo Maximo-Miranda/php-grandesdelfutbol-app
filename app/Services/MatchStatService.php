@@ -29,6 +29,12 @@ class MatchStatService
                         'assists' => 0,
                         'yellow_cards' => 0,
                         'red_cards' => 0,
+                        'fouls' => 0,
+                        'saves' => 0,
+                        'handballs' => 0,
+                        'own_goals' => 0,
+                        'penalties_scored' => 0,
+                        'penalties_missed' => 0,
                     ];
                 }
 
@@ -37,18 +43,28 @@ class MatchStatService
                     MatchEventType::Assist => $playerStats[$playerId]['assists']++,
                     MatchEventType::YellowCard => $playerStats[$playerId]['yellow_cards']++,
                     MatchEventType::RedCard => $playerStats[$playerId]['red_cards']++,
-                    MatchEventType::OwnGoal => $playerStats[$playerId]['goals']++,
+                    MatchEventType::Foul => $playerStats[$playerId]['fouls']++,
+                    MatchEventType::Save => $playerStats[$playerId]['saves']++,
+                    MatchEventType::Handball => $playerStats[$playerId]['handballs']++,
+                    MatchEventType::OwnGoal => $playerStats[$playerId]['own_goals']++,
+                    MatchEventType::PenaltyMissed => $playerStats[$playerId]['penalties_missed']++,
                     default => null,
                 };
+
+                // PenaltyScored also counts as a penalty stat (separate from goals)
+                if ($event->event_type === MatchEventType::PenaltyScored) {
+                    $playerStats[$playerId]['penalties_scored']++;
+                }
             }
 
             foreach ($playerStats as $playerId => $stats) {
                 $player = Player::find($playerId);
                 if ($player) {
-                    $player->increment('goals', $stats['goals']);
-                    $player->increment('assists', $stats['assists']);
-                    $player->increment('yellow_cards', $stats['yellow_cards']);
-                    $player->increment('red_cards', $stats['red_cards']);
+                    foreach ($stats as $stat => $count) {
+                        if ($count > 0) {
+                            $player->increment($stat, $count);
+                        }
+                    }
                 }
             }
 
@@ -85,10 +101,12 @@ class MatchStatService
         foreach ($playerStats as $playerId => $stats) {
             $player = Player::find($playerId);
             if ($player) {
-                $player->decrement('goals', $stats['goals']);
-                $player->decrement('assists', $stats['assists']);
-                $player->decrement('yellow_cards', $stats['yellow_cards']);
-                $player->decrement('red_cards', $stats['red_cards']);
+                foreach ($stats as $stat => $count) {
+                    $value = (int) ($count ?? 0);
+                    if ($value > 0) {
+                        $player->decrement($stat, $value);
+                    }
+                }
             }
         }
 

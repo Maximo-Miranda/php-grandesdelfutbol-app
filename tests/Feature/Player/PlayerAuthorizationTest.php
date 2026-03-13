@@ -70,6 +70,49 @@ test('players cannot set is_active on their own profile', function () {
     expect($player->fresh()->is_active)->toBeTrue();
 });
 
+test('regular members cannot delete players', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.players.destroy', [$club, $player]))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('players', ['id' => $player->id]);
+});
+
+test('players cannot delete their own player profile', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.players.destroy', [$club, $player]))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('players', ['id' => $player->id]);
+});
+
+test('non-admins cannot set user_id on player update', function () {
+    $user = User::factory()->create();
+    $targetUser = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id, 'role' => 'player']);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.players.update', [$club, $player]), [
+            'name' => $player->name,
+            'user_id' => $targetUser->id,
+        ])
+        ->assertRedirect();
+
+    expect($player->fresh()->user_id)->toBe($user->id);
+});
+
 test('admins can update any player including is_active', function () {
     $admin = User::factory()->create();
     $club = Club::factory()->create();

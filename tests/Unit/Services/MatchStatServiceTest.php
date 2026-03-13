@@ -121,19 +121,148 @@ test('re-finalize reverts then reapplies stats correctly', function () {
     expect($player->goals)->toBe(2);
 });
 
-test('finalize stats counts penalty scored as goal', function () {
+test('finalize stats updates fouls from events', function () {
     $match = FootballMatch::factory()->completed()->create();
-    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0]);
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'fouls' => 0]);
 
-    MatchEvent::factory()->create([
+    MatchEvent::factory()->foul()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->foul()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->foul()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->fouls)->toBe(3);
+});
+
+test('revert stats decrements fouls correctly', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'fouls' => 0]);
+
+    MatchEvent::factory()->foul()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->foul()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->fouls)->toBe(2);
+
+    $service->revertStats($match);
+
+    $player->refresh();
+    expect($player->fouls)->toBe(0);
+});
+
+test('finalize stats updates saves from events', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'saves' => 0]);
+
+    MatchEvent::factory()->save()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->save()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->saves)->toBe(2);
+});
+
+test('finalize stats updates handballs from events', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'handballs' => 0]);
+
+    MatchEvent::factory()->handball()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->handballs)->toBe(1);
+});
+
+test('finalize stats counts penalty scored as goal and penalties_scored', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0, 'penalties_scored' => 0]);
+
+    MatchEvent::factory()->penaltyScored()->create([
         'match_id' => $match->id,
         'player_id' => $player->id,
-        'event_type' => 'penalty_scored',
     ]);
 
     $service = new MatchStatService;
     $service->finalizeStats($match);
 
     $player->refresh();
-    expect($player->goals)->toBe(1);
+    expect($player->goals)->toBe(1)
+        ->and($player->penalties_scored)->toBe(1);
+});
+
+test('finalize stats counts own goal separately and not as a goal', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'goals' => 0, 'own_goals' => 0]);
+
+    MatchEvent::factory()->ownGoal()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(0)
+        ->and($player->own_goals)->toBe(1);
+});
+
+test('finalize stats tracks penalty missed', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create(['club_id' => $match->club_id, 'penalties_missed' => 0]);
+
+    MatchEvent::factory()->penaltyMissed()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->penalties_missed)->toBe(1);
+});
+
+test('revert stats decrements own_goals and penalty stats correctly', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create([
+        'club_id' => $match->club_id,
+        'goals' => 0, 'own_goals' => 0,
+        'penalties_scored' => 0, 'penalties_missed' => 0,
+    ]);
+
+    MatchEvent::factory()->ownGoal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->penaltyScored()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->penaltyMissed()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(1)
+        ->and($player->own_goals)->toBe(1)
+        ->and($player->penalties_scored)->toBe(1)
+        ->and($player->penalties_missed)->toBe(1);
+
+    $service->revertStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(0)
+        ->and($player->own_goals)->toBe(0)
+        ->and($player->penalties_scored)->toBe(0)
+        ->and($player->penalties_missed)->toBe(0);
 });

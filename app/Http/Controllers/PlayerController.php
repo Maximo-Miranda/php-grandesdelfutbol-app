@@ -13,6 +13,8 @@ use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
 use App\Models\Player;
+use App\Models\User;
+use App\Services\PlayerMergeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -99,19 +101,71 @@ class PlayerController extends Controller
     {
         Gate::authorize('update', $player);
 
+        $isAdmin = $club->isAdminOrOwner($request->user());
+
+        $availableUsers = [];
+        if ($isAdmin) {
+            $approvedUserIds = $club->members()
+                ->where('status', 'approved')
+                ->pluck('user_id');
+
+            $usersWithPlayer = $club->players()
+                ->where('id', '!=', $player->id)
+                ->whereNotNull('user_id')
+                ->pluck('user_id')
+                ->toArray();
+
+            $availableUsers = User::whereIn('id', $approvedUserIds)
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'has_player' => in_array($u->id, $usersWithPlayer),
+                ]);
+        }
+
         return Inertia::render('clubs/players/Edit', [
             'club' => $club,
             'player' => $player,
             'positions' => collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()]),
-            'isAdmin' => $player->club->isAdminOrOwner($request->user()),
+            'isAdmin' => $isAdmin,
+            'availableUsers' => $availableUsers,
         ]);
     }
 
-    public function update(UpdatePlayerRequest $request, Club $club, Player $player): RedirectResponse
+    public function update(UpdatePlayerRequest $request, Club $club, Player $player, PlayerMergeService $mergeService): RedirectResponse
     {
-        $player->update($request->validated());
+        $validated = $request->validated();
+
+        if (isset($validated['user_id'])) {
+            $existingPlayer = Player::query()
+                ->where('club_id', $club->id)
+                ->where('user_id', $validated['user_id'])
+                ->where('id', '!=', $player->id)
+                ->first();
+
+            if ($existingPlayer) {
+                $mergedPlayer = $mergeService->merge(source: $player, target: $existingPlayer);
+
+                return redirect()->route('clubs.players.show', [$club, $mergedPlayer])
+                    ->with('success', 'Jugadores fusionados exitosamente.');
+            }
+        }
+
+        $player->update($validated);
 
         return redirect()->route('clubs.players.show', [$club, $player])
             ->with('success', 'Jugador actualizado.');
+    }
+
+    public function destroy(Club $club, Player $player): RedirectResponse
+    {
+        Gate::authorize('delete', $player);
+
+        $player->delete();
+
+        return redirect()->route('clubs.players.index', $club)
+            ->with('success', 'Jugador eliminado.');
     }
 }

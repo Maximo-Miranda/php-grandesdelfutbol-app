@@ -16,6 +16,8 @@ enum MatchEventType: string
     case Substitution = 'substitution';
     case Injury = 'injury';
     case Foul = 'foul';
+    case Handball = 'handball';
+    case Timeout = 'timeout';
 
     public function label(): string
     {
@@ -32,6 +34,8 @@ enum MatchEventType: string
             self::Substitution => 'Cambio',
             self::Injury => 'Lesión',
             self::Foul => 'Falta',
+            self::Handball => 'Mano',
+            self::Timeout => 'Tiempo',
         };
     }
 }

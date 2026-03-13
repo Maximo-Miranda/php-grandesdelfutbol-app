@@ -50,7 +50,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('members/{member}', [ClubMemberController::class, 'remove'])->name('members.remove');
         Route::post('leave', [ClubMemberController::class, 'leave'])->name('leave');
 
-        Route::resource('players', PlayerController::class)->except('destroy');
+        Route::resource('players', PlayerController::class);
 
         Route::resource('venues', VenueController::class)->except('destroy');
         Route::post('venues/{venue}/fields', [FieldController::class, 'store'])->name('venues.fields.store');

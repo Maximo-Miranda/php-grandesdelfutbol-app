@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CalendarCheck, Pencil, Target, Trophy, Shirt, SquareIcon } from 'lucide-vue-next';
+import { CalendarCheck, Pencil, ShieldAlert, Target, Trophy, SquareIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
@@ -37,16 +37,31 @@ const initials = computed(() => {
         .toUpperCase();
 });
 
-const goalsPerMatch = computed(() => {
-    if (!props.player.matches_played) return '-';
-    return (props.player.goals / props.player.matches_played).toFixed(1);
+const mp = computed(() => props.player.matches_played);
+
+const averages = computed(() => {
+    if (!mp.value) return null;
+    return {
+        goals: props.player.goals / mp.value,
+        fouls: props.player.fouls / mp.value,
+        saves: props.player.saves / mp.value,
+    };
 });
 
-const totalContributions = computed(() => props.player.goals + props.player.assists);
+const maxAvg = computed(() => {
+    if (!averages.value) return 1;
+    return Math.max(averages.value.goals, averages.value.fouls, averages.value.saves, 0.1);
+});
 
-const goalsRatio = computed(() => {
-    if (!totalContributions.value) return 0;
-    return Math.round((props.player.goals / totalContributions.value) * 100);
+const playerStyle = computed(() => {
+    if (!mp.value) return null;
+    const { goals, fouls, saves } = props.player;
+
+    if (saves > goals && saves > fouls) return { label: 'Arquero', color: 'bg-blue-500/15 text-blue-400' };
+    if (goals >= 1 * mp.value) return { label: 'Goleador', color: 'bg-primary/15 text-primary' };
+    if (goals > fouls) return { label: 'Ofensivo', color: 'bg-emerald-500/15 text-emerald-400' };
+    if (fouls > goals) return { label: 'Aguerrido', color: 'bg-amber-500/15 text-amber-400' };
+    return null;
 });
 </script>
 
@@ -141,12 +156,12 @@ const goalsRatio = computed(() => {
                 <div class="group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-center transition-colors hover:border-primary/30">
                     <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                     <div class="relative">
-                        <Shirt class="mx-auto mb-2 size-5 text-primary/60" />
+                        <ShieldAlert class="mx-auto mb-2 size-5 text-primary/60" />
                         <div class="text-3xl font-extrabold tabular-nums text-foreground">
-                            {{ player.assists }}
+                            {{ player.fouls }}
                         </div>
                         <div class="mt-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                            Asist.
+                            Faltas
                         </div>
                     </div>
                 </div>
@@ -180,54 +195,85 @@ const goalsRatio = computed(() => {
                 </div>
 
                 <div class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3">
-                    <template v-if="attendanceRate !== null">
-                        <CalendarCheck class="size-3.5 text-primary" />
-                        <span class="text-lg font-bold tabular-nums text-primary">{{ attendanceRate }}%</span>
-                        <span class="text-xs text-muted-foreground">Asist.</span>
-                    </template>
-                    <template v-else>
-                        <span class="text-lg font-bold tabular-nums text-primary">{{ goalsPerMatch }}</span>
-                        <span class="text-xs text-muted-foreground">Goles/PJ</span>
-                    </template>
+                    <CalendarCheck class="size-3.5 text-primary" />
+                    <span class="text-lg font-bold tabular-nums text-primary">{{ attendanceRate ?? 0 }}%</span>
+                    <span class="text-xs text-muted-foreground">Asist.</span>
                 </div>
             </div>
 
-            <!-- Contributions -->
+            <!-- Penalties & Own Goals (shown only if player has any) -->
+            <div
+                v-if="player.penalties_scored > 0 || player.penalties_missed > 0 || player.own_goals > 0"
+                class="mb-6 grid grid-cols-3 gap-3"
+            >
+                <div class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3">
+                    <Target class="size-3.5 text-emerald-400" />
+                    <span class="text-lg font-bold tabular-nums">{{ player.penalties_scored }}</span>
+                    <span class="text-xs text-muted-foreground">Penales</span>
+                </div>
+
+                <div class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3">
+                    <Target class="size-3.5 text-red-400" />
+                    <span class="text-lg font-bold tabular-nums">{{ player.penalties_missed }}</span>
+                    <span class="text-xs text-muted-foreground">Pen. fallados</span>
+                </div>
+
+                <div class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3">
+                    <ShieldAlert class="size-3.5 text-orange-400" />
+                    <span class="text-lg font-bold tabular-nums">{{ player.own_goals }}</span>
+                    <span class="text-xs text-muted-foreground">Autogoles</span>
+                </div>
+            </div>
+
+            <!-- Promedios por partido -->
             <div class="overflow-hidden rounded-xl border border-border bg-card p-5">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Contribuciones de gol
+                        Promedios por partido
                     </h3>
-                    <span class="text-2xl font-extrabold tabular-nums text-primary">{{ totalContributions }}</span>
+                    <span
+                        v-if="playerStyle"
+                        :class="['rounded-md px-2.5 py-1 text-xs font-semibold', playerStyle.color]"
+                    >
+                        {{ playerStyle.label }}
+                    </span>
                 </div>
 
-                <div v-if="totalContributions > 0" class="mt-4 space-y-3">
-                    <!-- Goals bar -->
+                <div v-if="averages" class="mt-4 space-y-3">
                     <div class="flex items-center gap-3">
-                        <span class="w-14 text-right text-xs font-medium text-muted-foreground">Goles</span>
+                        <span class="w-16 text-right text-xs font-medium text-muted-foreground">Goles</span>
                         <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
                                 class="h-full rounded-full bg-primary transition-all duration-500"
-                                :style="{ width: `${goalsRatio}%` }"
+                                :style="{ width: `${(averages.goals / maxAvg) * 100}%` }"
                             />
                         </div>
-                        <span class="w-8 text-right text-sm font-bold tabular-nums">{{ player.goals }}</span>
+                        <span class="w-8 text-right text-sm font-bold tabular-nums">{{ averages.goals.toFixed(1) }}</span>
                     </div>
-                    <!-- Assists bar -->
                     <div class="flex items-center gap-3">
-                        <span class="w-14 text-right text-xs font-medium text-muted-foreground">Asist.</span>
+                        <span class="w-16 text-right text-xs font-medium text-muted-foreground">Faltas</span>
                         <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
-                                class="h-full rounded-full bg-emerald-300/60 transition-all duration-500"
-                                :style="{ width: `${100 - goalsRatio}%` }"
+                                class="h-full rounded-full bg-amber-400/60 transition-all duration-500"
+                                :style="{ width: `${(averages.fouls / maxAvg) * 100}%` }"
                             />
                         </div>
-                        <span class="w-8 text-right text-sm font-bold tabular-nums">{{ player.assists }}</span>
+                        <span class="w-8 text-right text-sm font-bold tabular-nums">{{ averages.fouls.toFixed(1) }}</span>
+                    </div>
+                    <div v-if="player.saves > 0" class="flex items-center gap-3">
+                        <span class="w-16 text-right text-xs font-medium text-muted-foreground">Atajadas</span>
+                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div
+                                class="h-full rounded-full bg-blue-400/60 transition-all duration-500"
+                                :style="{ width: `${(averages.saves / maxAvg) * 100}%` }"
+                            />
+                        </div>
+                        <span class="w-8 text-right text-sm font-bold tabular-nums">{{ averages.saves.toFixed(1) }}</span>
                     </div>
                 </div>
 
                 <p v-else class="mt-3 text-sm text-muted-foreground">
-                    Sin contribuciones aun.
+                    Juega su primer partido para ver promedios.
                 </p>
             </div>
 
