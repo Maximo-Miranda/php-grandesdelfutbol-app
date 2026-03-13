@@ -42,7 +42,7 @@ function getMedal(index: number): string {
 function getGoalsPerMatch(player: Player): string {
     const mp = player.matches_played ?? 0;
     if (mp === 0) return '-';
-    return ((player.goals ?? 0) + (player.assists ?? 0) / mp).toFixed(1);
+    return (((player.goals ?? 0) + (player.assists ?? 0)) / mp).toFixed(1);
 }
 </script>
 

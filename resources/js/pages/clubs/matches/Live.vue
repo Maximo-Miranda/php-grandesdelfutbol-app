@@ -499,7 +499,7 @@ const allEventTypes = [...primaryEventTypes, ...secondaryEventTypes];
                                     : 'text-destructive/60 hover:bg-destructive/10 hover:text-destructive'"
                                 @click="confirmRemoveEvent(event.ulid)"
                             >
-                                <Trash2 v-if="confirmingDeleteId !== event.id" class="size-4" />
+                                <Trash2 v-if="confirmingDeleteId !== event.ulid" class="size-4" />
                                 <Check v-else class="size-4" />
                             </button>
                         </div>
