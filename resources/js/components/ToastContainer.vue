@@ -7,7 +7,7 @@ const { toasts, dismissToast } = useToast();
 
 <template>
     <Teleport to="body">
-        <div dusk="toast-container" class="fixed bottom-4 right-4 z-50 flex w-80 max-sm:left-4 max-sm:right-4 max-sm:w-auto flex-col gap-2">
+        <div dusk="toast-container" class="fixed bottom-20 right-4 z-50 flex w-80 max-sm:left-4 max-sm:right-4 max-sm:w-auto flex-col gap-2">
             <TransitionGroup
                 enter-active-class="transition duration-300 ease-out"
                 enter-from-class="translate-y-4 opacity-0"

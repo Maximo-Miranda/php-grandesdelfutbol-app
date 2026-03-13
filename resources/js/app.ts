@@ -65,7 +65,7 @@ if (typeof window !== 'undefined') {
                 // Check when returning from background (iOS main trigger)
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'visible') {
-                        registration.update();
+                        registration.update().catch(() => {});
                     }
                 });
             },

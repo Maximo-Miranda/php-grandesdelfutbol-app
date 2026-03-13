@@ -30,7 +30,9 @@ export function usePwaInstall() {
 
     const isIos = computed(() => {
         if (typeof navigator === 'undefined') return false;
-        return /iPad|iPhone|iPod/.test(navigator.userAgent);
+        // iPadOS 13+ reports as "Macintosh" — detect via touch support
+        return /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
     });
 
     const canInstall = computed(() => deferredPrompt.value !== null);

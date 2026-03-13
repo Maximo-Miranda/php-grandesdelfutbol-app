@@ -164,6 +164,12 @@ const teamAConfirmed = computed(() => confirmedAttendances.value.filter(a => a.t
 const teamBConfirmed = computed(() => confirmedAttendances.value.filter(a => a.team === 'b'));
 const unassignedTeam = computed(() => confirmedAttendances.value.filter(a => !a.team));
 
+// --- Substitute grouping ---
+const teamASubstitutes = computed(() => substitutes.value.filter(a => a.team === 'a'));
+const teamBSubstitutes = computed(() => substitutes.value.filter(a => a.team === 'b'));
+const unassignedSubstitutes = computed(() => substitutes.value.filter(a => !a.team));
+const hasTeamSubstitutes = computed(() => teamASubstitutes.value.length > 0 || teamBSubstitutes.value.length > 0);
+
 // --- My attendance ---
 const myAttendance = computed(() => {
     if (!props.myPlayer) return null;
@@ -746,42 +752,182 @@ function pad(n: number): string {
                     <ArrowDownRight class="size-4 text-amber-500" />
                     <h3 class="font-semibold">Suplentes ({{ substituteCount }}/{{ match.max_substitutes }})</h3>
                 </div>
-                <div v-if="substitutes.length" class="overflow-hidden rounded-xl border border-border">
-                    <div class="divide-y divide-border/50">
-                        <div
-                            v-for="(att, idx) in substitutes"
-                            :key="att.id"
-                            class="flex items-center gap-3 bg-card px-4 py-2.5"
-                        >
-                            <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                            <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
+
+                <!-- Grouped by team -->
+                <template v-if="hasTeamSubstitutes">
+                    <!-- Team A Subs -->
+                    <div v-if="teamASubstitutes.length" class="mb-4 overflow-hidden rounded-xl border border-border">
+                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="match.team_a_color ? { backgroundColor: match.team_a_color + '20' } : {}">
+                            <span
+                                class="size-4 shrink-0 rounded-sm"
+                                :style="match.team_a_color ? { backgroundColor: match.team_a_color } : {}"
+                            />
+                            <span class="flex-1 text-sm font-bold">{{ match.team_a_name }}</span>
+                            <span class="text-xs text-muted-foreground">{{ teamASubstitutes.length }} suplentes</span>
+                        </div>
+                        <div class="divide-y divide-border/50">
+                            <div
+                                v-for="(att, idx) in teamASubstitutes"
+                                :key="att.id"
+                                class="flex items-center gap-3 bg-card px-4 py-2.5"
+                            >
+                                <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
+                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
+                                </div>
+                                <DropdownMenu v-if="canManage">
+                                    <DropdownMenuTrigger as-child>
+                                        <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                                            <EllipsisVertical class="size-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
+                                            <UserMinus class="size-4" />
+                                            No asiste
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
+                                            <Undo2 class="size-4" />
+                                            Quitar del partido
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
-                                <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
-                            </div>
-                            <DropdownMenu v-if="canManage">
-                                <DropdownMenuTrigger as-child>
-                                    <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                                        <EllipsisVertical class="size-4" />
-                                    </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" class="w-48">
-                                    <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
-                                        <UserMinus class="size-4" />
-                                        No asiste
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
-                                        <Undo2 class="size-4" />
-                                        Quitar del partido
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
                         </div>
                     </div>
-                </div>
-                <p v-else class="text-sm text-muted-foreground">Nadie aun</p>
+
+                    <!-- Team B Subs -->
+                    <div v-if="teamBSubstitutes.length" class="mb-4 overflow-hidden rounded-xl border border-border">
+                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="match.team_b_color ? { backgroundColor: match.team_b_color + '20' } : {}">
+                            <span
+                                class="size-4 shrink-0 rounded-sm"
+                                :style="match.team_b_color ? { backgroundColor: match.team_b_color } : {}"
+                            />
+                            <span class="flex-1 text-sm font-bold">{{ match.team_b_name }}</span>
+                            <span class="text-xs text-muted-foreground">{{ teamBSubstitutes.length }} suplentes</span>
+                        </div>
+                        <div class="divide-y divide-border/50">
+                            <div
+                                v-for="(att, idx) in teamBSubstitutes"
+                                :key="att.id"
+                                class="flex items-center gap-3 bg-card px-4 py-2.5"
+                            >
+                                <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
+                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
+                                </div>
+                                <DropdownMenu v-if="canManage">
+                                    <DropdownMenuTrigger as-child>
+                                        <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                                            <EllipsisVertical class="size-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
+                                            <UserMinus class="size-4" />
+                                            No asiste
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
+                                            <Undo2 class="size-4" />
+                                            Quitar del partido
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unassigned Subs -->
+                    <div v-if="unassignedSubstitutes.length" class="mb-4 overflow-hidden rounded-xl border border-border">
+                        <div class="flex items-center gap-2.5 bg-muted/30 px-4 py-2.5">
+                            <span class="size-4 shrink-0 rounded-sm bg-muted" />
+                            <span class="flex-1 text-sm font-bold text-muted-foreground">Sin equipo</span>
+                            <span class="text-xs text-muted-foreground">{{ unassignedSubstitutes.length }} suplentes</span>
+                        </div>
+                        <div class="divide-y divide-border/50">
+                            <div
+                                v-for="(att, idx) in unassignedSubstitutes"
+                                :key="att.id"
+                                class="flex items-center gap-3 bg-card px-4 py-2.5"
+                            >
+                                <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
+                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
+                                </div>
+                                <DropdownMenu v-if="canManage">
+                                    <DropdownMenuTrigger as-child>
+                                        <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                                            <EllipsisVertical class="size-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
+                                            <UserMinus class="size-4" />
+                                            No asiste
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
+                                            <Undo2 class="size-4" />
+                                            Quitar del partido
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Flat list (no team assignments) -->
+                <template v-else>
+                    <div v-if="substitutes.length" class="overflow-hidden rounded-xl border border-border">
+                        <div class="divide-y divide-border/50">
+                            <div
+                                v-for="(att, idx) in substitutes"
+                                :key="att.id"
+                                class="flex items-center gap-3 bg-card px-4 py-2.5"
+                            >
+                                <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
+                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
+                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                    <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
+                                </div>
+                                <DropdownMenu v-if="canManage">
+                                    <DropdownMenuTrigger as-child>
+                                        <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                                            <EllipsisVertical class="size-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
+                                            <UserMinus class="size-4" />
+                                            No asiste
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
+                                            <Undo2 class="size-4" />
+                                            Quitar del partido
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <p v-if="!substitutes.length" class="text-sm text-muted-foreground">Nadie aun</p>
             </div>
 
             <!-- No van -->
