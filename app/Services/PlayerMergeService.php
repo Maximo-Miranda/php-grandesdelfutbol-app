@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\AttendanceStatus;
+use App\Enums\MatchStatus;
 use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
 use App\Models\Player;
@@ -10,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class PlayerMergeService
 {
     private const STAT_COLUMNS = [
-        'goals', 'assists', 'matches_played', 'yellow_cards',
+        'goals', 'assists', 'yellow_cards',
         'red_cards', 'fouls', 'saves', 'handballs',
         'own_goals', 'penalties_scored', 'penalties_missed',
     ];
@@ -24,6 +26,7 @@ class PlayerMergeService
             $this->sumStats($source, $target);
             $this->transferMatchEvents($source, $target);
             $this->transferMatchAttendances($source, $target);
+            $this->recalculateMatchesPlayed($target);
             $this->adoptProfileAttributes($source, $target);
 
             $target->save();
@@ -38,6 +41,14 @@ class PlayerMergeService
         foreach (self::STAT_COLUMNS as $column) {
             $target->{$column} += $source->{$column};
         }
+    }
+
+    private function recalculateMatchesPlayed(Player $target): void
+    {
+        $target->matches_played = MatchAttendance::where('player_id', $target->id)
+            ->where('status', AttendanceStatus::Confirmed)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Completed))
+            ->count();
     }
 
     private function transferMatchEvents(Player $source, Player $target): void

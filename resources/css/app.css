@@ -151,15 +151,15 @@
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(222 47% 11%);
+    --sidebar-background: hsl(224 47% 9%);
     --sidebar-foreground: hsl(215 16% 57%);
     --sidebar-primary: hsl(155 100% 43%);
     --sidebar-primary-foreground: hsl(222 47% 11%);
     --sidebar-accent: hsl(217 33% 17%);
     --sidebar-accent-foreground: hsl(210 20% 98%);
-    --sidebar-border: hsl(217 33% 17%);
+    --sidebar-border: hsl(217 25% 22%);
     --sidebar-ring: hsl(155 100% 43%);
-    --sidebar: hsl(222 47% 11%);
+    --sidebar: hsl(224 47% 9%);
 }
 
 @layer utilities {

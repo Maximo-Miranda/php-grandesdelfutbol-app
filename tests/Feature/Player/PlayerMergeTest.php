@@ -52,7 +52,7 @@ test('merge sums all stat columns correctly', function () {
 
     expect($merged->goals)->toBe(7)
         ->and($merged->assists)->toBe(4)
-        ->and($merged->matches_played)->toBe(15)
+        ->and($merged->matches_played)->toBe(0) // recalculated from attendances, not summed
         ->and($merged->yellow_cards)->toBe(3)
         ->and($merged->red_cards)->toBe(1)
         ->and($merged->fouls)->toBe(6)
@@ -61,6 +61,33 @@ test('merge sums all stat columns correctly', function () {
         ->and($merged->own_goals)->toBe(3)
         ->and($merged->penalties_scored)->toBe(4)
         ->and($merged->penalties_missed)->toBe(1);
+});
+
+test('merge recalculates matches_played from actual attendances', function () {
+    $club = Club::factory()->create();
+
+    // 3 completed matches
+    $matchA = FootballMatch::factory()->create(['club_id' => $club->id, 'status' => 'completed']);
+    $matchB = FootballMatch::factory()->create(['club_id' => $club->id, 'status' => 'completed']);
+    $matchC = FootballMatch::factory()->create(['club_id' => $club->id, 'status' => 'completed']);
+    // 1 upcoming match (should not count)
+    $matchD = FootballMatch::factory()->create(['club_id' => $club->id, 'status' => 'upcoming']);
+
+    $source = Player::factory()->create(['club_id' => $club->id, 'matches_played' => 2]);
+    $target = Player::factory()->create(['club_id' => $club->id, 'matches_played' => 2, 'user_id' => User::factory()->create()->id]);
+
+    // Source attended A and B, target attended B and C (B is shared)
+    MatchAttendance::factory()->create(['match_id' => $matchA->id, 'player_id' => $source->id]);
+    MatchAttendance::factory()->create(['match_id' => $matchB->id, 'player_id' => $source->id]);
+    MatchAttendance::factory()->create(['match_id' => $matchB->id, 'player_id' => $target->id]);
+    MatchAttendance::factory()->create(['match_id' => $matchC->id, 'player_id' => $target->id]);
+    // Upcoming match should not count
+    MatchAttendance::factory()->create(['match_id' => $matchD->id, 'player_id' => $source->id]);
+
+    $merged = app(PlayerMergeService::class)->merge($source, $target);
+
+    // A + B + C = 3 completed matches (not 2+2=4, and not counting upcoming matchD)
+    expect($merged->matches_played)->toBe(3);
 });
 
 test('merge transfers match events to target player', function () {
