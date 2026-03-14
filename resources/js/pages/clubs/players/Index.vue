@@ -95,8 +95,9 @@ function getGoalsPerMatch(player: Player): string {
                             class="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
                         >
                             <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>
-                            <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                                {{ player.display_name.charAt(0) }}
+                            <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-bold">
+                                <img v-if="player.photo_url" :src="player.photo_url" :alt="player.display_name" class="size-full object-cover" />
+                                <span v-else>{{ player.display_name.charAt(0) }}</span>
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-medium">{{ player.display_name }}</p>

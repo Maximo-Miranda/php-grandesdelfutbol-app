@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\AttachmentCollection;
 use App\Enums\PlayerPosition;
+use App\Http\Requests\UpdatePlayerProfileRequest;
 use App\Models\PlayerProfile;
-use App\Services\AttachmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,42 +12,26 @@ use Inertia\Response;
 
 class PlayerProfileController extends Controller
 {
-    public function __construct(private AttachmentService $attachmentService) {}
-
     public function edit(Request $request): Response
     {
-        $profile = $request->user()->playerProfile ?? new PlayerProfile;
-
-        $positions = collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => [
-            'value' => $p->value,
-            'label' => $p->label(),
-        ])->values()->all();
-
         return Inertia::render('profile/PlayerProfile', [
-            'profile' => $profile,
-            'positions' => $positions,
+            'profile' => $request->user()->playerProfile ?? new PlayerProfile,
+            'positions' => collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => [
+                'value' => $p->value,
+                'label' => $p->label(),
+            ]),
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(UpdatePlayerProfileRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nickname' => ['nullable', 'string', 'max:100'],
-            'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'date_of_birth' => ['nullable', 'date'],
-            'nationality' => ['nullable', 'string', 'max:100'],
-            'bio' => ['nullable', 'string', 'max:500'],
-            'preferred_position' => ['nullable', 'string', 'max:50'],
-            'photo' => ['nullable', 'image', 'max:2048'],
-        ]);
-
         $profile = $request->user()->playerProfile()->updateOrCreate(
-            ['user_id' => $request->user()->id],
-            collect($validated)->except('photo')->toArray(),
+            [],
+            $request->safe()->except(['photo']),
         );
 
         if ($request->hasFile('photo')) {
-            $this->attachmentService->upload($profile, $request->file('photo'), AttachmentCollection::Photo);
+            $profile->addMediaFromRequest('photo')->toMediaCollection('photo');
         }
 
         return back()->with('success', 'Perfil actualizado.');
