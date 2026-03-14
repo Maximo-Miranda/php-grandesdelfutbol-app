@@ -45,7 +45,15 @@ RUN apk add --no-cache \
     postgresql-dev \
     libzip-dev \
     icu-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    freetype-dev \
     linux-headers \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
     && docker-php-ext-install \
         pdo_pgsql \
         pgsql \
@@ -54,6 +62,7 @@ RUN apk add --no-cache \
         opcache \
         intl \
         pcntl \
+        gd \
     && apk del linux-headers \
     && rm -rf /var/cache/apk/*
 
