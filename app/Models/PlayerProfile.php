@@ -113,11 +113,19 @@ class PlayerProfile extends Model implements HasMedia
 
     public function getPhotoUrlAttribute(): ?string
     {
-        return $this->getFirstMediaUrl('photo', 'avatar') ?: null;
+        if (! $this->getFirstMedia('photo')) {
+            return null;
+        }
+
+        return $this->getFirstTemporaryUrl(now()->addMinutes(60), 'photo', 'avatar');
     }
 
     public function getPhotoThumbUrlAttribute(): ?string
     {
-        return $this->getFirstMediaUrl('photo', 'thumb') ?: null;
+        if (! $this->getFirstMedia('photo')) {
+            return null;
+        }
+
+        return $this->getFirstTemporaryUrl(now()->addMinutes(60), 'photo', 'thumb');
     }
 }
