@@ -13,7 +13,7 @@ type Props = {
     pendingMemberships?: ClubMember[];
 };
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mis Clubes', href: '/clubs' },
