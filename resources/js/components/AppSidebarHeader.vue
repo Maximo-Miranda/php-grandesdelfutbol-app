@@ -8,7 +8,6 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import type { BreadcrumbItem } from '@/types';
@@ -35,9 +34,7 @@ const backFallback = computed(() => {
 });
 
 function goBack() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else if (backFallback.value) {
+    if (backFallback.value) {
         router.visit(backFallback.value);
     }
 }
@@ -50,7 +47,6 @@ function toggleTheme() {
 <template>
     <header class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <div class="flex items-center gap-2">
-            <SidebarTrigger class="-ml-1 lg:hidden" />
             <button
                 v-if="showBack"
                 type="button"

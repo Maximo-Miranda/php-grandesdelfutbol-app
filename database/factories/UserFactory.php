@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\SocialAccount;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -55,5 +56,19 @@ class UserFactory extends Factory
             'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1'])),
             'two_factor_confirmed_at' => now(),
         ]);
+    }
+
+    /**
+     * Indicate that the model has a linked Google account.
+     */
+    public function withGoogle(string $providerId = '123456789'): static
+    {
+        return $this->afterCreating(function ($user) use ($providerId) {
+            SocialAccount::create([
+                'user_id' => $user->id,
+                'provider' => 'google',
+                'provider_id' => $providerId,
+            ]);
+        });
     }
 }

@@ -4,7 +4,7 @@ import { Moon, Sun, Trophy, UserPlus, Users, Video } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { useAppearance } from '@/composables/useAppearance';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login, privacy, register, terms } from '@/routes';
 import heroImage from '../../images/hero-football.jpg';
 
 const props = withDefaults(
@@ -206,9 +206,18 @@ function toggleDarkMode() {
         <!-- Footer -->
         <footer class="border-t border-border py-12">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
+                <div class="flex flex-col items-center gap-6">
                     <div class="flex items-center gap-2">
                         <AppLogo />
+                    </div>
+                    <div class="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
+                        <a :href="terms.url()" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                            Terminos y Condiciones de Uso
+                        </a>
+                        <span class="hidden text-muted-foreground/50 sm:inline">&middot;</span>
+                        <a :href="privacy.url()" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                            Politica de Tratamiento de Datos Personales
+                        </a>
                     </div>
                     <p class="text-sm text-muted-foreground">
                         &copy; {{ new Date().getFullYear() }} Grandes del Futbol. Todos los derechos reservados.

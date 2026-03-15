@@ -15,6 +15,7 @@ type Props = { club: Club; venue: Venue };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Clubs', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Canchas', href: `/clubs/${props.club.ulid}/venues` },
     { title: 'Editar', href: `/clubs/${props.club.ulid}/venues/${props.venue.ulid}/edit` },

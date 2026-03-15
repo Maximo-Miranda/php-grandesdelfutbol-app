@@ -30,19 +30,19 @@ test('authenticated user without last_club_id but with clubs is redirected to th
         ->assertRedirect(route('clubs.show', $club));
 });
 
-test('authenticated user with stale last_club_id is redirected to dashboard', function () {
+test('authenticated user with stale last_club_id is redirected to clubs index', function () {
     $staleClub = Club::factory()->create();
     $user = User::factory()->create(['last_club_id' => $staleClub->id]);
 
     $this->actingAs($user)
         ->get(route('home'))
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('clubs.index'));
 });
 
-test('authenticated user with no clubs is redirected to dashboard', function () {
+test('authenticated user with no clubs is redirected to clubs index', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->get(route('home'))
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('clubs.index'));
 });

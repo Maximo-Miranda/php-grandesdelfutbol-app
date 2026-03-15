@@ -13,7 +13,7 @@ import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
     {
-        title: 'Perfil',
+        title: 'Mi Perfil',
         href: editProfile(),
     },
     {

@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttachmentCollection;
+use App\Enums\ClubMemberStatus;
 use App\Http\Requests\Club\StoreClubRequest;
 use App\Http\Requests\Club\UpdateClubRequest;
 use App\Models\Club;
+use App\Models\ClubInvitation;
+use App\Models\FootballMatch;
 use App\Services\AttachmentService;
+use App\Services\ClubContext;
 use App\Services\ClubService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -20,17 +24,60 @@ class ClubController extends Controller
         private readonly AttachmentService $attachmentService,
     ) {}
 
-    public function index(): Response
+    public function index(): Response|RedirectResponse
     {
+        app(ClubContext::class)->clear();
+
+        $user = auth()->user();
+
         $clubs = Club::query()
-            ->forUser(auth()->user())
+            ->forUser($user)
             ->with('owner')
-            ->withCount('members')
+            ->withCount([
+                'members',
+                'matches',
+                'matches as upcoming_matches_count' => fn ($query) => $query->upcoming(),
+            ])
             ->latest()
             ->get();
 
+        $pendingMemberships = $user->clubMemberships()
+            ->with('club')
+            ->where('status', ClubMemberStatus::Pending)
+            ->get();
+
+        if ($clubs->isEmpty() && $pendingMemberships->isEmpty()) {
+            $invitation = ClubInvitation::query()
+                ->where('email', $user->email)
+                ->valid()
+                ->first();
+
+            if ($invitation) {
+                return redirect()->route('invitations.show', $invitation->token);
+            }
+
+            return redirect()->route('clubs.create');
+        }
+
+        $clubIds = $clubs->pluck('id');
+
+        $nextMatch = FootballMatch::query()
+            ->whereIn('club_id', $clubIds)
+            ->upcoming()
+            ->with('club', 'field')
+            ->withCount('attendances')
+            ->orderBy('scheduled_at')
+            ->first();
+
         return Inertia::render('clubs/Index', [
             'clubs' => $clubs,
+            'nextMatch' => $nextMatch,
+            'pendingInvitations' => ClubInvitation::query()
+                ->where('email', $user->email)
+                ->valid()
+                ->with('club')
+                ->get(),
+            'pendingMemberships' => $pendingMemberships,
         ]);
     }
 

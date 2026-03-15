@@ -22,7 +22,7 @@ const visible = computed(() => {
             leave-from-class="translate-y-0 opacity-100"
             leave-to-class="translate-y-full opacity-0"
         >
-            <div v-if="visible" dusk="pwa-install-prompt" class="fixed inset-x-0 bottom-0 z-50 p-4">
+            <div v-if="visible" dusk="pwa-install-prompt" class="fixed inset-x-0 bottom-20 z-50 p-4 lg:bottom-0">
                 <div
                     class="mx-auto flex max-w-md items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-card-foreground shadow-lg"
                 >

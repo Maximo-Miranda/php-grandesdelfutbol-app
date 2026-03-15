@@ -22,6 +22,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property string|null $nationality
  * @property string|null $bio
  * @property string|null $preferred_position
+ * @property string|null $phone
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
  * @property-read string|null $photo_url
@@ -68,6 +69,7 @@ class PlayerProfile extends Model implements HasMedia
         'nationality',
         'bio',
         'preferred_position',
+        'phone',
     ];
 
     protected function casts(): array

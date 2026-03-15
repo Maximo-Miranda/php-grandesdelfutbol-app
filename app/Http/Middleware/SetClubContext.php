@@ -78,6 +78,7 @@ readonly class SetClubContext
 
         return $request->routeIs(
             'home',
+            'clubs.index',
             'clubs.create',
             'clubs.store',
             'invitations.*',
@@ -88,6 +89,7 @@ readonly class SetClubContext
             'appearance.*',
             'two-factor.*',
             'player-profile.*',
+            'player-card',
             'dashboard',
             'logout',
             'verification.*',

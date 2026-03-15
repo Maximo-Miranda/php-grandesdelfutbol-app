@@ -61,6 +61,7 @@ test('registration with valid join_token stores token in session and does not au
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
         'join_token' => $club->invite_token,
     ])->assertRedirect();
 
@@ -76,6 +77,7 @@ test('registration with invalid join_token does not auto-verify email', function
         'email' => 'test2@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
         'join_token' => 'invalid-token',
     ])->assertRedirect();
 
@@ -92,6 +94,7 @@ test('registration with join_token of inactive link does not auto-verify email',
         'email' => 'test3@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
         'join_token' => $club->invite_token,
     ])->assertRedirect();
 

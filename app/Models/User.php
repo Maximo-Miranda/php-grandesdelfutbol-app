@@ -18,6 +18,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $name
  * @property string $email
  * @property \Carbon\CarbonImmutable|null $email_verified_at
+ * @property \Carbon\CarbonImmutable|null $terms_accepted_at
+ * @property string|null $terms_accepted_ip
+ * @property string|null $terms_accepted_user_agent
  * @property string $password
  * @property string|null $remember_token
  * @property \Carbon\CarbonImmutable|null $created_at
@@ -35,6 +38,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read \App\Models\PlayerProfile|null $playerProfile
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Player> $players
  * @property-read int|null $players_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SocialAccount> $socialAccounts
+ * @property-read int|null $social_accounts_count
  *
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
@@ -69,6 +74,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'email_verified_at',
+        'terms_accepted_at',
+        'terms_accepted_ip',
+        'terms_accepted_user_agent',
         'last_club_id',
     ];
 
@@ -93,6 +102,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
@@ -118,6 +128,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function players(): HasMany
     {
         return $this->hasMany(Player::class);
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    public function hasSocialAccount(string $provider): bool
+    {
+        return $this->socialAccounts()->where('provider', $provider)->exists();
     }
 
     public function sendEmailVerificationNotification(): void

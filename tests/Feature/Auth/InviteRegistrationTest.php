@@ -12,6 +12,7 @@ test('new user registration with valid invite token joins the club', function ()
         'email' => 'newuser@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'terms' => true,
         'invite_token' => $invitation->token,
     ])->assertRedirect();
 
@@ -29,6 +30,7 @@ test('registration without invite token works normally', function () {
         'email' => 'normal@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'terms' => true,
     ])->assertRedirect();
 
     $this->assertDatabaseHas('users', ['email' => 'normal@example.com']);

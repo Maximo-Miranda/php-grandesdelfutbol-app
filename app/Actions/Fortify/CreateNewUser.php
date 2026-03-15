@@ -25,6 +25,7 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
+            'terms' => ['required', 'accepted'],
             'invite_token' => ['nullable', 'string'],
             'join_token' => ['nullable', 'string'],
         ])->validate();
@@ -33,6 +34,9 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
+            'terms_accepted_at' => now(),
+            'terms_accepted_ip' => request()->ip(),
+            'terms_accepted_user_agent' => request()->userAgent(),
         ]);
 
         if (! empty($input['invite_token'])) {

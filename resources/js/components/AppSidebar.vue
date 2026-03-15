@@ -3,11 +3,10 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     CalendarDays,
     Home,
-    LayoutGrid,
+    IdCard,
     MapPin,
     Settings,
     Shield,
-    UserCircle,
     Users,
     UsersRound,
 } from 'lucide-vue-next';
@@ -17,10 +16,12 @@ import {
     Sidebar,
     SidebarContent,
     SidebarGroup,
+    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
@@ -33,9 +34,8 @@ const { isAdmin } = useClubPermissions();
 const currentClub = computed(() => page.props.currentClub);
 
 const globalNavItems: NavItem[] = [
-    { title: 'Inicio', href: '/dashboard', icon: LayoutGrid },
     { title: 'Mis Clubes', href: '/clubs', icon: Shield },
-    { title: 'Perfil de Jugador', href: '/player-profile', icon: UserCircle },
+    { title: 'Mi Tarjeta', href: '/player-card', icon: IdCard },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {
@@ -60,16 +60,8 @@ const clubNavItems = computed<NavItem[]>(() => {
     return items;
 });
 
-const navItems = computed(() => {
-    if (!currentClub.value) return globalNavItems;
-    return [
-        { title: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
-        ...clubNavItems.value,
-    ];
-});
-
 function isActive(item: NavItem, allItems: NavItem[]): boolean {
-    if (item.title === 'Inicio' || item.title === 'Dashboard') {
+    if (item.title === 'Inicio') {
         return isCurrentOrParentUrl(item.href) && !allItems.filter(i => i !== item).some(i => isCurrentOrParentUrl(i.href));
     }
     return isCurrentOrParentUrl(item.href);
@@ -92,12 +84,13 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
         </SidebarHeader>
 
         <SidebarContent>
+            <!-- Global nav -->
             <SidebarGroup class="px-2 py-0">
                 <SidebarMenu>
-                    <SidebarMenuItem v-for="item in navItems" :key="item.title">
+                    <SidebarMenuItem v-for="item in globalNavItems" :key="item.title">
                         <SidebarMenuButton
                             as-child
-                            :is-active="isActive(item, navItems)"
+                            :is-active="isActive(item, globalNavItems)"
                             :tooltip="item.title"
                         >
                             <Link :href="item.href">
@@ -108,6 +101,28 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroup>
+
+            <!-- Club nav -->
+            <template v-if="currentClub">
+                <SidebarSeparator />
+                <SidebarGroup class="px-2 py-0">
+                    <SidebarGroupLabel>{{ currentClub.name }}</SidebarGroupLabel>
+                    <SidebarMenu>
+                        <SidebarMenuItem v-for="item in clubNavItems" :key="item.title">
+                            <SidebarMenuButton
+                                as-child
+                                :is-active="isActive(item, clubNavItems)"
+                                :tooltip="item.title"
+                            >
+                                <Link :href="item.href">
+                                    <component :is="item.icon" />
+                                    <span>{{ item.title }}</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroup>
+            </template>
         </SidebarContent>
     </Sidebar>
     <slot />

@@ -6,6 +6,8 @@ import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
+import ClubMobileNav from '@/components/ClubMobileNav.vue';
+import MobileBottomNav from '@/components/MobileBottomNav.vue';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue';
 import ToastContainer from '@/components/ToastContainer.vue';
 import type { BreadcrumbItem } from '@/types';
@@ -31,9 +33,7 @@ const backFallback = computed(() => {
 });
 
 function goBack() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else if (backFallback.value) {
+    if (backFallback.value) {
         router.visit(backFallback.value);
     }
 }
@@ -44,6 +44,7 @@ function goBack() {
         <AppSidebar />
         <AppContent variant="sidebar" class="overflow-x-hidden">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
+            <ClubMobileNav />
             <button
                 v-if="showBack"
                 type="button"
@@ -53,9 +54,12 @@ function goBack() {
                 <ArrowLeft class="size-4" />
                 Volver
             </button>
-            <slot />
+            <div class="pb-20 lg:pb-0">
+                <slot />
+            </div>
         </AppContent>
     </AppShell>
+    <MobileBottomNav />
     <ToastContainer />
     <PwaInstallPrompt />
 </template>

@@ -2,101 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ClubMemberStatus;
-use App\Models\Club;
-use App\Models\ClubInvitation;
-use App\Models\FootballMatch;
-use App\Models\Player;
-use App\Services\ClubContext;
+use App\Services\ClubService;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): Response|RedirectResponse
+    public function __invoke(ClubService $clubService): RedirectResponse
     {
-        app(ClubContext::class)->clear();
-
         $user = auth()->user();
+        $club = $clubService->resolveForUser($user, $user->last_club_id);
 
-        $clubs = Club::query()
-            ->forUser($user)
-            ->withCount([
-                'members',
-                'matches',
-                'matches as upcoming_matches_count' => function ($query) {
-                    $query->upcoming();
-                },
-            ])
-            ->get();
-
-        $pendingMemberships = $user->clubMemberships()
-            ->with('club')
-            ->where('status', ClubMemberStatus::Pending)
-            ->get();
-
-        if ($clubs->isEmpty() && $pendingMemberships->isEmpty()) {
-            $invitation = ClubInvitation::query()
-                ->where('email', $user->email)
-                ->valid()
-                ->first();
-
-            if ($invitation) {
-                return redirect()->route('invitations.show', $invitation->token);
-            }
-
-            return redirect()->route('clubs.create');
+        if ($club) {
+            return redirect()->route('clubs.show', $club);
         }
 
-        $clubIds = $clubs->pluck('id');
-
-        $topClubs = $clubs
-            ->sortByDesc(fn (Club $club) => $club->matches_count + $club->upcoming_matches_count)
-            ->take(3)
-            ->values();
-
-        $playerStats = Player::query()
-            ->whereIn('club_id', $clubIds)
-            ->where('user_id', $user->id)
-            ->selectRaw('SUM(goals) as total_goals')
-            ->selectRaw('SUM(assists) as total_assists')
-            ->selectRaw('SUM(matches_played) as total_matches')
-            ->selectRaw('SUM(yellow_cards) as total_yellow_cards')
-            ->selectRaw('SUM(red_cards) as total_red_cards')
-            ->first();
-
-        return Inertia::render('Dashboard', [
-            'topClubs' => $topClubs,
-            'playerStats' => [
-                'goals' => (int) ($playerStats->total_goals ?? 0),
-                'assists' => (int) ($playerStats->total_assists ?? 0),
-                'matches' => (int) ($playerStats->total_matches ?? 0),
-                'yellowCards' => (int) ($playerStats->total_yellow_cards ?? 0),
-                'redCards' => (int) ($playerStats->total_red_cards ?? 0),
-            ],
-            'upcomingMatches' => Inertia::scroll(fn () => FootballMatch::query()
-                ->whereIn('club_id', $clubIds)
-                ->upcoming()
-                ->with('club', 'field')
-                ->withCount('attendances')
-                ->orderBy('scheduled_at')
-                ->simplePaginate(10)
-            ),
-            'recentMatches' => Inertia::defer(fn () => FootballMatch::query()
-                ->whereIn('club_id', $clubIds)
-                ->completed()
-                ->with('club')
-                ->latest('ended_at')
-                ->limit(5)
-                ->get()
-            ),
-            'pendingInvitations' => ClubInvitation::query()
-                ->where('email', $user->email)
-                ->valid()
-                ->with('club')
-                ->get(),
-            'pendingMemberships' => $pendingMemberships,
-        ]);
+        return redirect()->route('clubs.index');
     }
 }

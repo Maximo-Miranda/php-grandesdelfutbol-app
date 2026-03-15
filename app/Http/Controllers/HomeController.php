@@ -27,6 +27,6 @@ class HomeController extends Controller
             return redirect()->route('clubs.show', $club);
         }
 
-        return redirect()->route('dashboard');
+        return redirect()->route('clubs.index');
     }
 }

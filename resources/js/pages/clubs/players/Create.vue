@@ -16,8 +16,8 @@ const props = defineProps<Props>();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
-    { title: 'Players', href: `/clubs/${props.club.ulid}/players` },
-    { title: 'Add', href: `/clubs/${props.club.ulid}/players/create` },
+    { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
+    { title: 'Agregar', href: `/clubs/${props.club.ulid}/players/create` },
 ];
 
 const form = useForm({ name: '', position: '', jersey_number: '' });

@@ -8,22 +8,33 @@ use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationCodeController;
 use App\Http\Controllers\FieldController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MatchAttendanceController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchEventController;
 use App\Http\Controllers\MatchLifecycleController;
+use App\Http\Controllers\PlayerCardController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerProfileController;
+use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
+use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::get('terms', TermsController::class)->name('terms');
+Route::get('privacy', PrivacyController::class)->name('privacy');
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
 Route::get('join/{token}', [ClubJoinController::class, 'show'])->name('clubs.join');
+
+Route::middleware('guest')->group(function () {
+    Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+    Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::post('join/{token}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
@@ -35,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('player-card', PlayerCardController::class)->name('player-card');
     Route::resource('clubs', ClubController::class)->except('destroy');
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');
 
