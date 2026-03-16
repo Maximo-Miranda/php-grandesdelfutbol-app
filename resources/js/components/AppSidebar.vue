@@ -75,7 +75,7 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
                         <Link href="/clubs" class="flex items-center gap-3">
-                            <AppLogoIcon class="size-8 shrink-0 text-primary" />
+                            <AppLogoIcon class="!size-10 shrink-0 text-primary" />
                             <span class="text-lg font-bold tracking-tight">GDF</span>
                         </Link>
                     </SidebarMenuButton>

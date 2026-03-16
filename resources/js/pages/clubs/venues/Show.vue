@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { MapPin, Pencil, Plus, Trash2, WandSparkles } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Badge } from '@/components/ui/badge';
@@ -115,10 +116,46 @@ function saveEdit() {
 }
 
 // --- Delete field ---
-function deleteField(field: Field) {
-    if (!confirm(`Eliminar "${field.name}"? Esta accion no se puede deshacer.`)) return;
-    router.delete(`/clubs/${props.club.ulid}/venues/${props.venue.ulid}/fields/${field.id}`, {
+const showDeleteField = ref(false);
+const fieldToDelete = ref<Field | null>(null);
+const deletingField = ref(false);
+
+function confirmDeleteField(field: Field) {
+    fieldToDelete.value = field;
+    showDeleteField.value = true;
+}
+
+function deleteField() {
+    if (!fieldToDelete.value) return;
+    deletingField.value = true;
+    router.delete(`/clubs/${props.club.ulid}/venues/${props.venue.ulid}/fields/${fieldToDelete.value.id}`, {
         preserveScroll: true,
+        onFinish: () => {
+            deletingField.value = false;
+            showDeleteField.value = false;
+            fieldToDelete.value = null;
+        },
+    });
+}
+
+// --- Delete venue ---
+const showDeleteVenue = ref(false);
+const deletingVenue = ref(false);
+
+const deleteVenueDescription = computed(() => {
+    const fieldCount = props.venue.fields?.length ?? 0;
+    return fieldCount > 0
+        ? `Se eliminara "${props.venue.name}" y sus ${fieldCount} cancha(s). Los partidos asociados perderan la referencia a la cancha.`
+        : `Se eliminara "${props.venue.name}".`;
+});
+
+function deleteVenue() {
+    deletingVenue.value = true;
+    router.delete(`/clubs/${props.club.ulid}/venues/${props.venue.ulid}`, {
+        onFinish: () => {
+            deletingVenue.value = false;
+            showDeleteVenue.value = false;
+        },
     });
 }
 </script>
@@ -136,7 +173,16 @@ function deleteField(field: Field) {
                         {{ venue.address }}
                     </p>
                 </div>
-                <TextLink v-if="isAdmin" :href="`/clubs/${club.ulid}/venues/${venue.ulid}/edit`">Editar</TextLink>
+                <div v-if="isAdmin" class="flex items-center gap-3">
+                    <TextLink :href="`/clubs/${club.ulid}/venues/${venue.ulid}/edit`">Editar</TextLink>
+                    <button
+                        type="button"
+                        class="text-sm text-destructive hover:underline"
+                        @click="showDeleteVenue = true"
+                    >
+                        Eliminar
+                    </button>
+                </div>
             </div>
 
             <!-- Details -->
@@ -227,7 +273,7 @@ function deleteField(field: Field) {
                                     <button type="button" class="p-1.5 text-muted-foreground hover:text-foreground" @click="startEdit(field)">
                                         <Pencil class="size-4" />
                                     </button>
-                                    <button type="button" class="p-1.5 text-muted-foreground hover:text-destructive" @click="deleteField(field)">
+                                    <button type="button" class="p-1.5 text-muted-foreground hover:text-destructive" @click="confirmDeleteField(field)">
                                         <Trash2 class="size-4" />
                                     </button>
                                 </template>
@@ -303,5 +349,27 @@ function deleteField(field: Field) {
                 </form>
             </div>
         </div>
+
+        <!-- Delete venue dialog -->
+        <ConfirmDialog
+            v-model:open="showDeleteVenue"
+            title="Eliminar lugar"
+            :description="deleteVenueDescription"
+            confirm-label="Eliminar"
+            :destructive="true"
+            :processing="deletingVenue"
+            @confirm="deleteVenue"
+        />
+
+        <!-- Delete field dialog -->
+        <ConfirmDialog
+            v-model:open="showDeleteField"
+            title="Eliminar cancha"
+            :description="`Se eliminara la cancha &quot;${fieldToDelete?.name ?? ''}&quot;. Esta accion no se puede deshacer.`"
+            confirm-label="Eliminar"
+            :destructive="true"
+            :processing="deletingField"
+            @confirm="deleteField"
+        />
     </AppLayout>
 </template>

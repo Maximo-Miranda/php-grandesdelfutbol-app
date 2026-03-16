@@ -52,6 +52,47 @@ test('admins can update venues', function () {
         ->and($venue->is_active)->toBeFalse();
 });
 
+test('admins can quick-create a venue with a field', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.venues.storeQuick', $club), [
+            'name' => 'Cancha Papiros',
+            'address' => 'Calle 50 # 20-10',
+            'field_name' => 'Cancha 1 7v7 Sintetico',
+            'field_type' => '7v7',
+            'surface_type' => 'sintetico',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('venues', [
+        'club_id' => $club->id,
+        'name' => 'Cancha Papiros',
+    ]);
+
+    $venue = Venue::query()->where('name', 'Cancha Papiros')->first();
+    $this->assertDatabaseHas('fields', [
+        'venue_id' => $venue->id,
+        'name' => 'Cancha 1 7v7 Sintetico',
+        'field_type' => '7v7',
+    ]);
+});
+
+test('admins can delete a venue', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $venue = Venue::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.venues.destroy', [$club, $venue]))
+        ->assertRedirect(route('clubs.venues.index', $club));
+
+    $this->assertDatabaseMissing('venues', ['id' => $venue->id]);
+});
+
 test('members can view a venue', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

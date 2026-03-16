@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { CalendarDays, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { CalendarDays, Check, Copy, LinkIcon, LogOut, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, ClubMember, FootballMatch } from '@/types';
@@ -21,7 +23,27 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const base = `/clubs/${props.club.ulid}`;
 
-const { role: userRole, isAdmin } = useClubPermissions();
+const { role: userRole, isAdmin, isOwner } = useClubPermissions();
+
+const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
+const copied = ref(false);
+
+function copyJoinLink() {
+    navigator.clipboard.writeText(joinUrl.value);
+    copied.value = true;
+    setTimeout(() => { copied.value = false; }, 2000);
+}
+
+// --- Leave club ---
+const showLeaveDialog = ref(false);
+const leavingClub = ref(false);
+
+function leaveClub() {
+    leavingClub.value = true;
+    router.post(`/clubs/${props.club.ulid}/leave`, {}, {
+        onFinish: () => { leavingClub.value = false; },
+    });
+}
 
 const confirmedCount = computed(() => {
     if (!props.nextMatch?.attendances) return 0;
@@ -62,6 +84,22 @@ function formatDate(dateStr: string): string {
                     </h1>
                     <p v-if="club.description" class="text-sm text-muted-foreground">{{ club.description }}</p>
                 </div>
+            </div>
+
+            <!-- Join link -->
+            <div v-if="club.slug" class="mb-4 flex items-center gap-3 rounded-lg border border-border p-3">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <LinkIcon class="size-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-medium text-muted-foreground">Link de ingreso</p>
+                    <p class="truncate text-sm">{{ joinUrl }}</p>
+                </div>
+                <Button variant="outline" size="sm" class="shrink-0 gap-1.5" @click="copyJoinLink">
+                    <Check v-if="copied" class="size-3.5" />
+                    <Copy v-else class="size-3.5" />
+                    {{ copied ? 'Copiado' : 'Copiar' }}
+                </Button>
             </div>
 
             <!-- Next match card -->
@@ -143,6 +181,25 @@ function formatDate(dateStr: string): string {
                     </div>
                 </Link>
             </div>
+
+            <!-- Leave club -->
+            <div v-if="!isOwner" class="mt-6 flex justify-center">
+                <Button variant="outline" class="text-destructive" @click="showLeaveDialog = true">
+                    <LogOut class="mr-2 size-4" />
+                    Salir del club
+                </Button>
+            </div>
         </div>
+
+        <!-- Leave club dialog -->
+        <ConfirmDialog
+            v-model:open="showLeaveDialog"
+            title="Salir del club"
+            description="Esta accion no se puede deshacer. Perderas acceso al club y sus partidos."
+            confirm-label="Salir del club"
+            :destructive="true"
+            :processing="leavingClub"
+            @confirm="leaveClub"
+        />
     </AppLayout>
 </template>

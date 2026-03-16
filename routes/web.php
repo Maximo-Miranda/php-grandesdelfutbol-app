@@ -64,7 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::resource('players', PlayerController::class);
 
-        Route::resource('venues', VenueController::class)->except('destroy');
+        Route::post('venues/quick-create', [VenueController::class, 'storeQuick'])->name('venues.storeQuick');
+        Route::resource('venues', VenueController::class);
         Route::post('venues/{venue}/fields', [FieldController::class, 'store'])->name('venues.fields.store');
         Route::put('venues/{venue}/fields/{field}', [FieldController::class, 'update'])->name('venues.fields.update');
         Route::delete('venues/{venue}/fields/{field}', [FieldController::class, 'destroy'])->name('venues.fields.destroy');

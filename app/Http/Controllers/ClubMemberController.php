@@ -8,32 +8,45 @@ use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\Player;
 use App\Notifications\MemberApprovedNotification;
+use App\Notifications\MemberLeftNotification;
+use App\Notifications\MemberRemovedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ClubMemberController extends Controller
 {
-    public function index(Club $club): Response
+    public function index(Request $request, Club $club): Response
     {
         Gate::authorize('view', $club);
 
-        $actorMembership = $club->getMembership(request()->user());
-        $isAdmin = $actorMembership && in_array($actorMembership->role->value, ['owner', 'admin']);
+        $isAdmin = $club->isAdminOrOwner($request->user());
+        $search = $request->query('search', '');
+
+        $membersQuery = $club->members()
+            ->with('user.playerProfile')
+            ->where('status', ClubMemberStatus::Approved);
+
+        if ($search !== '') {
+            $membersQuery->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('email', 'ilike', "%{$search}%");
+            });
+        }
 
         return Inertia::render('clubs/Members', [
             'club' => $club,
+            'search' => $search,
             'pendingMembers' => $club->members()
-                ->with('user')
+                ->with('user.playerProfile')
                 ->where('status', ClubMemberStatus::Pending)
                 ->latest()
                 ->get(),
             'members' => Inertia::scroll(
-                fn () => $club->members()
-                    ->with('user')
-                    ->where('status', ClubMemberStatus::Approved)
+                fn () => $membersQuery
                     ->latest('approved_at')
                     ->simplePaginate(20, pageName: 'members'),
             ),
@@ -57,16 +70,12 @@ class ClubMemberController extends Controller
             'approved_at' => now(),
         ]);
 
-        // Auto-create player record
-        $user = $member->user;
-        if ($user) {
-            Player::query()->firstOrCreate(
-                ['club_id' => $club->id, 'user_id' => $user->id],
-                ['name' => $user->name, 'is_active' => true],
-            );
+        Player::query()->firstOrCreate(
+            ['club_id' => $club->id, 'user_id' => $member->user_id],
+            ['name' => $member->user->name, 'is_active' => true],
+        );
 
-            $user->notify(new MemberApprovedNotification($club));
-        }
+        $member->user->notify(new MemberApprovedNotification($club));
 
         return back()->with('success', 'Miembro aprobado.');
     }
@@ -104,9 +113,10 @@ class ClubMemberController extends Controller
     {
         Gate::authorize('remove', $member);
 
+        $member->user->notify(new MemberRemovedNotification($club));
         $member->delete();
 
-        return back()->with('success', 'Miembro eliminado.');
+        return back()->with('success', 'Miembro expulsado.');
     }
 
     public function leave(Request $request, Club $club): RedirectResponse
@@ -119,7 +129,13 @@ class ClubMemberController extends Controller
 
         Gate::authorize('leave', $membership);
 
+        $user = $request->user();
         $membership->delete();
+
+        Notification::send(
+            $club->adminUsers(),
+            new MemberLeftNotification($club, $user),
+        );
 
         return redirect()->route('clubs.index')->with('success', 'Has salido del club.');
     }

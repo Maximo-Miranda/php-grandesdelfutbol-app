@@ -4,6 +4,8 @@ use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\User;
 use App\Notifications\MemberApprovedNotification;
+use App\Notifications\MemberLeftNotification;
+use App\Notifications\MemberRemovedNotification;
 use App\Notifications\NewMemberRequestNotification;
 use Illuminate\Support\Facades\Notification;
 
@@ -66,4 +68,60 @@ test('member approved notification contains correct content', function () {
 
     expect($mail->subject)->toBe("Bienvenido a {$club->name}!")
         ->and($mail->actionUrl)->toContain("/clubs/{$club->ulid}");
+});
+
+test('admins are notified when a member leaves the club', function () {
+    Notification::fake();
+
+    $club = Club::factory()->create();
+    $owner = $club->owner;
+    ClubMember::factory()->owner()->create(['club_id' => $club->id, 'user_id' => $owner->id]);
+
+    $player = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $player->id]);
+
+    $this->actingAs($player)
+        ->post(route('clubs.leave', $club))
+        ->assertRedirect(route('clubs.index'));
+
+    Notification::assertSentTo($owner, MemberLeftNotification::class);
+});
+
+test('member is notified when removed from the club', function () {
+    Notification::fake();
+
+    $club = Club::factory()->create();
+    $admin = User::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
+
+    $player = User::factory()->create();
+    $membership = ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $player->id]);
+
+    $this->actingAs($admin)
+        ->delete(route('clubs.members.remove', [$club, $membership]))
+        ->assertRedirect();
+
+    Notification::assertSentTo($player, MemberRemovedNotification::class);
+});
+
+test('member left notification contains correct content', function () {
+    $club = Club::factory()->create();
+    $member = User::factory()->create(['name' => 'Pedro']);
+    $admin = User::factory()->create(['name' => 'Admin']);
+
+    $notification = new MemberLeftNotification($club, $member);
+    $mail = $notification->toMail($admin);
+
+    expect($mail->subject)->toBe("Pedro salio de {$club->name}")
+        ->and($mail->actionUrl)->toContain("/clubs/{$club->ulid}/members");
+});
+
+test('member removed notification contains correct content', function () {
+    $club = Club::factory()->create();
+    $user = User::factory()->create(['name' => 'Juan']);
+
+    $notification = new MemberRemovedNotification($club);
+    $mail = $notification->toMail($user);
+
+    expect($mail->subject)->toBe("Has sido removido de {$club->name}");
 });

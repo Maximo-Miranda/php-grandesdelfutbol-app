@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -38,7 +39,7 @@ const {
     enableAutoTeamName,
     resolveBeforeSubmit,
 } = useMatchForm({
-    venues: props.venues,
+    venues: () => props.venues,
     match: props.match,
     autoTitleOnInit: false,
 });
@@ -57,46 +58,14 @@ function submit() {
             <p class="mb-6 text-sm text-muted-foreground">Modifica los detalles del partido.</p>
 
             <form class="space-y-5" @submit.prevent="submit">
-                <!-- Titulo -->
-                <div class="grid gap-1.5">
-                    <Label for="title">Titulo <span class="text-destructive">*</span></Label>
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Trophy class="size-4 text-muted-foreground" />
-                        </div>
-                        <Input
-                            id="title"
-                            v-model="form.title"
-                            placeholder="Ej: Pichanga 7v7 Sab 28 Feb"
-                            class="pl-9 pr-9"
-                            :readonly="autoTitle"
-                            :class="autoTitle ? 'bg-muted/50' : ''"
-                        />
-                        <button
-                            type="button"
-                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
-                            @click="autoTitle ? enableManualTitle() : enableAutoTitle()"
-                        >
-                            <Pencil v-if="autoTitle" class="size-4" />
-                            <WandSparkles v-else class="size-4" />
-                        </button>
-                    </div>
-                    <p v-if="autoTitle" class="text-xs text-muted-foreground">
-                        Se genera automaticamente. Presiona el lapiz para editar.
-                    </p>
-                    <InputError :message="form.errors.title" />
-                </div>
-
                 <!-- Cancha -->
                 <div class="grid gap-1.5">
                     <Label for="field_id">Cancha</Label>
                     <p class="text-xs text-muted-foreground">Selecciona la cancha donde se jugara.</p>
                     <Select v-model="selectedFieldLabel">
-                        <SelectTrigger id="field_id">
-                            <div class="flex items-center gap-2">
-                                <MapPin class="size-4 text-muted-foreground" />
-                                <SelectValue placeholder="Sin cancha" />
-                            </div>
+                        <SelectTrigger id="field_id" class="min-w-0 overflow-hidden">
+                            <MapPin class="size-4 shrink-0 text-muted-foreground" />
+                            <SelectValue placeholder="Sin cancha" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="none">Sin cancha</SelectItem>
@@ -113,7 +82,7 @@ function submit() {
                 </div>
 
                 <!-- Fecha y Hora -->
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="grid gap-1.5">
                         <Label for="date">Fecha <span class="text-destructive">*</span></Label>
                         <Input
@@ -262,6 +231,38 @@ function submit() {
                         rows="3"
                     />
                     <InputError :message="form.errors.notes" />
+                </div>
+
+                <Separator />
+
+                <!-- Titulo -->
+                <div class="grid gap-1.5">
+                    <Label for="title">Titulo <span class="text-destructive">*</span></Label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <Trophy class="size-4 text-muted-foreground" />
+                        </div>
+                        <Input
+                            id="title"
+                            v-model="form.title"
+                            placeholder="Ej: Pichanga 7v7 Sab 28 Feb"
+                            class="pl-9 pr-9"
+                            :readonly="autoTitle"
+                            :class="autoTitle ? 'bg-muted/50' : ''"
+                        />
+                        <button
+                            type="button"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                            @click="autoTitle ? enableManualTitle() : enableAutoTitle()"
+                        >
+                            <Pencil v-if="autoTitle" class="size-4" />
+                            <WandSparkles v-else class="size-4" />
+                        </button>
+                    </div>
+                    <p v-if="autoTitle" class="text-xs text-muted-foreground">
+                        Se genera automaticamente. Presiona el lapiz para editar.
+                    </p>
+                    <InputError :message="form.errors.title" />
                 </div>
 
                 <!-- Video YouTube -->

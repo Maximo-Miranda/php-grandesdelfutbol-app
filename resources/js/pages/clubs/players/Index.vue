@@ -2,6 +2,7 @@
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
 import { Plus, Search, UserPlus, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,10 +96,11 @@ function getGoalsPerMatch(player: Player): string {
                             class="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
                         >
                             <span class="w-6 text-center text-sm">{{ getMedal(i) }}</span>
-                            <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-bold">
-                                <img v-if="player.photo_url" :src="player.photo_url" :alt="player.display_name" class="size-full object-cover" />
-                                <span v-else>{{ player.display_name.charAt(0) }}</span>
-                            </div>
+                            <UserAvatar
+                                :src="player.photo_url"
+                                :name="player.display_name"
+                                class="size-9"
+                            />
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-medium">{{ player.display_name }}</p>
                                 <div class="flex items-center gap-2">

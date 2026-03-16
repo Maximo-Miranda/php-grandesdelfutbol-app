@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import type { MaybeRefOrGetter } from 'vue';
+import { computed, ref, toValue, watch } from 'vue';
 import { colorLabel } from '@/constants/jerseyColors';
 import type { Field, FootballMatch, Venue } from '@/types';
 
@@ -60,16 +61,17 @@ export function getDefaultDate(): string {
 }
 
 type UseMatchFormOptions = {
-    venues: Venue[];
+    venues: MaybeRefOrGetter<Venue[]>;
     match?: FootballMatch;
     autoTitleOnInit?: boolean;
 };
 
 export function useMatchForm(options: UseMatchFormOptions) {
-    const { venues, match, autoTitleOnInit = true } = options;
+    const { venues: venuesSource, match, autoTitleOnInit = true } = options;
 
     // --- Field list ---
     const allFields = computed(() => {
+        const venues = toValue(venuesSource);
         const fields: Array<{ label: string; field: Field }> = [];
         for (const venue of venues) {
             for (const field of venue.fields || []) {

@@ -4,7 +4,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 <template>
     <div class="flex items-center gap-2">
-        <AppLogoIcon class="size-6 text-primary" />
+        <AppLogoIcon class="size-6 text-primary sm:size-10" />
         <span class="font-bold">GDF</span>
     </div>
 </template>
