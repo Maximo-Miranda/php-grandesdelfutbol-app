@@ -20,7 +20,7 @@ class NtfyService
         $topic = $user->ntfyTopic();
 
         try {
-            $request = Http::acceptJson();
+            $request = Http::asJson();
 
             $token = config('services.ntfy.token');
             if ($token) {

@@ -48,14 +48,18 @@ const subscribeUrl = computed(() =>
 );
 
 const testSent = ref(false);
-const copied = ref(false);
+const copiedTopic = ref(false);
+const copiedUrl = ref(false);
 
-function copyTopic(): void {
-    navigator.clipboard.writeText(props.ntfyTopic);
-    copied.value = true;
-    setTimeout(() => {
-        copied.value = false;
-    }, 2000);
+function copyToClipboard(text: string, flag: 'topic' | 'url'): void {
+    navigator.clipboard.writeText(text);
+    if (flag === 'topic') {
+        copiedTopic.value = true;
+        setTimeout(() => { copiedTopic.value = false; }, 2000);
+    } else {
+        copiedUrl.value = true;
+        setTimeout(() => { copiedUrl.value = false; }, 2000);
+    }
 }
 </script>
 
@@ -180,31 +184,47 @@ function copyTopic(): void {
                             Suscribirse al canal
                         </a>
 
-                        <div class="space-y-2 rounded-md border border-border bg-muted/50 p-3">
+                        <div class="space-y-3 rounded-md border border-border bg-muted/50 p-3">
                             <p class="text-xs font-medium text-muted-foreground">
                                 Si prefieres hacerlo manualmente:
                             </p>
                             <ol class="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
                                 <li>Abre la app de ntfy y toca <strong>+</strong> para agregar un canal</li>
                                 <li>Activa la opción <strong>"Usar otro servidor"</strong></li>
-                                <li>En <strong>URL del servidor</strong>, escribe: <code class="rounded bg-background px-1 font-mono">{{ ntfyUrl }}</code></li>
-                                <li>En <strong>Nombre del tema</strong>, pega:</li>
                             </ol>
-                            <div class="flex items-center gap-2">
-                                <code class="flex-1 break-all rounded bg-background px-2 py-1 font-mono text-sm">
-                                    {{ ntfyTopic }}
-                                </code>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    @click="copyTopic"
-                                >
-                                    <Clipboard
-                                        v-if="!copied"
-                                        class="size-4"
-                                    />
-                                    <Check v-else class="size-4" />
-                                </Button>
+
+                            <div class="space-y-1">
+                                <p class="text-xs text-muted-foreground">3. En <strong>URL del servidor</strong>, pega:</p>
+                                <div class="flex items-center gap-2">
+                                    <code class="flex-1 break-all rounded bg-background px-2 py-1 font-mono text-sm">
+                                        {{ ntfyUrl }}
+                                    </code>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="copyToClipboard(ntfyUrl, 'url')"
+                                    >
+                                        <Clipboard v-if="!copiedUrl" class="size-4" />
+                                        <Check v-else class="size-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <p class="text-xs text-muted-foreground">4. En <strong>Nombre del tema</strong>, pega:</p>
+                                <div class="flex items-center gap-2">
+                                    <code class="flex-1 break-all rounded bg-background px-2 py-1 font-mono text-sm">
+                                        {{ ntfyTopic }}
+                                    </code>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="copyToClipboard(ntfyTopic, 'topic')"
+                                    >
+                                        <Clipboard v-if="!copiedTopic" class="size-4" />
+                                        <Check v-else class="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
