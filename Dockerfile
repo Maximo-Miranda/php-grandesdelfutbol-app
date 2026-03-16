@@ -81,7 +81,7 @@ RUN { \
     echo 'opcache.jit_buffer_size=128M'; \
     echo 'upload_max_filesize=100M'; \
     echo 'post_max_size=100M'; \
-    echo 'memory_limit=256M'; \
+    echo 'memory_limit=512M'; \
     echo 'expose_php=Off'; \
     } > "$PHP_INI_DIR/conf.d/99-production.ini"
 
