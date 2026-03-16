@@ -21,6 +21,10 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'El partido solo puede iniciarse desde estado programado.');
         }
 
+        if ($match->scheduled_at->subMinutes(30)->isFuture()) {
+            return back()->with('error', 'El partido solo puede iniciarse 30 minutos antes.');
+        }
+
         $match->update([
             'status' => MatchStatus::InProgress,
             'started_at' => now(),

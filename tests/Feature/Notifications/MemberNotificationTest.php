@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Notification;
 test('admins are notified when a new member requests to join', function () {
     Notification::fake();
 
-    $club = Club::factory()->withInviteActive()->withApproval()->create();
+    $club = Club::factory()->create();
     $owner = $club->owner;
     ClubMember::factory()->owner()->create(['club_id' => $club->id, 'user_id' => $owner->id]);
     $admin = User::factory()->create();
@@ -19,27 +19,11 @@ test('admins are notified when a new member requests to join', function () {
     $joiner = User::factory()->create();
 
     $this->actingAs($joiner)
-        ->post(route('clubs.join.store', $club->invite_token))
+        ->post(route('clubs.join.store', $club->slug))
         ->assertRedirect();
 
     Notification::assertSentTo($owner, NewMemberRequestNotification::class);
     Notification::assertSentTo($admin, NewMemberRequestNotification::class);
-});
-
-test('admins are not notified when member is auto-approved', function () {
-    Notification::fake();
-
-    $club = Club::factory()->withInviteActive()->create(['requires_approval' => false]);
-    $owner = $club->owner;
-    ClubMember::factory()->owner()->create(['club_id' => $club->id, 'user_id' => $owner->id]);
-
-    $joiner = User::factory()->create();
-
-    $this->actingAs($joiner)
-        ->post(route('clubs.join.store', $club->invite_token))
-        ->assertRedirect();
-
-    Notification::assertNotSentTo($owner, NewMemberRequestNotification::class);
 });
 
 test('user is notified when their membership is approved', function () {

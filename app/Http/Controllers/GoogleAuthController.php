@@ -19,14 +19,16 @@ use Laravel\Socialite\Two\User as SocialiteUser;
 
 class GoogleAuthController extends Controller
 {
+    public function __construct(private InvitationService $invitationService) {}
+
     public function redirect(Request $request): RedirectResponse
     {
         if ($request->has('invite_token')) {
             session()->put('google_invite_token', $request->input('invite_token'));
         }
 
-        if ($request->has('join_token')) {
-            session()->put('google_join_token', $request->input('join_token'));
+        if ($request->has('join_slug')) {
+            session()->put('google_join_slug', $request->input('join_slug'));
         }
 
         if ($request->boolean('terms_accepted')) {
@@ -54,7 +56,6 @@ class GoogleAuthController extends Controller
                 ->with('status', 'No se pudo autenticar con Google. Intenta de nuevo.');
         }
 
-        // 1. Check if already linked via SocialAccount
         $socialAccount = SocialAccount::query()
             ->where('provider', 'google')
             ->where('provider_id', $googleUser->getId())
@@ -66,11 +67,9 @@ class GoogleAuthController extends Controller
             return $this->handlePostLogin($socialAccount->user);
         }
 
-        // 2. Check if user exists by email
         $user = User::query()->where('email', $googleUser->getEmail())->first();
 
         if ($user) {
-            // Link Google account to existing user
             $user->socialAccounts()->create([
                 'provider' => 'google',
                 'provider_id' => $googleUser->getId(),
@@ -87,7 +86,6 @@ class GoogleAuthController extends Controller
             return $this->handlePostLogin($user);
         }
 
-        // 3. Create new user — requires explicit terms acceptance
         if (! session()->pull('google_terms_accepted')) {
             return redirect()->route('register')
                 ->with('status', 'Para crear tu cuenta, debes aceptar los terminos y condiciones.');
@@ -138,7 +136,6 @@ class GoogleAuthController extends Controller
 
             $person = $response->json();
 
-            // Gender
             $googleGender = $person['genders'][0]['value'] ?? null;
             if ($googleGender) {
                 $data['gender'] = match ($googleGender) {
@@ -148,7 +145,6 @@ class GoogleAuthController extends Controller
                 };
             }
 
-            // Birthday
             $birthday = $person['birthdays'][0]['date'] ?? null;
             if ($birthday && isset($birthday['year'], $birthday['month'], $birthday['day'])) {
                 $data['birthday'] = sprintf(
@@ -159,7 +155,6 @@ class GoogleAuthController extends Controller
                 );
             }
 
-            // Phone
             $data['phone'] = $person['phoneNumbers'][0]['value'] ?? null;
         } catch (\Exception $e) {
             Log::info('Google People API data extraction failed', ['error' => $e->getMessage()]);
@@ -170,19 +165,12 @@ class GoogleAuthController extends Controller
 
     private function createPlayerProfile(User $user, array $profileData): void
     {
-        $attributes = ['user_id' => $user->id];
-
-        if ($profileData['gender']) {
-            $attributes['gender'] = $profileData['gender'];
-        }
-        if ($profileData['birthday']) {
-            $attributes['date_of_birth'] = $profileData['birthday'];
-        }
-        if ($profileData['phone']) {
-            $attributes['phone'] = $profileData['phone'];
-        }
-
-        PlayerProfile::create($attributes);
+        PlayerProfile::create(array_filter([
+            'user_id' => $user->id,
+            'gender' => $profileData['gender'],
+            'date_of_birth' => $profileData['birthday'],
+            'phone' => $profileData['phone'],
+        ]));
     }
 
     private function downloadAvatar(User $user, SocialiteUser $googleUser): void
@@ -194,7 +182,6 @@ class GoogleAuthController extends Controller
         }
 
         try {
-            // Request higher resolution avatar
             $avatarUrl = preg_replace('/=s\d+-c/', '=s600-c', $avatarUrl);
 
             $user->playerProfile->addMediaFromUrl($avatarUrl)
@@ -244,40 +231,53 @@ class GoogleAuthController extends Controller
 
     private function handlePostLogin(User $user): RedirectResponse
     {
-        $this->handleTokens($user);
+        $mismatchEmail = $this->handleTokens($user);
+
+        if ($mismatchEmail) {
+            session()->forget('url.intended');
+
+            return redirect()->route('clubs.index')
+                ->with('error', 'La cuenta con la que iniciaste sesion no coincide con la invitacion.');
+        }
 
         return redirect()->intended(route('home'));
     }
 
-    private function handleTokens(User $user): void
+    /**
+     * Process pending invite/join tokens from session.
+     *
+     * @return string|null The invitation email if there was a mismatch, null otherwise.
+     */
+    private function handleTokens(User $user): ?string
     {
-        $invitationService = app(InvitationService::class);
-
-        // Handle invite_token
         $inviteToken = session()->pull('google_invite_token');
         if ($inviteToken) {
             $invitation = ClubInvitation::query()
                 ->valid()
                 ->where('token', $inviteToken)
-                ->where('email', $user->email)
                 ->first();
 
-            if ($invitation) {
-                $invitationService->acceptInvitation($invitation, $user);
+            if ($invitation && $invitation->email === $user->email) {
+                $this->invitationService->acceptInvitation($invitation, $user);
+            } elseif ($invitation) {
+                Log::warning('Google OAuth: invitation email mismatch', [
+                    'invitation_email' => $invitation->email,
+                    'google_email' => $user->email,
+                ]);
+
+                return $invitation->email;
             }
         }
 
-        // Handle join_token
-        $joinToken = session()->pull('google_join_token');
-        if ($joinToken) {
-            $club = Club::query()
-                ->where('invite_token', $joinToken)
-                ->where('is_invite_active', true)
-                ->first();
+        $joinSlug = session()->pull('google_join_slug');
+        if ($joinSlug) {
+            $club = Club::query()->where('slug', $joinSlug)->first();
 
             if ($club) {
-                $invitationService->joinViaLink($club, $user);
+                $this->invitationService->joinViaLink($club, $user);
             }
         }
+
+        return null;
     }
 }

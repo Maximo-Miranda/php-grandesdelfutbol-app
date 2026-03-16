@@ -4,6 +4,7 @@ export type Club = {
     id: number;
     ulid: string;
     name: string;
+    slug: string;
     description: string | null;
     owner_id: number;
     invite_token: string | null;

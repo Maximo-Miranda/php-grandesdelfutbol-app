@@ -8,10 +8,10 @@ import {
     EllipsisVertical,
     Gamepad2,
     Lock,
-    Play,
     MapPin,
     Navigation,
     Pencil,
+    Play,
     Shield,
     Shuffle,
     Trash2,
@@ -188,6 +188,22 @@ const myRoleLabel = computed(() => {
 
 // --- Admin helpers ---
 const canManage = computed(() => props.isAdmin && (props.match.status === 'upcoming' || props.match.status === 'in_progress'));
+const showControlPanel = computed(() => props.isAdmin && props.match.status === 'in_progress');
+const canStartMatch = computed(() => {
+    const msUntilMatch = scheduledDate.getTime() - now.value;
+    return msUntilMatch <= 30 * 60 * 1000;
+});
+const startMatchHint = computed(() => {
+    if (canStartMatch.value) return null;
+    const msUntil = scheduledDate.getTime() - now.value - 30 * 60 * 1000;
+    const mins = Math.ceil(msUntil / 60000);
+    if (mins >= 60) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `Se habilita en ${h}h ${m}min`;
+    }
+    return `Se habilita en ${mins} min`;
+});
 const isFull = computed(() => confirmedCount.value >= totalSlots.value);
 
 // --- Team selection dialog ---
@@ -381,18 +397,23 @@ function pad(n: number): string {
             </div>
 
             <!-- Start Match Button -->
-            <Button
-                v-if="isAdmin && match.status === 'upcoming'"
-                class="mt-4 w-full gap-2 bg-orange-500 hover:bg-orange-600"
-                @click="startMatch"
-            >
-                <Play class="size-4" />
-                Iniciar partido
-            </Button>
+            <div v-if="isAdmin && match.status === 'upcoming'" class="mt-4">
+                <Button
+                    class="w-full gap-2 bg-orange-500 hover:bg-orange-600"
+                    :disabled="!canStartMatch"
+                    @click="startMatch"
+                >
+                    <Play class="size-4" />
+                    Iniciar partido
+                </Button>
+                <p v-if="startMatchHint" class="mt-1 text-center text-xs text-muted-foreground">
+                    {{ startMatchHint }}
+                </p>
+            </div>
 
             <!-- Admin Panel Button -->
             <Link
-                v-if="canManage"
+                v-if="showControlPanel"
                 :href="`${base}/live`"
                 class="mt-4 block"
             >

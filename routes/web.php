@@ -29,7 +29,7 @@ Route::get('privacy', PrivacyController::class)->name('privacy');
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
-Route::get('join/{token}', [ClubJoinController::class, 'show'])->name('clubs.join');
+Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');
 
 Route::middleware('guest')->group(function () {
     Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
@@ -37,7 +37,7 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::post('join/{token}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
+    Route::post('join/{slug}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
     Route::post('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'accept'])->name('invitations.accept');
     Route::post('email/verify-code', [EmailVerificationCodeController::class, 'verify'])->name('verification.verify-code');
     Route::post('email/resend-code', [EmailVerificationCodeController::class, 'resend'])->name('verification.resend-code');

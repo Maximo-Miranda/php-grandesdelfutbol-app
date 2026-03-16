@@ -9,6 +9,7 @@ use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\ClubMember;
 use App\Models\Player;
+use App\Models\Scopes\ClubScope;
 use App\Models\User;
 use App\Notifications\ClubInvitationNotification;
 use App\Notifications\NewMemberRequestNotification;
@@ -45,6 +46,12 @@ class InvitationService
 
     public function acceptInvitation(ClubInvitation $invitation, User $user): ClubMember
     {
+        if ($user->email !== $invitation->email) {
+            throw new \InvalidArgumentException(
+                "Cannot accept invitation: user email [{$user->email}] does not match invitation email [{$invitation->email}]."
+            );
+        }
+
         return DB::transaction(function () use ($invitation, $user) {
             $invitation->update(['status' => InvitationStatus::Accepted]);
 
@@ -71,10 +78,6 @@ class InvitationService
     public function joinViaLink(Club $club, User $user): ClubMember
     {
         return DB::transaction(function () use ($club, $user) {
-            $status = $club->requires_approval
-                ? ClubMemberStatus::Pending
-                : ClubMemberStatus::Approved;
-
             $member = ClubMember::query()->firstOrCreate(
                 [
                     'club_id' => $club->id,
@@ -82,15 +85,11 @@ class InvitationService
                 ],
                 [
                     'role' => ClubMemberRole::Player,
-                    'status' => $status,
-                    'approved_at' => $status === ClubMemberStatus::Approved ? now() : null,
+                    'status' => ClubMemberStatus::Pending,
                 ],
             );
 
-            if ($status === ClubMemberStatus::Approved) {
-                $this->ensurePlayerExists($club->id, $user);
-                $this->clubService->switchToClub($user, $club);
-            } else {
+            if ($member->wasRecentlyCreated) {
                 Notification::send(
                     $club->adminUsers(),
                     new NewMemberRequestNotification($club, $user),
@@ -101,12 +100,9 @@ class InvitationService
         });
     }
 
-    /**
-     * Ensure a Player record exists for this user in this club.
-     */
     private function ensurePlayerExists(int $clubId, User $user): Player
     {
-        return Player::query()->firstOrCreate(
+        return Player::withoutGlobalScope(ClubScope::class)->firstOrCreate(
             [
                 'club_id' => $clubId,
                 'user_id' => $user->id,

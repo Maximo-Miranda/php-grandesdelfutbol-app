@@ -3,7 +3,6 @@ import { Head, useForm } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -17,7 +16,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     name: '',
     description: '',
-    requires_approval: false,
 });
 
 function submit() {
@@ -43,11 +41,6 @@ function submit() {
                     <Label for="description">Description</Label>
                     <Input id="description" v-model="form.description" placeholder="Optional description" />
                     <InputError :message="form.errors.description" />
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <Checkbox id="requires_approval" v-model="form.requires_approval" />
-                    <Label for="requires_approval">Require approval for new members</Label>
                 </div>
 
                 <Button type="submit" :disabled="form.processing">Create Club</Button>

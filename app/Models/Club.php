@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -63,12 +64,32 @@ class Club extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'description',
         'owner_id',
         'invite_token',
         'is_invite_active',
         'requires_approval',
     ];
+
+    public static function generateUniqueSlug(string $name): string
+    {
+        $slug = Str::slug($name);
+
+        if ($slug === '') {
+            $slug = 'club';
+        }
+
+        $original = $slug;
+        $counter = 1;
+
+        while (static::query()->where('slug', $slug)->exists()) {
+            $slug = $original.'-'.$counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
 
     protected function casts(): array
     {
@@ -112,7 +133,7 @@ class Club extends Model
     {
         return $query->whereHas('members', function ($q) use ($user) {
             $q->where('user_id', $user->id)
-                ->where('status', 'approved');
+                ->where('status', ClubMemberStatus::Approved);
         });
     }
 
@@ -141,9 +162,7 @@ class Club extends Model
 
     public function isAdminOrOwner(User $user): bool
     {
-        $membership = $this->getMembership($user);
-
-        return $membership !== null && $membership->isAtLeastAdmin();
+        return $this->getMembership($user)?->isAtLeastAdmin() ?? false;
     }
 
     public function isOwner(User $user): bool

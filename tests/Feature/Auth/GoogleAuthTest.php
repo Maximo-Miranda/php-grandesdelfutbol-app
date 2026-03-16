@@ -23,12 +23,12 @@ test('redirect stores invite_token in session', function () {
         ->assertSessionHas('google_invite_token', 'abc123');
 });
 
-test('redirect stores join_token in session', function () {
+test('redirect stores join_slug in session', function () {
     Socialite::fake('google');
 
-    $this->get('/auth/google?join_token=xyz789')
+    $this->get('/auth/google?join_slug=my-club')
         ->assertRedirect()
-        ->assertSessionHas('google_join_token', 'xyz789');
+        ->assertSessionHas('google_join_slug', 'my-club');
 });
 
 test('redirect stores terms_accepted in session', function () {
@@ -231,15 +231,87 @@ test('callback handles invite_token from session', function () {
     expect($invitation->status->value)->toBe('accepted');
 });
 
-test('callback handles join_token from session', function () {
+test('callback does not accept invitation when google email differs from invitation email', function () {
     Http::fake([
         'people.googleapis.com/*' => Http::response(['genders' => [], 'birthdays' => [], 'phoneNumbers' => []]),
     ]);
 
-    $club = Club::factory()->create([
-        'is_invite_active' => true,
-        'requires_approval' => false,
+    $invitation = ClubInvitation::factory()->create([
+        'email' => 'invited@example.com',
     ]);
+
+    // User authenticates with a DIFFERENT Google email
+    Socialite::fake('google', (new SocialiteUser)->map([
+        'id' => 'google-wrong-email',
+        'name' => 'Wrong User',
+        'email' => 'different@gmail.com',
+        'avatar' => null,
+    ])->setToken('fake-token'));
+
+    $this->withSession([
+        'google_invite_token' => $invitation->token,
+        'google_terms_accepted' => true,
+        'url.intended' => route('invitations.show', $invitation->token),
+    ])->get('/auth/google/callback');
+
+    // Invitation must NOT be accepted
+    $invitation->refresh();
+    expect($invitation->status->value)->toBe('pending');
+
+    // User must NOT be a member of the club
+    $this->assertDatabaseMissing('club_members', [
+        'club_id' => $invitation->club_id,
+        'user_id' => User::query()->where('email', 'different@gmail.com')->first()?->id,
+    ]);
+});
+
+test('full flow: invitation link → google auth with wrong email → redirected with error', function () {
+    Http::fake([
+        'people.googleapis.com/*' => Http::response(['genders' => [], 'birthdays' => [], 'phoneNumbers' => []]),
+    ]);
+
+    $invitation = ClubInvitation::factory()->create([
+        'email' => 'correct@example.com',
+    ]);
+
+    // Step 1: Unauthenticated user visits invitation page → sets intended URL
+    $this->get(route('invitations.show', $invitation->token))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('clubs/AcceptInvitation'));
+
+    // Step 2: User authenticates with Google using WRONG email
+    Socialite::fake('google', (new SocialiteUser)->map([
+        'id' => 'google-wrong',
+        'name' => 'Wrong Person',
+        'email' => 'wrong@gmail.com',
+        'avatar' => null,
+    ])->setToken('fake-token'));
+
+    // Callback detects email mismatch → redirects to clubs.index with error (NOT to intended URL)
+    $this->withSession([
+        'google_invite_token' => $invitation->token,
+        'google_terms_accepted' => true,
+    ])->get('/auth/google/callback')
+        ->assertRedirect(route('clubs.index'))
+        ->assertSessionHas('error');
+
+    // Invitation remains pending, user NOT added to club
+    $invitation->refresh();
+    expect($invitation->status->value)->toBe('pending');
+
+    $wrongUser = User::query()->where('email', 'wrong@gmail.com')->first();
+    $this->assertDatabaseMissing('club_members', [
+        'club_id' => $invitation->club_id,
+        'user_id' => $wrongUser->id,
+    ]);
+});
+
+test('callback handles join_slug from session', function () {
+    Http::fake([
+        'people.googleapis.com/*' => Http::response(['genders' => [], 'birthdays' => [], 'phoneNumbers' => []]),
+    ]);
+
+    $club = Club::factory()->create();
 
     Socialite::fake('google', (new SocialiteUser)->map([
         'id' => 'google-join',
@@ -249,12 +321,13 @@ test('callback handles join_token from session', function () {
     ])->setToken('fake-token'));
 
     $this->withSession([
-        'google_join_token' => $club->invite_token,
+        'google_join_slug' => $club->slug,
         'google_terms_accepted' => true,
     ])->get('/auth/google/callback');
 
     $this->assertDatabaseHas('club_members', [
         'club_id' => $club->id,
+        'status' => 'pending',
     ]);
 });
 

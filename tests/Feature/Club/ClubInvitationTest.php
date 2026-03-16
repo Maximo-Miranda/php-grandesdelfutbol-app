@@ -135,3 +135,35 @@ test('expired invitations cannot be accepted via POST', function () {
         ->post(route('invitations.accept', $invitation->token))
         ->assertNotFound();
 });
+
+test('user with different email sees mismatch page on GET', function () {
+    $user = User::factory()->create(['email' => 'other@example.com']);
+    $invitation = ClubInvitation::factory()->create(['email' => 'invited@example.com']);
+
+    $this->actingAs($user)
+        ->get(route('invitations.show', $invitation->token))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('clubs/InvitationEmailMismatch')
+            ->has('clubName')
+        );
+
+    $this->assertDatabaseMissing('club_members', [
+        'club_id' => $invitation->club_id,
+        'user_id' => $user->id,
+    ]);
+});
+
+test('user with different email cannot accept invitation via POST', function () {
+    $user = User::factory()->create(['email' => 'other@example.com']);
+    $invitation = ClubInvitation::factory()->create(['email' => 'invited@example.com']);
+
+    $this->actingAs($user)
+        ->post(route('invitations.accept', $invitation->token))
+        ->assertRedirect(route('invitations.show', $invitation->token));
+
+    $this->assertDatabaseMissing('club_members', [
+        'club_id' => $invitation->club_id,
+        'user_id' => $user->id,
+    ]);
+});

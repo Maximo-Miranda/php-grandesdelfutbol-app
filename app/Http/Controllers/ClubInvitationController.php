@@ -54,50 +54,53 @@ class ClubInvitationController extends Controller
             ->with('club', 'inviter')
             ->firstOrFail();
 
-        if (Auth::check()) {
-            $user = Auth::user();
+        if (! Auth::check()) {
+            redirect()->setIntendedUrl(route('invitations.show', $token));
 
-            // Clicking the invitation link proves email ownership
-            if (! $user->hasVerifiedEmail()) {
-                $user->markEmailAsVerified();
-            }
-
-            if ($invitation->status === InvitationStatus::Pending) {
-                $this->invitationService->acceptInvitation($invitation, $user);
-            }
-
-            return redirect()->route('clubs.show', $invitation->club)
-                ->with('success', 'Te has unido al club!');
+            return Inertia::render('clubs/AcceptInvitation', [
+                'invitation' => [
+                    'token' => $invitation->token,
+                    'email' => $invitation->email,
+                    'club' => $invitation->club->only('id', 'name', 'description'),
+                    'inviter' => $invitation->inviter?->only('name'),
+                ],
+            ]);
         }
 
-        // Store intended URL so after login/register, user returns here
-        redirect()->setIntendedUrl(route('invitations.show', $token));
+        $user = Auth::user();
 
-        return Inertia::render('clubs/AcceptInvitation', [
-            'invitation' => [
-                'token' => $invitation->token,
-                'email' => $invitation->email,
-                'club' => $invitation->club->only('id', 'name', 'description'),
-                'inviter' => $invitation->inviter?->only('name'),
-            ],
-        ]);
+        if ($user->email !== $invitation->email) {
+            return Inertia::render('clubs/InvitationEmailMismatch', [
+                'clubName' => $invitation->club->name,
+            ]);
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        if ($invitation->status === InvitationStatus::Pending) {
+            $this->invitationService->acceptInvitation($invitation, $user);
+        }
+
+        return redirect()->route('clubs.show', $invitation->club)
+            ->with('success', 'Te has unido al club!');
     }
 
-    /**
-     * Process invitation acceptance (requires auth).
-     */
     public function accept(string $token): RedirectResponse
     {
         $invitation = ClubInvitation::query()
             ->valid()
             ->where('token', $token)
+            ->with('club')
             ->firstOrFail();
 
-        $invitation->load('club');
+        $user = Auth::user();
 
-        $user = auth()->user();
+        if ($user->email !== $invitation->email) {
+            return redirect()->route('invitations.show', $token);
+        }
 
-        // Clicking the invitation link proves email ownership
         if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }

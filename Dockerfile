@@ -63,6 +63,7 @@ RUN apk add --no-cache \
         intl \
         pcntl \
         gd \
+        exif \
     && apk del linux-headers \
     && rm -rf /var/cache/apk/*
 

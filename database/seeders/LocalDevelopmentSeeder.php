@@ -80,6 +80,7 @@ class LocalDevelopmentSeeder extends Seeder
                 'name' => $def['name'],
                 'description' => $def['description'],
                 'owner_id' => $def['owner']->id,
+                'slug' => Club::generateUniqueSlug($def['name']),
                 'invite_token' => Str::random(32),
                 'is_invite_active' => true,
             ]);

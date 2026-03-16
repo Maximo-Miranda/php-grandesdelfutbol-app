@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Services\InvitationService;
 use Illuminate\Http\RedirectResponse;
@@ -13,52 +14,46 @@ class ClubJoinController extends Controller
 {
     public function __construct(private InvitationService $invitationService) {}
 
-    public function show(string $token): Response|RedirectResponse
+    public function show(string $slug): Response|RedirectResponse
     {
-        $club = Club::query()
-            ->where('invite_token', $token)
-            ->where('is_invite_active', true)
-            ->firstOrFail();
+        $club = Club::query()->where('slug', $slug)->firstOrFail();
 
-        if (Auth::check()) {
-            if (! Auth::user()->hasVerifiedEmail()) {
-                redirect()->setIntendedUrl(route('clubs.join', $token));
+        if (! Auth::check()) {
+            redirect()->setIntendedUrl(route('clubs.join', $slug));
 
-                return redirect()->route('verification.notice');
-            }
-
-            $member = $this->invitationService->joinViaLink($club, Auth::user());
-
-            if ($member->status->value === 'pending') {
-                return redirect()->route('dashboard')
-                    ->with('success', 'Tu solicitud de union ha sido enviada. El admin del club debe aprobarla.');
-            }
-
-            return redirect()->route('clubs.show', $club)
-                ->with('success', 'Te has unido al club!');
+            return Inertia::render('clubs/JoinLink', [
+                'club' => $club->only('name', 'description'),
+                'slug' => $slug,
+            ]);
         }
 
-        redirect()->setIntendedUrl(route('clubs.join', $token));
+        if (! Auth::user()->hasVerifiedEmail()) {
+            redirect()->setIntendedUrl(route('clubs.join', $slug));
 
-        return Inertia::render('clubs/JoinLink', [
-            'club' => $club->only('name', 'description'),
-            'token' => $token,
-            'requiresApproval' => $club->requires_approval,
-        ]);
+            return redirect()->route('verification.notice');
+        }
+
+        $member = $this->invitationService->joinViaLink($club, Auth::user());
+
+        if ($member->status === ClubMemberStatus::Pending) {
+            return Inertia::render('clubs/JoinPending', [
+                'club' => $club->only('name', 'description'),
+                'isNewRequest' => $member->wasRecentlyCreated,
+            ]);
+        }
+
+        return redirect()->route('clubs.show', $club)
+            ->with('success', 'Te has unido al club!');
     }
 
-    public function store(string $token): RedirectResponse
+    public function store(string $slug): RedirectResponse
     {
-        $club = Club::query()
-            ->where('invite_token', $token)
-            ->where('is_invite_active', true)
-            ->firstOrFail();
+        $club = Club::query()->where('slug', $slug)->firstOrFail();
 
-        $member = $this->invitationService->joinViaLink($club, auth()->user());
+        $member = $this->invitationService->joinViaLink($club, Auth::user());
 
-        if ($member->status->value === 'pending') {
-            return redirect()->route('clubs.index')
-                ->with('success', 'Tu solicitud de union ha sido enviada para aprobacion.');
+        if ($member->status === ClubMemberStatus::Pending) {
+            return redirect()->route('clubs.join', $slug);
         }
 
         return redirect()->route('clubs.show', $club)

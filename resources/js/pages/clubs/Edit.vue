@@ -5,7 +5,6 @@ import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,20 +25,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     name: props.club.name,
     description: props.club.description ?? '',
-    requires_approval: props.club.requires_approval,
-    is_invite_active: props.club.is_invite_active,
 });
 
 function submit() {
     form.put(`/clubs/${props.club.ulid}`);
 }
 
-const joinUrl = computed(() => {
-    if (!props.club.invite_token) {
-        return '';
-    }
-    return `${window.location.origin}/join/${props.club.invite_token}`;
-});
+const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
 
 const copied = ref(false);
 
@@ -84,25 +76,15 @@ async function shareLink() {
                     <InputError :message="form.errors.description" />
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <Checkbox id="requires_approval" v-model="form.requires_approval" />
-                    <Label for="requires_approval">Requerir aprobacion para nuevos miembros</Label>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <Checkbox id="is_invite_active" v-model="form.is_invite_active" />
-                    <Label for="is_invite_active">Activar enlace de invitacion</Label>
-                </div>
-
                 <div class="flex items-center gap-4">
                     <Button type="submit" :disabled="form.processing">Guardar cambios</Button>
                 </div>
             </form>
 
             <!-- Join link section -->
-            <div v-if="form.is_invite_active && club.invite_token" class="mt-8 rounded-lg border border-border p-4">
+            <div class="mt-8 rounded-lg border border-border p-4">
                 <h3 class="mb-2 font-medium">Enlace de invitacion</h3>
-                <p class="mb-3 text-sm text-muted-foreground">Comparte este enlace para que otros jugadores se unan al club.</p>
+                <p class="mb-3 text-sm text-muted-foreground">Comparte este enlace para que otros jugadores soliciten unirse al club. Deberas aprobar cada solicitud.</p>
                 <div class="flex items-center gap-2">
                     <Input :model-value="joinUrl" readonly class="bg-muted/50 text-sm" />
                     <Button variant="outline" size="icon" @click="copyLink">

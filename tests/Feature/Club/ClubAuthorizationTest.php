@@ -65,8 +65,6 @@ test('owners can update a club', function () {
     $this->actingAs($user)
         ->put(route('clubs.update', $club), [
             'name' => 'Owner Update',
-            'requires_approval' => false,
-            'is_invite_active' => false,
         ])
         ->assertRedirect();
 });

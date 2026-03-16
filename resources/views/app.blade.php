@@ -32,6 +32,11 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
         <meta name="description" content="Grandes del Futbol te ayuda a organizar partidos de cancha sintetica con tus amigos. Controla asistencia, arma equipos y lleva estadisticas de cada jugador.">
+        <meta property="og:site_name" content="Grandes del Futbol">
+        <meta property="og:title" content="Grandes del Futbol">
+        <meta property="og:description" content="Grandes del Futbol te ayuda a organizar partidos de cancha sintetica con tus amigos.">
+        <meta property="og:url" content="{{ config('app.url') }}">
+        <meta property="og:type" content="website">
 
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" href="/icon.svg" type="image/svg+xml">

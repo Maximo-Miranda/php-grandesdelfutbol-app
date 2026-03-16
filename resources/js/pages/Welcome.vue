@@ -4,7 +4,7 @@ import { Moon, Sun, Trophy, UserPlus, Users, Video } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { useAppearance } from '@/composables/useAppearance';
-import { dashboard, login, privacy, register, terms } from '@/routes';
+import { dashboard, privacy, register, terms } from '@/routes';
 import heroImage from '../../images/hero-football.jpg';
 
 const props = withDefaults(
@@ -66,17 +66,11 @@ function toggleDarkMode() {
                     </template>
                     <template v-else>
                         <Link
-                            :href="login()"
-                            class="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                        >
-                            Iniciar sesion
-                        </Link>
-                        <Link
                             v-if="canRegister"
                             :href="register()"
                             class="gradient-primary-bg rounded-lg px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
                         >
-                            Registrarse
+                            Empieza ya
                         </Link>
                     </template>
                 </div>
@@ -96,11 +90,11 @@ function toggleDarkMode() {
 
             <div class="relative z-10 mx-auto max-w-4xl px-4 text-center">
                 <h1 class="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                    Organiza el futbol con tu
-                    <span class="gradient-primary-text">grupo de amigos</span>
+                    Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y lleva las estadisticas de cada jugador en
+                    <span class="gradient-primary-text">un solo lugar.</span>
                 </h1>
                 <p class="mx-auto mb-10 max-w-2xl text-lg text-gray-300 sm:text-xl">
-                    Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y lleva las estadisticas de cada jugador en un solo lugar.
+                    Organiza el futbol con tu grupo de amigos
                 </p>
                 <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
                     <Link
@@ -108,7 +102,7 @@ function toggleDarkMode() {
                         :href="register()"
                         class="gradient-primary-bg inline-flex items-center rounded-xl px-8 py-3.5 text-lg font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
                     >
-                        Comenzar gratis
+                        Empieza ya
                     </Link>
                     <Link
                         v-else

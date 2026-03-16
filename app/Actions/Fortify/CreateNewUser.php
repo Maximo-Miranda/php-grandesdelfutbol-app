@@ -27,7 +27,7 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
             'terms' => ['required', 'accepted'],
             'invite_token' => ['nullable', 'string'],
-            'join_token' => ['nullable', 'string'],
+            'join_slug' => ['nullable', 'string'],
         ])->validate();
 
         $user = User::create([
@@ -43,8 +43,8 @@ class CreateNewUser implements CreatesNewUsers
             $this->handleInviteToken($input['invite_token'], $user);
         }
 
-        if (! empty($input['join_token'])) {
-            $this->handleJoinToken($input['join_token'], $user);
+        if (! empty($input['join_slug'])) {
+            $this->handleJoinSlug($input['join_slug'], $user);
         }
 
         return $user;
@@ -58,26 +58,20 @@ class CreateNewUser implements CreatesNewUsers
             ->where('email', $user->email)
             ->first();
 
-        if ($invitation) {
-            app(InvitationService::class)->acceptInvitation($invitation, $user);
-
-            // Auto-verify: clicking the invitation link proves email ownership
-            $user->markEmailAsVerified();
+        if (! $invitation) {
+            return;
         }
+
+        app(InvitationService::class)->acceptInvitation($invitation, $user);
+        $user->markEmailAsVerified();
     }
 
-    private function handleJoinToken(string $token, User $user): void
+    private function handleJoinSlug(string $slug, User $user): void
     {
-        // Store the join token in session so the intended redirect
-        // can complete the join after email verification.
-        // We intentionally do NOT auto-verify email for shared links.
-        $club = Club::query()
-            ->where('invite_token', $token)
-            ->where('is_invite_active', true)
-            ->first();
+        $club = Club::query()->where('slug', $slug)->first();
 
         if ($club) {
-            session()->put('join_token', $token);
+            session()->put('join_slug', $slug);
         }
     }
 }

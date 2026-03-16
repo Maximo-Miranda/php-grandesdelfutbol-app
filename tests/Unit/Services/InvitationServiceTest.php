@@ -52,8 +52,8 @@ test('sendInvitation sends on-demand notification to non-existing user', functio
 });
 
 test('acceptInvitation marks invitation as accepted and creates member', function () {
-    $invitation = ClubInvitation::factory()->create();
     $user = User::factory()->create();
+    $invitation = ClubInvitation::factory()->create(['email' => $user->email]);
     $service = app(InvitationService::class);
 
     $member = $service->acceptInvitation($invitation, $user);
@@ -66,19 +66,8 @@ test('acceptInvitation marks invitation as accepted and creates member', functio
         ->and($member->status)->toBe(ClubMemberStatus::Approved);
 });
 
-test('joinViaLink creates approved member when no approval required', function () {
-    $club = Club::factory()->create(['requires_approval' => false]);
-    $user = User::factory()->create();
-    $service = app(InvitationService::class);
-
-    $member = $service->joinViaLink($club, $user);
-
-    expect($member->status)->toBe(ClubMemberStatus::Approved)
-        ->and($member->approved_at)->not->toBeNull();
-});
-
-test('joinViaLink creates pending member when approval required', function () {
-    $club = Club::factory()->create(['requires_approval' => true]);
+test('joinViaLink always creates pending member', function () {
+    $club = Club::factory()->create();
     $user = User::factory()->create();
     $service = app(InvitationService::class);
 
@@ -89,8 +78,8 @@ test('joinViaLink creates pending member when approval required', function () {
 });
 
 test('acceptInvitation auto-creates player record', function () {
-    $invitation = ClubInvitation::factory()->create();
     $user = User::factory()->create();
+    $invitation = ClubInvitation::factory()->create(['email' => $user->email]);
     $service = app(InvitationService::class);
 
     $service->acceptInvitation($invitation, $user);
@@ -102,21 +91,8 @@ test('acceptInvitation auto-creates player record', function () {
     ]);
 });
 
-test('joinViaLink auto-creates player when approved', function () {
-    $club = Club::factory()->create(['requires_approval' => false]);
-    $user = User::factory()->create();
-    $service = app(InvitationService::class);
-
-    $service->joinViaLink($club, $user);
-
-    $this->assertDatabaseHas('players', [
-        'club_id' => $club->id,
-        'user_id' => $user->id,
-    ]);
-});
-
-test('joinViaLink does not create player when pending approval', function () {
-    $club = Club::factory()->create(['requires_approval' => true]);
+test('joinViaLink does not create player for pending member', function () {
+    $club = Club::factory()->create();
     $user = User::factory()->create();
     $service = app(InvitationService::class);
 
@@ -138,3 +114,11 @@ test('joinViaLink does not duplicate members', function () {
 
     expect(ClubMember::query()->where('club_id', $club->id)->where('user_id', $user->id)->count())->toBe(1);
 });
+
+test('acceptInvitation throws when user email does not match invitation email', function () {
+    $user = User::factory()->create(['email' => 'wrong@example.com']);
+    $invitation = ClubInvitation::factory()->create(['email' => 'invited@example.com']);
+    $service = app(InvitationService::class);
+
+    $service->acceptInvitation($invitation, $user);
+})->throws(\InvalidArgumentException::class, 'does not match invitation email');

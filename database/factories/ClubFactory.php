@@ -13,14 +13,17 @@ class ClubFactory extends Factory
 {
     public function definition(): array
     {
+        $name = fake()->company();
+
         return [
             'ulid' => (string) Str::ulid(),
-            'name' => fake()->company(),
+            'name' => $name,
+            'slug' => Str::slug($name).'-'.Str::random(4),
             'description' => fake()->sentence(),
             'owner_id' => User::factory(),
             'invite_token' => Str::random(32),
-            'is_invite_active' => false,
-            'requires_approval' => false,
+            'is_invite_active' => true,
+            'requires_approval' => true,
         ];
     }
 

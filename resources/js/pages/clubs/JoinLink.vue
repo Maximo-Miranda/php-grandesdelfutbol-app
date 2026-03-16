@@ -17,8 +17,7 @@ import { store as registerStore } from '@/routes/register';
 
 type Props = {
     club: { name: string; description: string | null };
-    token: string;
-    requiresApproval: boolean;
+    slug: string;
 };
 
 const props = defineProps<Props>();
@@ -31,7 +30,7 @@ const registerForm = useForm({
     password: '',
     password_confirmation: '',
     terms: false as boolean | string,
-    join_token: props.token,
+    join_slug: props.slug,
 });
 
 const loginForm = useForm({
@@ -54,7 +53,7 @@ function handleGoogleRegister() {
         return;
     }
     registerForm.clearErrors('terms');
-    window.location.href = googleRedirect({ query: { join_token: props.token, terms_accepted: '1' } }).url;
+    window.location.href = googleRedirect({ query: { join_slug: props.slug, terms_accepted: '1' } }).url;
 }
 </script>
 
@@ -73,7 +72,7 @@ function handleGoogleRegister() {
                     <h1 class="text-2xl font-bold">{{ club.name }}</h1>
                     <p v-if="club.description" class="mt-1 text-sm text-muted-foreground">{{ club.description }}</p>
                 </div>
-                <Badge v-if="requiresApproval" variant="outline" class="gap-1.5">
+                <Badge variant="outline" class="gap-1.5">
                     <AlertCircle class="size-3" />
                     Requiere aprobacion del admin
                 </Badge>
@@ -187,7 +186,7 @@ function handleGoogleRegister() {
             <form v-else class="space-y-4" @submit.prevent="submitLogin">
                 <template v-if="$page.props.googleAuthEnabled">
                     <a
-                        :href="googleRedirect({ query: { join_token: token } }).url"
+                        :href="googleRedirect({ query: { join_slug: slug } }).url"
                         class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                         <svg class="size-5" viewBox="0 0 24 24">

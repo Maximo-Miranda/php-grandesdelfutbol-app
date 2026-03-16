@@ -41,7 +41,6 @@ test('authenticated users can create a club', function () {
         ->post(route('clubs.store'), [
             'name' => 'My Football Club',
             'description' => 'Best club ever',
-            'requires_approval' => false,
         ])
         ->assertRedirect();
 
@@ -111,13 +110,9 @@ test('admins can update a club', function () {
         ->put(route('clubs.update', $club), [
             'name' => 'Updated Name',
             'description' => 'Updated description',
-            'requires_approval' => true,
-            'is_invite_active' => true,
         ])
         ->assertRedirect();
 
     $club->refresh();
-    expect($club->name)->toBe('Updated Name')
-        ->and($club->requires_approval)->toBeTrue()
-        ->and($club->is_invite_active)->toBeTrue();
+    expect($club->name)->toBe('Updated Name');
 });

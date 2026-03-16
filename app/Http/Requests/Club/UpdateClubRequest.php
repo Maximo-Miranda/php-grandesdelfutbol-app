@@ -17,8 +17,6 @@ class UpdateClubRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
-            'requires_approval' => ['boolean'],
-            'is_invite_active' => ['boolean'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ];
     }

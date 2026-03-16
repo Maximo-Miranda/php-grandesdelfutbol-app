@@ -16,10 +16,12 @@ class ClubService
     {
         $club = Club::query()->create([
             'name' => $data['name'],
+            'slug' => Club::generateUniqueSlug($data['name']),
             'description' => $data['description'] ?? null,
             'owner_id' => $user->id,
             'invite_token' => Str::random(32),
-            'requires_approval' => $data['requires_approval'] ?? false,
+            'requires_approval' => true,
+            'is_invite_active' => true,
         ]);
 
         ClubMember::query()->create([
