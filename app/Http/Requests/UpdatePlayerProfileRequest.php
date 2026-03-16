@@ -46,7 +46,7 @@ class UpdatePlayerProfileRequest extends FormRequest
         return [
             'photo.image' => 'El archivo debe ser una imagen (JPG, PNG o WebP).',
             'photo.max' => 'La foto no debe superar 10 MB.',
-            'photo.dimensions' => 'La foto debe tener al menos 200x200 px y maximo 6000x6000 px.',
+            'photo.dimensions' => 'La foto debe tener al menos 200x200 px y máximo 6000x6000 px.',
             'photo.mimes' => 'La foto debe ser JPG, PNG o WebP.',
             'photo.mimetypes' => 'La foto debe ser JPG, PNG o WebP.',
         ];

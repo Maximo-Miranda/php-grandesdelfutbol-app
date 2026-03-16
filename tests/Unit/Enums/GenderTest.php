@@ -19,7 +19,7 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(Gender::Male->label())->toBe('Male')
-        ->and(Gender::Female->label())->toBe('Female')
-        ->and(Gender::Other->label())->toBe('Other');
+    expect(Gender::Male->label())->toBe('Masculino')
+        ->and(Gender::Female->label())->toBe('Femenino')
+        ->and(Gender::Other->label())->toBe('Otro');
 });

@@ -17,10 +17,10 @@ defineProps<{
 
 <template>
     <AuthLayout
-        title="Olvidaste tu contrasena"
+        title="Olvidaste tu contraseña"
         description="Ingresa tu correo para recibir un enlace de restablecimiento"
     >
-        <Head title="Olvidaste tu contrasena" />
+        <Head title="Olvidaste tu contraseña" />
 
         <div
             v-if="status"
@@ -32,7 +32,7 @@ defineProps<{
         <div class="space-y-6">
             <Form v-bind="email.form()" v-slot="{ errors, processing }">
                 <div class="grid gap-2">
-                    <Label for="email">Correo electronico</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         type="email"
@@ -58,7 +58,7 @@ defineProps<{
 
             <div class="space-x-1 text-center text-sm text-muted-foreground">
                 <span>O volver a</span>
-                <TextLink :href="login()">iniciar sesion</TextLink>
+                <TextLink :href="login()">iniciar sesión</TextLink>
             </div>
         </div>
     </AuthLayout>

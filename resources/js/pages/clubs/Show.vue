@@ -17,7 +17,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
 ];
 
@@ -176,8 +176,8 @@ function formatDate(dateStr: string): string {
                         <Settings class="size-5" />
                     </div>
                     <div>
-                        <p class="font-semibold">Configuracion</p>
-                        <p class="text-sm text-muted-foreground">Logo, acceso, invitacion</p>
+                        <p class="font-semibold">Configuración</p>
+                        <p class="text-sm text-muted-foreground">Logo, acceso, invitación</p>
                     </div>
                 </Link>
             </div>
@@ -195,7 +195,7 @@ function formatDate(dateStr: string): string {
         <ConfirmDialog
             v-model:open="showLeaveDialog"
             title="Salir del club"
-            description="Esta accion no se puede deshacer. Perderas acceso al club y sus partidos."
+            description="Esta acción no se puede deshacer. Perderás acceso al club y sus partidos."
             confirm-label="Salir del club"
             :destructive="true"
             :processing="leavingClub"

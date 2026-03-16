@@ -18,7 +18,7 @@ withDefaults(defineProps<{
     destructive?: boolean;
     processing?: boolean;
 }>(), {
-    title: 'Confirmar accion',
+    title: 'Confirmar acción',
     description: '',
     confirmLabel: 'Confirmar',
     cancelLabel: 'Cancelar',

@@ -17,6 +17,6 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(ClubMemberStatus::Pending->label())->toBe('Pending')
-        ->and(ClubMemberStatus::Approved->label())->toBe('Approved');
+    expect(ClubMemberStatus::Pending->label())->toBe('Pendiente')
+        ->and(ClubMemberStatus::Approved->label())->toBe('Aprobado');
 });

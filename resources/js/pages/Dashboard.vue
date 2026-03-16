@@ -124,7 +124,7 @@ function formatShortDate(dateStr: string): string {
 
             <!-- Player stats -->
             <div v-if="playerStats.matches > 0" class="mt-6">
-                <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mis estadisticas</h2>
+                <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mis estadísticas</h2>
                 <div class="grid grid-cols-3 gap-3 sm:grid-cols-5">
                     <div class="rounded-lg border border-border p-3 text-center">
                         <Trophy class="mx-auto mb-1 size-5 text-primary" />

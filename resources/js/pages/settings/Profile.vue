@@ -237,7 +237,7 @@ function submitPlayerProfile() {
                     <div class="rounded-xl border border-border bg-card p-5">
                         <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             <UserCircle class="size-4" />
-                            Informacion personal
+                            Información personal
                         </h3>
                         <div class="space-y-4">
                             <div class="grid gap-2">
@@ -247,7 +247,7 @@ function submitPlayerProfile() {
                             </div>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="grid gap-2">
-                                    <Label for="gender">Genero</Label>
+                                    <Label for="gender">Género</Label>
                                     <Select v-model="playerForm.gender">
                                         <SelectTrigger id="gender">
                                             <SelectValue placeholder="Seleccionar" />
@@ -314,7 +314,7 @@ function submitPlayerProfile() {
                                 <Label for="preferred_position">Posicion preferida</Label>
                                 <Select v-model="playerForm.preferred_position">
                                     <SelectTrigger id="preferred_position">
-                                        <SelectValue placeholder="Seleccionar posicion" />
+                                        <SelectValue placeholder="Seleccionar posición" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">Sin preferencia</SelectItem>
@@ -361,8 +361,8 @@ function submitPlayerProfile() {
             <div class="flex flex-col space-y-6">
                 <Heading
                     variant="small"
-                    title="Informacion de cuenta"
-                    description="Actualiza tu nombre y correo electronico"
+                    title="Información de cuenta"
+                    description="Actualiza tu nombre y correo electrónico"
                 />
 
                 <Form
@@ -385,7 +385,7 @@ function submitPlayerProfile() {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="email">Correo electronico</Label>
+                        <Label for="email">Correo electrónico</Label>
                         <Input
                             id="email"
                             type="email"
@@ -394,20 +394,20 @@ function submitPlayerProfile() {
                             :default-value="user.email"
                             required
                             autocomplete="username"
-                            placeholder="Correo electronico"
+                            placeholder="Correo electrónico"
                         />
                         <InputError class="mt-2" :message="errors.email" />
                     </div>
 
                     <div v-if="mustVerifyEmail && !user.email_verified_at">
                         <p class="-mt-4 text-sm text-muted-foreground">
-                            Tu correo electronico no esta verificado.
+                            Tu correo electrónico no está verificado.
                             <Link
                                 :href="send()"
                                 as="button"
                                 class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                             >
-                                Haz clic aqui para reenviar el correo de verificacion.
+                                Haz clic aquí para reenviar el correo de verificación.
                             </Link>
                         </p>
 
@@ -415,7 +415,7 @@ function submitPlayerProfile() {
                             v-if="status === 'verification-link-sent'"
                             class="mt-2 text-sm font-medium text-green-600"
                         >
-                            Se ha enviado un nuevo enlace de verificacion a tu correo.
+                            Se ha enviado un nuevo enlace de verificación a tu correo.
                         </div>
                     </div>
 

@@ -30,8 +30,8 @@ class ClubInvitationNotification extends Notification implements ShouldQueue
             ->subject("Te han invitado a {$club->name}")
             ->greeting('Hola!')
             ->line("{$inviterName} te ha invitado a unirte al club \"{$club->name}\".")
-            ->line('Acepta la invitacion para empezar a jugar con tu equipo.')
-            ->action('Aceptar invitacion', route('invitations.show', $this->invitation->token))
-            ->line('Esta invitacion expira en 7 dias.');
+            ->line('Acepta la invitación para empezar a jugar con tu equipo.')
+            ->action('Aceptar invitación', route('invitations.show', $this->invitation->token))
+            ->line('Esta invitación expira en 7 días.');
     }
 }

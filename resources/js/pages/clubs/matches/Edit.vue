@@ -223,11 +223,11 @@ function submit() {
                 <!-- Notas -->
                 <div class="grid gap-1.5">
                     <Label for="notes">Notas</Label>
-                    <p class="text-xs text-muted-foreground">Informacion adicional (reglas, equipamiento, etc.)</p>
+                    <p class="text-xs text-muted-foreground">Información adicional (reglas, equipamiento, etc.)</p>
                     <Textarea
                         id="notes"
                         v-model="form.notes"
-                        placeholder="Informacion util para los jugadores..."
+                        placeholder="Información útil para los jugadores..."
                         rows="3"
                     />
                     <InputError :message="form.errors.notes" />

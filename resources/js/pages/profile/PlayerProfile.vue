@@ -117,7 +117,7 @@ function submit() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <SettingsLayout>
             <div class="space-y-6">
-                <Heading variant="small" title="Perfil de jugador" description="Tu perfil personal de futbol" />
+                <Heading variant="small" title="Perfil de jugador" description="Tu perfil personal de fútbol" />
 
                 <!-- Hero card -->
                 <div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/10">
@@ -197,7 +197,7 @@ function submit() {
                     <div class="rounded-xl border border-border bg-card p-5">
                         <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             <UserCircle class="size-4" />
-                            Informacion personal
+                            Información personal
                         </h3>
                         <div class="space-y-4">
                             <div class="grid gap-2">
@@ -207,7 +207,7 @@ function submit() {
                             </div>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="grid gap-2">
-                                    <Label for="gender">Genero</Label>
+                                    <Label for="gender">Género</Label>
                                     <Select v-model="form.gender">
                                         <SelectTrigger id="gender">
                                             <SelectValue placeholder="Seleccionar" />
@@ -232,18 +232,18 @@ function submit() {
                         </div>
                     </div>
 
-                    <!-- Futbol -->
+                    <!-- Fútbol -->
                     <div class="rounded-xl border border-border bg-card p-5">
                         <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             <Shirt class="size-4" />
-                            Futbol
+                            Fútbol
                         </h3>
                         <div class="space-y-4">
                             <div class="grid gap-2">
-                                <Label for="preferred_position">Posicion preferida</Label>
+                                <Label for="preferred_position">Posición preferida</Label>
                                 <Select v-model="form.preferred_position">
                                     <SelectTrigger id="preferred_position">
-                                        <SelectValue placeholder="Seleccionar posicion" />
+                                        <SelectValue placeholder="Seleccionar posición" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">Sin preferencia</SelectItem>

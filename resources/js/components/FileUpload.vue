@@ -33,9 +33,9 @@ function triggerFileInput() {
         <Label v-if="label">{{ label }}</Label>
         <div class="flex items-center gap-3">
             <Button type="button" variant="outline" size="sm" @click="triggerFileInput">
-                Choose File
+                Elegir Archivo
             </Button>
-            <span class="text-sm text-muted-foreground">{{ fileName || 'No file chosen' }}</span>
+            <span class="text-sm text-muted-foreground">{{ fileName || 'Sin archivo seleccionado' }}</span>
         </div>
         <input
             ref="fileInput"

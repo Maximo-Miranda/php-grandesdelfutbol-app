@@ -42,10 +42,10 @@ onMounted(async () => {
     <Card class="w-full">
         <CardHeader>
             <CardTitle class="flex gap-3">
-                <LockKeyhole class="size-4" />Codigos de recuperacion 2FA
+                <LockKeyhole class="size-4" />Códigos de recuperación 2FA
             </CardTitle>
             <CardDescription>
-                Los codigos de recuperacion te permiten recuperar el acceso si pierdes tu dispositivo 2FA. Guardalos en un gestor de contrasenas seguro.
+                Los códigos de recuperación te permiten recuperar el acceso si pierdes tu dispositivo 2FA. Guardalos en un gestor de contraseñas seguro.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -57,7 +57,7 @@ onMounted(async () => {
                         :is="isRecoveryCodesVisible ? EyeOff : Eye"
                         class="size-4"
                     />
-                    {{ isRecoveryCodesVisible ? 'Ocultar' : 'Ver' }} codigos de recuperacion
+                    {{ isRecoveryCodesVisible ? 'Ocultar' : 'Ver' }} códigos de recuperación
                 </Button>
 
                 <Form
@@ -73,7 +73,7 @@ onMounted(async () => {
                         type="submit"
                         :disabled="processing"
                     >
-                        <RefreshCw /> Regenerar codigos
+                        <RefreshCw /> Regenerar códigos
                     </Button>
                 </Form>
             </div>
@@ -109,8 +109,8 @@ onMounted(async () => {
                         </div>
                     </div>
                     <p class="text-xs text-muted-foreground select-none">
-                        Cada codigo de recuperacion se puede usar una vez para acceder a tu cuenta y sera eliminado despues de usarse. Si necesitas mas, haz clic en
-                        <span class="font-bold">Regenerar codigos</span> arriba.
+                        Cada código de recuperación se puede usar una vez para acceder a tu cuenta y sera eliminado despues de usarse. Si necesitas mas, haz clic en
+                        <span class="font-bold">Regenerar códigos</span> arriba.
                     </p>
                 </div>
             </div>

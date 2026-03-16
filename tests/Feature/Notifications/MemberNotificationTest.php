@@ -112,7 +112,7 @@ test('member left notification contains correct content', function () {
     $notification = new MemberLeftNotification($club, $member);
     $mail = $notification->toMail($admin);
 
-    expect($mail->subject)->toBe("Pedro salio de {$club->name}")
+    expect($mail->subject)->toBe("Pedro salió de {$club->name}")
         ->and($mail->actionUrl)->toContain("/clubs/{$club->ulid}/members");
 });
 

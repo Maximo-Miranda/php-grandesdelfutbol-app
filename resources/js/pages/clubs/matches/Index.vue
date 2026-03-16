@@ -14,7 +14,7 @@ const props = defineProps<Props>();
 const { isAdmin } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
 ];

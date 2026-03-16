@@ -16,18 +16,18 @@ import type { TwoFactorConfigContent } from '@/types';
 const authConfigContent = computed<TwoFactorConfigContent>(() => {
     if (showRecoveryInput.value) {
         return {
-            title: 'Codigo de recuperacion',
+            title: 'Código de recuperación',
             description:
-                'Confirma el acceso a tu cuenta ingresando uno de tus codigos de recuperacion de emergencia.',
-            buttonText: 'iniciar sesion con un codigo de autenticacion',
+                'Confirma el acceso a tu cuenta ingresando uno de tus códigos de recuperación de emergencia.',
+            buttonText: 'iniciar sesión con un código de autenticación',
         };
     }
 
     return {
-        title: 'Codigo de autenticacion',
+        title: 'Código de autenticación',
         description:
-            'Ingresa el codigo de autenticacion proporcionado por tu aplicacion de autenticacion.',
-        buttonText: 'iniciar sesion con un codigo de recuperacion',
+            'Ingresa el código de autenticación proporcionado por tu aplicación de autenticación.',
+        buttonText: 'iniciar sesión con un código de recuperación',
     };
 });
 
@@ -47,7 +47,7 @@ const code = ref<string>('');
         :title="authConfigContent.title"
         :description="authConfigContent.description"
     >
-        <Head title="Autenticacion de dos factores" />
+        <Head title="Autenticación de dos factores" />
 
         <div class="space-y-6">
             <template v-if="!showRecoveryInput">
@@ -107,7 +107,7 @@ const code = ref<string>('');
                     <Input
                         name="recovery_code"
                         type="text"
-                        placeholder="Ingresa el codigo de recuperacion"
+                        placeholder="Ingresa el código de recuperación"
                         :autofocus="showRecoveryInput"
                         required
                     />

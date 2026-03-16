@@ -28,10 +28,10 @@ function toggleDarkMode() {
 </script>
 
 <template>
-    <Head title="Organiza partidos de futbol con tu grupo de amigos">
-        <meta head-key="description" name="description" content="Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y sigue las estadisticas de cada jugador de tu grupo en cancha sintetica." />
-        <meta head-key="og:title" property="og:title" content="Grandes del Futbol — Organiza el futbol con tu grupo de amigos" />
-        <meta head-key="og:description" property="og:description" content="Controla asistencia, arma equipos y sigue las estadisticas de cada jugador. Servicio de grabacion y estadisticas desde $60.000 por partido." />
+    <Head title="Organiza partidos de fútbol con tu grupo de amigos">
+        <meta head-key="description" name="description" content="Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y sigue las estadísticas de cada jugador de tu grupo en cancha sintética." />
+        <meta head-key="og:title" property="og:title" content="Grandes del Fútbol — Organiza el fútbol con tu grupo de amigos" />
+        <meta head-key="og:description" property="og:description" content="Controla asistencia, arma equipos y sigue las estadísticas de cada jugador. Servicio de grabación y estadísticas desde $60.000 por partido." />
         <meta head-key="og:type" property="og:type" content="website" />
         <meta head-key="og:image" property="og:image" :content="`${props.appUrl}/pwa-512x512.png`" />
         <meta head-key="og:locale" property="og:locale" content="es_CO" />
@@ -82,7 +82,7 @@ function toggleDarkMode() {
             <div class="absolute inset-0">
                 <img
                     :src="heroImage"
-                    alt="Campo de futbol"
+                    alt="Campo de fútbol"
                     class="h-full w-full object-cover"
                 />
                 <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
@@ -90,11 +90,11 @@ function toggleDarkMode() {
 
             <div class="relative z-10 mx-auto max-w-4xl px-4 text-center">
                 <h1 class="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                    Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y lleva las estadisticas de cada jugador en
+                    Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y lleva las estadísticas de cada jugador en
                     <span class="gradient-primary-text">un solo lugar.</span>
                 </h1>
                 <p class="mx-auto mb-10 max-w-2xl text-lg text-gray-300 sm:text-xl">
-                    Organiza el futbol con tu grupo de amigos
+                    Organiza el fútbol con tu grupo de amigos
                 </p>
                 <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
                     <Link
@@ -115,7 +115,7 @@ function toggleDarkMode() {
                         href="#como-funciona"
                         class="inline-flex items-center rounded-xl border border-white/20 px-8 py-3.5 text-lg font-semibold text-white transition-colors hover:bg-white/10"
                     >
-                        Como funciona
+                        Cómo funciona
                     </a>
                 </div>
             </div>
@@ -126,7 +126,7 @@ function toggleDarkMode() {
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="mb-16 text-center">
                     <h2 class="mb-4 text-3xl font-bold sm:text-4xl">
-                        Como funciona
+                        Cómo funciona
                     </h2>
                     <p class="mx-auto max-w-2xl text-lg text-muted-foreground">
                         En tres simples pasos, tu grupo de amigos tiene todo listo para jugar organizado.
@@ -140,7 +140,7 @@ function toggleDarkMode() {
                         </div>
                         <h3 class="mb-3 text-xl font-semibold">1. Crea tu club</h3>
                         <p class="text-muted-foreground">
-                            Registrate gratis y crea tu club. Invita a tu grupo de amigos con un simple link.
+                            Regístrate gratis y crea tu club. Invita a tu grupo de amigos con un simple link.
                         </p>
                     </div>
 
@@ -150,7 +150,7 @@ function toggleDarkMode() {
                         </div>
                         <h3 class="mb-3 text-xl font-semibold">2. Organiza partidos</h3>
                         <p class="text-muted-foreground">
-                            Confirma asistencia, arma equipos y programa tus partidos de cancha sintetica sin depender de un chat.
+                            Confirma asistencia, arma equipos y programa tus partidos de cancha sintética sin depender de un chat.
                         </p>
                     </div>
 
@@ -160,14 +160,14 @@ function toggleDarkMode() {
                         </div>
                         <h3 class="mb-3 text-xl font-semibold">3. Sigue el rendimiento</h3>
                         <p class="text-muted-foreground">
-                            Goles, atajadas, tarjetas y mas. Cada jugador tiene su perfil con estadisticas detalladas.
+                            Goles, atajadas, tarjetas y más. Cada jugador tiene su perfil con estadísticas detalladas.
                         </p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Servicio de grabacion -->
+        <!-- Servicio de grabación -->
         <section class="py-20 sm:py-28">
             <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
                 <div class="rounded-3xl border border-border bg-card p-10 text-center sm:p-16">
@@ -175,10 +175,10 @@ function toggleDarkMode() {
                         <Video class="size-8 text-white" />
                     </div>
                     <h2 class="mb-4 text-3xl font-bold sm:text-4xl">
-                        Grabacion de partidos + estadisticas
+                        Grabación de partidos + estadísticas
                     </h2>
                     <p class="mx-auto mb-4 max-w-2xl text-lg text-muted-foreground">
-                        Vamos a tu cancha, grabamos el partido completo y cargamos las estadisticas de cada jugador en la app. Goles, atajadas, tarjetas — todo registrado.
+                        Vamos a tu cancha, grabamos el partido completo y cargamos las estadísticas de cada jugador en la app. Goles, atajadas, tarjetas — todo registrado.
                     </p>
                     <p class="mb-8 text-2xl font-bold">
                         $60.000 por partido
@@ -206,15 +206,15 @@ function toggleDarkMode() {
                     </div>
                     <div class="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
                         <a :href="terms.url()" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                            Terminos y Condiciones de Uso
+                            Términos y Condiciones de Uso
                         </a>
                         <span class="hidden text-muted-foreground/50 sm:inline">&middot;</span>
                         <a :href="privacy.url()" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                            Politica de Tratamiento de Datos Personales
+                            Política de Tratamiento de Datos Personales
                         </a>
                     </div>
                     <p class="text-sm text-muted-foreground">
-                        &copy; {{ new Date().getFullYear() }} Grandes del Futbol. Todos los derechos reservados.
+                        &copy; {{ new Date().getFullYear() }} Grandes del Fútbol. Todos los derechos reservados.
                     </p>
                 </div>
             </div>

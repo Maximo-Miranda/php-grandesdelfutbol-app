@@ -19,10 +19,10 @@ const inputEmail = ref(props.email);
 
 <template>
     <AuthLayout
-        title="Restablecer contrasena"
-        description="Ingresa tu nueva contrasena"
+        title="Restablecer contraseña"
+        description="Ingresa tu nueva contraseña"
     >
-        <Head title="Restablecer contrasena" />
+        <Head title="Restablecer contraseña" />
 
         <Form
             v-bind="update.form()"
@@ -32,7 +32,7 @@ const inputEmail = ref(props.email);
         >
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="email">Correo electronico</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         type="email"
@@ -46,7 +46,7 @@ const inputEmail = ref(props.email);
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">Contrasena</Label>
+                    <Label for="password">Contraseña</Label>
                     <Input
                         id="password"
                         type="password"
@@ -54,14 +54,14 @@ const inputEmail = ref(props.email);
                         autocomplete="new-password"
                         class="mt-1 block w-full"
                         autofocus
-                        placeholder="Contrasena"
+                        placeholder="Contraseña"
                     />
                     <InputError :message="errors.password" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password_confirmation">
-                        Confirmar contrasena
+                        Confirmar contraseña
                     </Label>
                     <Input
                         id="password_confirmation"
@@ -69,7 +69,7 @@ const inputEmail = ref(props.email);
                         name="password_confirmation"
                         autocomplete="new-password"
                         class="mt-1 block w-full"
-                        placeholder="Confirmar contrasena"
+                        placeholder="Confirmar contraseña"
                     />
                     <InputError :message="errors.password_confirmation" />
                 </div>
@@ -81,7 +81,7 @@ const inputEmail = ref(props.email);
                     data-test="reset-password-button"
                 >
                     <Spinner v-if="processing" />
-                    Restablecer contrasena
+                    Restablecer contraseña
                 </Button>
             </div>
         </Form>

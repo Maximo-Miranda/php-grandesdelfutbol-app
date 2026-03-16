@@ -14,7 +14,7 @@ type Props = { club: Club; positions: PositionOption[] };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
     { title: 'Agregar', href: `/clubs/${props.club.ulid}/players/create` },
@@ -31,24 +31,24 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Add Player" />
+    <Head title="Agregar Jugador" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl p-4">
-            <Heading title="Add Player" description="Add a new player to the roster" />
+            <Heading title="Agregar Jugador" description="Agrega un nuevo jugador a la plantilla" />
             <form class="mt-6 space-y-6" @submit.prevent="submit">
                 <div class="grid gap-2">
-                    <Label for="name">Name</Label>
+                    <Label for="name">Nombre</Label>
                     <Input id="name" v-model="form.name" required />
                     <InputError :message="form.errors.name" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="position">Position</Label>
+                    <Label for="position">Posición</Label>
                     <Select v-model="form.position">
                         <SelectTrigger id="position">
-                            <SelectValue placeholder="Seleccionar posicion" />
+                            <SelectValue placeholder="Seleccionar posición" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="none">Sin posicion</SelectItem>
+                            <SelectItem value="none">Sin posición</SelectItem>
                             <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
                                 {{ pos.label }} ({{ pos.value }})
                             </SelectItem>
@@ -57,11 +57,11 @@ function submit() {
                     <InputError :message="form.errors.position" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="jersey_number">Jersey Number</Label>
+                    <Label for="jersey_number">Número de Camiseta</Label>
                     <Input id="jersey_number" v-model="form.jersey_number" type="number" min="1" max="99" />
                     <InputError :message="form.errors.jersey_number" />
                 </div>
-                <Button type="submit" :disabled="form.processing">Add Player</Button>
+                <Button type="submit" :disabled="form.processing">Agregar Jugador</Button>
             </form>
         </div>
     </AppLayout>

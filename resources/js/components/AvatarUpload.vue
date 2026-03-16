@@ -46,7 +46,7 @@ function triggerFileInput() {
                 <span v-else class="text-xl text-muted-foreground">?</span>
             </div>
             <Button type="button" variant="outline" size="sm" @click="triggerFileInput">
-                {{ displayUrl ? 'Change' : 'Upload' }}
+                {{ displayUrl ? 'Cambiar' : 'Subir' }}
             </Button>
         </div>
         <input

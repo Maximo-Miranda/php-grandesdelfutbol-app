@@ -19,7 +19,7 @@ type Props = { club: Club; venues: Venue[] };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: `/clubs/${props.club.ulid}/matches` },
     { title: 'Crear', href: `/clubs/${props.club.ulid}/matches/create` },
@@ -275,7 +275,7 @@ function submitExistingVenueField() {
                                     </div>
 
                                     <div class="grid gap-1.5">
-                                        <Label for="venue_address">Direccion</Label>
+                                        <Label for="venue_address">Dirección</Label>
                                         <Input id="venue_address" v-model="venueForm.address" placeholder="ej. Calle 4a # 13-39" />
                                         <InputError :message="venueForm.errors.address" />
                                     </div>
@@ -383,7 +383,7 @@ function submitExistingVenueField() {
                 <!-- Past match alert -->
                 <div v-if="isPastMatch" class="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
                     <Info class="mt-0.5 size-4 shrink-0" />
-                    <span>Este partido se creara como finalizado. Podras confirmar jugadores y cargar estadisticas manualmente.</span>
+                    <span>Este partido se creará como finalizado. Podrás confirmar jugadores y cargar estadísticas manualmente.</span>
                 </div>
 
                 <!-- Duracion y Llegada -->
@@ -499,11 +499,11 @@ function submitExistingVenueField() {
                 <!-- Notas -->
                 <div class="grid gap-1.5">
                     <Label for="notes">Notas</Label>
-                    <p class="text-xs text-muted-foreground">Informacion adicional (reglas, equipamiento, etc.)</p>
+                    <p class="text-xs text-muted-foreground">Información adicional (reglas, equipamiento, etc.)</p>
                     <Textarea
                         id="notes"
                         v-model="form.notes"
-                        placeholder="Informacion util para los jugadores..."
+                        placeholder="Información útil para los jugadores..."
                         rows="3"
                     />
                     <InputError :message="form.errors.notes" />

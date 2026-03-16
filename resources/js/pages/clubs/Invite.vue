@@ -26,7 +26,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Invitar', href: `/clubs/${props.club.ulid}/invite` },
 ];
@@ -92,7 +92,7 @@ function rejectMember(member: ClubMember) {
                     </div>
                     <Button type="submit" :disabled="form.processing" class="w-full">
                         <Send class="mr-2 size-4" />
-                        Enviar invitacion
+                        Enviar invitación
                     </Button>
                 </form>
             </div>

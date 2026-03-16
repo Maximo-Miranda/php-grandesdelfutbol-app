@@ -18,7 +18,7 @@ type Props = { club: Club; player: Player; positions: PositionOption[]; isAdmin:
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
     { title: 'Editar', href: `/clubs/${props.club.ulid}/players/${props.player.ulid}/edit` },
@@ -100,13 +100,13 @@ function submit() {
                     <InputError :message="form.errors.name" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="position">Posicion</Label>
+                    <Label for="position">Posición</Label>
                     <Select v-model="form.position">
                         <SelectTrigger id="position">
-                            <SelectValue placeholder="Seleccionar posicion" />
+                            <SelectValue placeholder="Seleccionar posición" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="none">Sin posicion</SelectItem>
+                            <SelectItem value="none">Sin posición</SelectItem>
                             <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
                                 {{ pos.label }} ({{ pos.value }})
                             </SelectItem>
@@ -115,7 +115,7 @@ function submit() {
                     <InputError :message="form.errors.position" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="jersey_number">Numero de camiseta</Label>
+                    <Label for="jersey_number">Número de camiseta</Label>
                     <Input id="jersey_number" v-model="form.jersey_number" type="number" min="1" max="99" />
                     <InputError :message="form.errors.jersey_number" />
                 </div>
@@ -166,9 +166,9 @@ function submit() {
                         class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3"
                     >
                         <p class="text-sm text-amber-400">
-                            Este usuario ya tiene un jugador en el club. Al guardar, las estadisticas de
-                            <strong>{{ player.display_name }}</strong> se fusionaran con el jugador existente
-                            y este registro sera eliminado.
+                            Este usuario ya tiene un jugador en el club. Al guardar, las estadísticas de
+                            <strong>{{ player.display_name }}</strong> se fusionarán con el jugador existente
+                            y este registro será eliminado.
                         </p>
                     </div>
                     <p class="text-xs text-muted-foreground">
@@ -198,11 +198,11 @@ function submit() {
             <!-- Delete confirmation -->
             <div v-if="confirmingDelete" class="mt-4 rounded-lg border border-red-500/30 bg-red-500/5 p-4">
                 <p class="mb-3 text-sm">
-                    Se eliminara a <strong>{{ player.display_name }}</strong> y todas sus estadisticas. Esta accion no se puede deshacer.
+                    Se eliminará a <strong>{{ player.display_name }}</strong> y todas sus estadísticas. Esta acción no se puede deshacer.
                 </p>
                 <div class="flex gap-2">
                     <Button variant="destructive" size="sm" @click="deletePlayer">
-                        Confirmar eliminacion
+                        Confirmar eliminación
                     </Button>
                     <Button variant="outline" size="sm" @click="confirmingDelete = false">
                         Cancelar

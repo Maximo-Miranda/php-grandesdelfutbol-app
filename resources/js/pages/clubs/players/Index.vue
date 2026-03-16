@@ -28,7 +28,7 @@ const filteredPlayers = computed(() => {
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Jugadores', href: `/clubs/${props.club.ulid}/players` },
 ];

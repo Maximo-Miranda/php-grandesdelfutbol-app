@@ -11,9 +11,9 @@ enum ClubMemberRole: string
     public function label(): string
     {
         return match ($this) {
-            self::Owner => 'Owner',
+            self::Owner => 'Dueño',
             self::Admin => 'Admin',
-            self::Player => 'Player',
+            self::Player => 'Jugador',
         };
     }
 

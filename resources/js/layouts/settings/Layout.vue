@@ -17,11 +17,11 @@ const sidebarNavItems: NavItem[] = [
         href: editProfile(),
     },
     {
-        title: 'Contrasena',
+        title: 'Contraseña',
         href: editPassword(),
     },
     {
-        title: 'Autenticacion 2FA',
+        title: 'Autenticación 2FA',
         href: show(),
     },
     {
@@ -36,8 +36,8 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 <template>
     <div class="px-4 py-6">
         <Heading
-            title="Configuracion"
-            description="Administra tu perfil y configuracion de cuenta"
+            title="Configuración"
+            description="Administra tu perfil y configuración de cuenta"
         />
 
         <div class="flex flex-col lg:flex-row lg:space-x-12">

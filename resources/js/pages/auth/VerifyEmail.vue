@@ -58,7 +58,7 @@ watch(code, (val) => {
                 <div>
                     <h1 class="text-2xl font-bold">Verifica tu correo</h1>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Ingresa el codigo de 6 digitos que enviamos a tu correo.
+                        Ingresa el código de 6 dígitos que enviamos a tu correo.
                     </p>
                 </div>
 
@@ -73,11 +73,11 @@ watch(code, (val) => {
 
             <!-- Success message -->
             <div
-                v-if="status === 'Se ha enviado un nuevo codigo a tu correo.'"
+                v-if="status === 'Se ha enviado un nuevo código a tu correo.'"
                 class="mb-4 flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-700 dark:border-green-700 dark:bg-green-950/30 dark:text-green-400"
             >
                 <MailCheck class="size-4 shrink-0" />
-                Nuevo codigo enviado!
+                Nuevo código enviado!
             </div>
 
             <!-- OTP Input -->
@@ -115,14 +115,14 @@ watch(code, (val) => {
                         @click="resend"
                     >
                         <Spinner v-if="resendForm.processing" class="mr-1 inline size-3" />
-                        Reenviar codigo
+                        Reenviar código
                     </button>
                     <TextLink
                         :href="logout()"
                         as="button"
                         class="text-muted-foreground hover:text-foreground"
                     >
-                        Cerrar sesion
+                        Cerrar sesión
                     </TextLink>
                 </div>
             </div>

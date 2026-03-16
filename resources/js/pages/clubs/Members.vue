@@ -44,7 +44,7 @@ const props = defineProps<Props>();
 const { role, isAdmin, isOwner } = useClubPermissions();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Miembros', href: `/clubs/${props.club.ulid}/members` },
 ];
@@ -334,7 +334,7 @@ function leaveClub() {
         <ConfirmDialog
             v-model:open="showRemoveDialog"
             title="Expulsar miembro"
-            :description="`Se expulsara a ${memberToRemove?.user?.name ?? ''} del club. Ya no tendra acceso a los partidos ni estadisticas.`"
+            :description="`Se expulsará a ${memberToRemove?.user?.name ?? ''} del club. Ya no tendrá acceso a los partidos ni estadísticas.`"
             confirm-label="Expulsar"
             :destructive="true"
             :processing="removingMember"
@@ -345,7 +345,7 @@ function leaveClub() {
         <ConfirmDialog
             v-model:open="showLeaveDialog"
             title="Salir del club"
-            description="Esta accion no se puede deshacer. Perderas acceso al club y sus partidos."
+            description="Esta acción no se puede deshacer. Perderás acceso al club y sus partidos."
             confirm-label="Salir del club"
             :destructive="true"
             :processing="leavingClub"

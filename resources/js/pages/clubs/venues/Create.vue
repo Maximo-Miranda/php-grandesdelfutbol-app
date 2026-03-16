@@ -46,7 +46,7 @@ function submit() {
                 </div>
 
                 <div class="grid gap-1.5">
-                    <Label for="address">Direccion</Label>
+                    <Label for="address">Dirección</Label>
                     <Input id="address" v-model="form.address" placeholder="ej. Calle 4a # 13-39" />
                     <InputError :message="form.errors.address" />
                 </div>

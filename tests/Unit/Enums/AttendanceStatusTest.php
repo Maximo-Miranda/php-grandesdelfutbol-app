@@ -17,6 +17,6 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(AttendanceStatus::Confirmed->label())->toBe('Confirmed')
-        ->and(AttendanceStatus::Declined->label())->toBe('Declined');
+    expect(AttendanceStatus::Confirmed->label())->toBe('Confirmado')
+        ->and(AttendanceStatus::Declined->label())->toBe('Rechazado');
 });

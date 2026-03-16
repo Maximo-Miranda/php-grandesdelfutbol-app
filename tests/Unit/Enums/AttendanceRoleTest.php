@@ -19,7 +19,7 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(AttendanceRole::Pending->label())->toBe('Pending')
-        ->and(AttendanceRole::Starter->label())->toBe('Starter')
-        ->and(AttendanceRole::Substitute->label())->toBe('Substitute');
+    expect(AttendanceRole::Pending->label())->toBe('Pendiente')
+        ->and(AttendanceRole::Starter->label())->toBe('Titular')
+        ->and(AttendanceRole::Substitute->label())->toBe('Suplente');
 });

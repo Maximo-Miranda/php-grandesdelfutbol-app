@@ -782,7 +782,7 @@ function submitCreatePlayer() {
                                             <SelectValue placeholder="Seleccionar" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="none">Sin posicion</SelectItem>
+                                            <SelectItem value="none">Sin posición</SelectItem>
                                             <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
                                                 {{ pos.label }} ({{ pos.value }})
                                             </SelectItem>
@@ -878,7 +878,7 @@ function submitCreatePlayer() {
                     @click="finalizeStats"
                 >
                     <Star class="size-4" />
-                    {{ match.stats_finalized_at ? 'Re-registrar estadisticas' : 'Registrar estadisticas' }}
+                    {{ match.stats_finalized_at ? 'Re-registrar estadísticas' : 'Registrar estadísticas' }}
                 </Button>
 
                 <Dialog v-model:open="showDeleteDialog">
@@ -892,8 +892,8 @@ function submitCreatePlayer() {
                         <DialogHeader>
                             <DialogTitle>Eliminar partido</DialogTitle>
                             <DialogDescription>
-                                Esta accion no se puede deshacer. Se eliminara el partido
-                                <strong>"{{ match.title }}"</strong> junto con toda su informacion
+                                Esta acción no se puede deshacer. Se eliminará el partido
+                                <strong>"{{ match.title }}"</strong> junto con toda su información
                                 de asistencia y eventos.
                             </DialogDescription>
                         </DialogHeader>

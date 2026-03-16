@@ -17,7 +17,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Editar', href: `/clubs/${props.club.ulid}/edit` },
 ];
@@ -61,7 +61,7 @@ async function shareLink() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl p-4">
-            <Heading title="Editar club" :description="`Configuracion de ${club.name}`" />
+            <Heading title="Editar club" :description="`Configuración de ${club.name}`" />
 
             <form class="mt-6 space-y-6" @submit.prevent="submit">
                 <div class="grid gap-2">
@@ -83,7 +83,7 @@ async function shareLink() {
 
             <!-- Join link section -->
             <div class="mt-8 rounded-lg border border-border p-4">
-                <h3 class="mb-2 font-medium">Enlace de invitacion</h3>
+                <h3 class="mb-2 font-medium">Enlace de invitación</h3>
                 <p class="mb-3 text-sm text-muted-foreground">Comparte este enlace para que otros jugadores soliciten unirse al club. Deberas aprobar cada solicitud.</p>
                 <div class="flex items-center gap-2">
                     <Input :model-value="joinUrl" readonly class="bg-muted/50 text-sm" />

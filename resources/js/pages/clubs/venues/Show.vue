@@ -145,8 +145,8 @@ const deletingVenue = ref(false);
 const deleteVenueDescription = computed(() => {
     const fieldCount = props.venue.fields?.length ?? 0;
     return fieldCount > 0
-        ? `Se eliminara "${props.venue.name}" y sus ${fieldCount} cancha(s). Los partidos asociados perderan la referencia a la cancha.`
-        : `Se eliminara "${props.venue.name}".`;
+        ? `Se eliminará "${props.venue.name}" y sus ${fieldCount} cancha(s). Los partidos asociados perderán la referencia a la cancha.`
+        : `Se eliminará "${props.venue.name}".`;
 });
 
 function deleteVenue() {
@@ -365,7 +365,7 @@ function deleteVenue() {
         <ConfirmDialog
             v-model:open="showDeleteField"
             title="Eliminar cancha"
-            :description="`Se eliminara la cancha &quot;${fieldToDelete?.name ?? ''}&quot;. Esta accion no se puede deshacer.`"
+            :description="`Se eliminará la cancha &quot;${fieldToDelete?.name ?? ''}&quot;. Esta acción no se puede deshacer.`"
             confirm-label="Eliminar"
             :destructive="true"
             :processing="deletingField"

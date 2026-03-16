@@ -34,7 +34,7 @@ const passwordInput = useTemplateRef('passwordInput');
             <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
                 <p class="font-medium">Advertencia</p>
                 <p class="text-sm">
-                    Procede con precaucion, esto no se puede deshacer.
+                    Procede con precaución, esto no se puede deshacer.
                 </p>
             </div>
             <Dialog>
@@ -56,23 +56,23 @@ const passwordInput = useTemplateRef('passwordInput');
                     >
                         <DialogHeader class="space-y-3">
                             <DialogTitle
-                                >Estas seguro de que deseas eliminar tu cuenta?</DialogTitle
+                                >¿Estás seguro de que deseas eliminar tu cuenta?</DialogTitle
                             >
                             <DialogDescription>
-                                Una vez eliminada tu cuenta, todos sus recursos y datos seran eliminados permanentemente. Ingresa tu contrasena para confirmar que deseas eliminar tu cuenta permanentemente.
+                                Una vez eliminada tu cuenta, todos sus recursos y datos serán eliminados permanentemente. Ingresa tu contraseña para confirmar que deseas eliminar tu cuenta permanentemente.
                             </DialogDescription>
                         </DialogHeader>
 
                         <div class="grid gap-2">
                             <Label for="password" class="sr-only"
-                                >Contrasena</Label
+                                >Contraseña</Label
                             >
                             <Input
                                 id="password"
                                 type="password"
                                 name="password"
                                 ref="passwordInput"
-                                placeholder="Contrasena"
+                                placeholder="Contraseña"
                             />
                             <InputError :message="errors.password" />
                         </div>

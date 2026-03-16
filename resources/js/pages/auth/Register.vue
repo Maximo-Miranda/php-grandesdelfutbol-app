@@ -44,9 +44,9 @@ function handleGoogleRegister() {
                 <Checkbox id="terms" name="terms" v-model="termsAccepted" :tabindex="1" />
                 <span class="text-muted-foreground">
                     Acepto los
-                    <a :href="terms.url()" target="_blank" class="text-primary hover:underline">Terminos</a>
+                    <a :href="terms.url()" target="_blank" class="text-primary hover:underline">Términos</a>
                     y la
-                    <a :href="privacy.url()" target="_blank" class="text-primary hover:underline">Politica de Privacidad</a>
+                    <a :href="privacy.url()" target="_blank" class="text-primary hover:underline">Política de Privacidad</a>
                 </span>
             </label>
             <InputError :message="errors.terms || termsError" />
@@ -92,7 +92,7 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="email">Correo electronico</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         type="email"
@@ -106,7 +106,7 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">Contrasena</Label>
+                    <Label for="password">Contraseña</Label>
                     <PasswordInput
                         id="password"
                         required
@@ -120,14 +120,14 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirmar contrasena</Label>
+                    <Label for="password_confirmation">Confirmar contraseña</Label>
                     <PasswordInput
                         id="password_confirmation"
                         required
                         :tabindex="5"
                         autocomplete="new-password"
                         name="password_confirmation"
-                        placeholder="Confirmar contrasena"
+                        placeholder="Confirmar contraseña"
                         minlength="8"
                     />
                     <InputError :message="errors.password_confirmation" />
@@ -151,7 +151,7 @@ function handleGoogleRegister() {
                     :href="login()"
                     class="underline underline-offset-4"
                     :tabindex="7"
-                    >Iniciar sesion</TextLink
+                    >Iniciar sesión</TextLink
                 >
             </div>
         </Form>

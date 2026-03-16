@@ -19,9 +19,9 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(ClubMemberRole::Owner->label())->toBe('Owner')
+    expect(ClubMemberRole::Owner->label())->toBe('Dueño')
         ->and(ClubMemberRole::Admin->label())->toBe('Admin')
-        ->and(ClubMemberRole::Player->label())->toBe('Player');
+        ->and(ClubMemberRole::Player->label())->toBe('Jugador');
 });
 
 test('rank returns correct hierarchy values', function () {

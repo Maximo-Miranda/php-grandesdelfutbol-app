@@ -21,8 +21,8 @@ test('tryFrom returns null for invalid value', function () {
 });
 
 test('it has labels', function () {
-    expect(MatchStatus::Upcoming->label())->toBe('Upcoming')
-        ->and(MatchStatus::InProgress->label())->toBe('In Progress')
-        ->and(MatchStatus::Completed->label())->toBe('Completed')
-        ->and(MatchStatus::Cancelled->label())->toBe('Cancelled');
+    expect(MatchStatus::Upcoming->label())->toBe('Próximo')
+        ->and(MatchStatus::InProgress->label())->toBe('En Curso')
+        ->and(MatchStatus::Completed->label())->toBe('Completado')
+        ->and(MatchStatus::Cancelled->label())->toBe('Cancelado');
 });

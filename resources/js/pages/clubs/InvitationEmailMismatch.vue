@@ -34,14 +34,14 @@ function logout() {
 
                 <h2 class="mb-2 text-lg font-semibold">Cuenta incorrecta</h2>
                 <p class="text-sm text-muted-foreground">
-                    La cuenta con la que iniciaste sesion no coincide con la invitacion. Cierra sesion e intenta de nuevo con la cuenta correcta.
+                    La cuenta con la que iniciaste sesión no coincide con la invitación. Cierra sesión e intenta de nuevo con la cuenta correcta.
                 </p>
             </div>
 
             <div class="mt-6 flex flex-col gap-3">
                 <Button class="w-full gap-2" variant="default" @click="logout">
                     <LogOut class="size-4" />
-                    Cerrar sesion
+                    Cerrar sesión
                 </Button>
                 <Link href="/clubs">
                     <Button variant="outline" class="w-full gap-2">

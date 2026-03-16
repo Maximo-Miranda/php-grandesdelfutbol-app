@@ -46,25 +46,25 @@ const pinInputContainerRef = useTemplateRef('pinInputContainerRef');
 const modalConfig = computed<TwoFactorConfigContent>(() => {
     if (props.twoFactorEnabled) {
         return {
-            title: 'Autenticacion de dos factores habilitada',
+            title: 'Autenticación de dos factores habilitada',
             description:
-                'La autenticacion de dos factores esta habilitada. Escanea el codigo QR o ingresa la clave de configuracion en tu aplicacion de autenticacion.',
+                'La autenticación de dos factores está habilitada. Escanea el código QR o ingresa la clave de configuración en tu aplicación de autenticación.',
             buttonText: 'Cerrar',
         };
     }
 
     if (showVerificationStep.value) {
         return {
-            title: 'Verificar codigo de autenticacion',
-            description: 'Ingresa el codigo de 6 digitos de tu aplicacion de autenticacion',
+            title: 'Verificar código de autenticación',
+            description: 'Ingresa el código de 6 dígitos de tu aplicación de autenticación',
             buttonText: 'Continuar',
         };
     }
 
     return {
-        title: 'Habilitar autenticacion de dos factores',
+        title: 'Habilitar autenticación de dos factores',
         description:
-            'Para terminar de habilitar la autenticacion de dos factores, escanea el codigo QR o ingresa la clave de configuracion en tu aplicacion de autenticacion',
+            'Para terminar de habilitar la autenticación de dos factores, escanea el código QR o ingresa la clave de configuración en tu aplicación de autenticación',
         buttonText: 'Continuar',
     };
 });
@@ -196,7 +196,7 @@ watch(
                                 class="absolute inset-0 top-1/2 h-px w-full bg-border"
                             />
                             <span class="relative bg-card px-2 py-1"
-                                >o ingresa el codigo manualmente</span
+                                >o ingresa el código manualmente</span
                             >
                         </div>
 

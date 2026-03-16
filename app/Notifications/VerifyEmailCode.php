@@ -22,11 +22,11 @@ class VerifyEmailCode extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Tu codigo de verificacion')
+            ->subject('Tu código de verificación')
             ->greeting('Hola!')
-            ->line('Tu codigo de verificacion es:')
+            ->line('Tu código de verificación es:')
             ->line("**{$this->code}**")
-            ->line('Este codigo expira en 10 minutos.')
+            ->line('Este código expira en 10 minutos.')
             ->line('Si no solicitaste esto, ignora este correo.');
     }
 }

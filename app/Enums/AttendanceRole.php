@@ -11,9 +11,9 @@ enum AttendanceRole: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pending',
-            self::Starter => 'Starter',
-            self::Substitute => 'Substitute',
+            self::Pending => 'Pendiente',
+            self::Starter => 'Titular',
+            self::Substitute => 'Suplente',
         };
     }
 }

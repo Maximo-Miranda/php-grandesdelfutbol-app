@@ -10,8 +10,8 @@ enum AttendanceStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Confirmed => 'Confirmed',
-            self::Declined => 'Declined',
+            self::Confirmed => 'Confirmado',
+            self::Declined => 'Rechazado',
         };
     }
 }

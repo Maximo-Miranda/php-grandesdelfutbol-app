@@ -12,10 +12,10 @@ enum MatchStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Upcoming => 'Upcoming',
-            self::InProgress => 'In Progress',
-            self::Completed => 'Completed',
-            self::Cancelled => 'Cancelled',
+            self::Upcoming => 'Próximo',
+            self::InProgress => 'En Curso',
+            self::Completed => 'Completado',
+            self::Cancelled => 'Cancelado',
         };
     }
 }

@@ -22,12 +22,12 @@ const currentClub = computed(() => page.props.currentClub);
         <DropdownMenuTrigger as-child>
             <button class="inline-flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent">
                 <Shield class="size-4 text-primary" />
-                <span class="truncate">{{ currentClub?.name ?? 'Select Club' }}</span>
+                <span class="truncate">{{ currentClub?.name ?? 'Seleccionar Club' }}</span>
                 <ChevronDown class="size-3.5 text-muted-foreground" />
             </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent class="w-56" align="start">
-            <DropdownMenuLabel>Switch Club</DropdownMenuLabel>
+            <DropdownMenuLabel>Cambiar Club</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem v-for="club in clubs" :key="club.id" as-child>
                 <Link :href="`/clubs/${club.ulid}`" class="w-full cursor-pointer">
@@ -38,7 +38,7 @@ const currentClub = computed(() => page.props.currentClub);
             <DropdownMenuItem as-child>
                 <Link href="/clubs/create" class="w-full cursor-pointer">
                     <Plus class="mr-2 size-4" />
-                    Create Club
+                    Crear Club
                 </Link>
             </DropdownMenuItem>
         </DropdownMenuContent>

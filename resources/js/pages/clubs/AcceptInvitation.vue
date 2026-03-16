@@ -89,9 +89,9 @@ function handleGoogleRegister() {
                     <Checkbox id="terms" v-model="registerForm.terms" />
                     <span class="text-muted-foreground">
                         Acepto los
-                        <a :href="terms.url()" target="_blank" class="text-primary hover:underline">Terminos</a>
+                        <a :href="terms.url()" target="_blank" class="text-primary hover:underline">Términos</a>
                         y la
-                        <a :href="privacy.url()" target="_blank" class="text-primary hover:underline">Politica de Privacidad</a>
+                        <a :href="privacy.url()" target="_blank" class="text-primary hover:underline">Política de Privacidad</a>
                     </span>
                 </label>
                 <InputError :message="registerForm.errors.terms" />
@@ -136,7 +136,7 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-1.5">
-                    <Label for="email">Correo electronico</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         v-model="registerForm.email"
@@ -150,7 +150,7 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-1.5">
-                    <Label for="password">Contrasena</Label>
+                    <Label for="password">Contraseña</Label>
                     <Input
                         id="password"
                         v-model="registerForm.password"
@@ -163,14 +163,14 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-1.5">
-                    <Label for="password_confirmation">Confirmar contrasena</Label>
+                    <Label for="password_confirmation">Confirmar contraseña</Label>
                     <Input
                         id="password_confirmation"
                         v-model="registerForm.password_confirmation"
                         type="password"
                         required
                         autocomplete="new-password"
-                        placeholder="Repite tu contrasena"
+                        placeholder="Repite tu contraseña"
                     />
                 </div>
 
@@ -183,7 +183,7 @@ function handleGoogleRegister() {
                 <p class="text-center text-sm text-muted-foreground">
                     Ya tienes cuenta?
                     <button type="button" class="font-medium text-primary underline underline-offset-4" @click="mode = 'login'">
-                        Iniciar sesion
+                        Iniciar sesión
                     </button>
                 </p>
             </form>
@@ -215,7 +215,7 @@ function handleGoogleRegister() {
                 </template>
 
                 <div class="grid gap-1.5">
-                    <Label for="login-email">Correo electronico</Label>
+                    <Label for="login-email">Correo electrónico</Label>
                     <Input
                         id="login-email"
                         v-model="loginForm.email"
@@ -229,21 +229,21 @@ function handleGoogleRegister() {
                 </div>
 
                 <div class="grid gap-1.5">
-                    <Label for="login-password">Contrasena</Label>
+                    <Label for="login-password">Contraseña</Label>
                     <Input
                         id="login-password"
                         v-model="loginForm.password"
                         type="password"
                         required
                         autocomplete="current-password"
-                        placeholder="Tu contrasena"
+                        placeholder="Tu contraseña"
                     />
                     <InputError :message="loginForm.errors.password" />
                 </div>
 
                 <Button type="submit" class="gradient-primary-bg w-full border-0 text-white hover:opacity-90" size="lg" :disabled="loginForm.processing">
                     <Spinner v-if="loginForm.processing" />
-                    Iniciar sesion y unirme
+                    Iniciar sesión y unirme
                 </Button>
 
                 <p class="text-center text-sm text-muted-foreground">

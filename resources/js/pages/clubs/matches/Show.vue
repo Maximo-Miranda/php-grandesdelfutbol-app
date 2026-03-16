@@ -1081,8 +1081,8 @@ function pad(n: number): string {
                         <DialogHeader>
                             <DialogTitle>Eliminar partido</DialogTitle>
                             <DialogDescription>
-                                Esta accion no se puede deshacer. Se eliminara el partido
-                                <strong>"{{ match.title }}"</strong> junto con toda su informacion
+                                Esta acción no se puede deshacer. Se eliminará el partido
+                                <strong>"{{ match.title }}"</strong> junto con toda su información
                                 de asistencia y eventos.
                             </DialogDescription>
                         </DialogHeader>
@@ -1110,7 +1110,7 @@ function pad(n: number): string {
                         class="flex-1"
                         @click="finalizeStats"
                     >
-                        Finalizar estadisticas
+                        Finalizar estadísticas
                     </Button>
                     <Badge v-else variant="secondary" class="flex-1 justify-center py-2">Estadisticas finalizadas</Badge>
                 </div>
@@ -1125,8 +1125,8 @@ function pad(n: number): string {
                         <DialogHeader>
                             <DialogTitle>Eliminar partido</DialogTitle>
                             <DialogDescription>
-                                Esta accion no se puede deshacer. Se eliminara el partido
-                                <strong>"{{ match.title }}"</strong> junto con toda su informacion
+                                Esta acción no se puede deshacer. Se eliminará el partido
+                                <strong>"{{ match.title }}"</strong> junto con toda su información
                                 de asistencia y eventos.
                             </DialogDescription>
                         </DialogHeader>
@@ -1156,8 +1156,8 @@ function pad(n: number): string {
                         <DialogHeader>
                             <DialogTitle>Eliminar partido</DialogTitle>
                             <DialogDescription>
-                                Esta accion no se puede deshacer. Se eliminara el partido
-                                <strong>"{{ match.title }}"</strong> junto con toda su informacion
+                                Esta acción no se puede deshacer. Se eliminará el partido
+                                <strong>"{{ match.title }}"</strong> junto con toda su información
                                 de asistencia y eventos.
                             </DialogDescription>
                         </DialogHeader>

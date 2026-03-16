@@ -10,8 +10,8 @@ enum ClubMemberStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pending',
-            self::Approved => 'Approved',
+            self::Pending => 'Pendiente',
+            self::Approved => 'Aprobado',
         };
     }
 }

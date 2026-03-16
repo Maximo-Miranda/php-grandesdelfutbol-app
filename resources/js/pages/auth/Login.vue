@@ -25,10 +25,10 @@ const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').mat
 
 <template>
     <AuthBase
-        title="Inicia sesion en tu cuenta"
-        description="Ingresa tu correo y contrasena para iniciar sesion"
+        title="Inicia sesión en tu cuenta"
+        description="Ingresa tu correo y contraseña para iniciar sesión"
     >
-        <Head title="Iniciar sesion" />
+        <Head title="Iniciar sesión" />
 
         <div
             v-if="status"
@@ -69,7 +69,7 @@ const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').mat
 
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="email">Correo electronico</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         type="email"
@@ -85,14 +85,14 @@ const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').mat
 
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between">
-                        <Label for="password">Contrasena</Label>
+                        <Label for="password">Contraseña</Label>
                         <TextLink
                             v-if="canResetPassword"
                             :href="request()"
                             class="text-sm"
                             :tabindex="5"
                         >
-                            Olvidaste tu contrasena?
+                            Olvidaste tu contraseña?
                         </TextLink>
                     </div>
                     <PasswordInput
@@ -101,7 +101,7 @@ const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').mat
                         required
                         :tabindex="2"
                         autocomplete="current-password"
-                        placeholder="Contrasena"
+                        placeholder="Contraseña"
                     />
                     <InputError :message="errors.password" />
                 </div>
@@ -122,7 +122,7 @@ const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').mat
                     data-test="login-button"
                 >
                     <Spinner v-if="processing" />
-                    Iniciar sesion
+                    Iniciar sesión
                 </Button>
             </div>
 

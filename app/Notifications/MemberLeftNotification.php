@@ -27,7 +27,7 @@ class MemberLeftNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("{$this->member->name} salio de {$this->club->name}")
+            ->subject("{$this->member->name} salió de {$this->club->name}")
             ->greeting("Hola {$notifiable->name}!")
             ->line("{$this->member->name} ha decidido salir del club \"{$this->club->name}\".")
             ->action('Ver miembros', url("/clubs/{$this->club->ulid}/members"));

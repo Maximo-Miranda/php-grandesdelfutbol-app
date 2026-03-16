@@ -25,7 +25,7 @@ withDefaults(defineProps<Props>(), {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Autenticacion de dos factores',
+        title: 'Autenticación de dos factores',
         href: show(),
     },
 ];
@@ -40,16 +40,16 @@ onUnmounted(() => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Autenticacion de dos factores" />
+        <Head title="Autenticación de dos factores" />
 
-        <h1 class="sr-only">Configuracion de autenticacion de dos factores</h1>
+        <h1 class="sr-only">Configuración de autenticación de dos factores</h1>
 
         <SettingsLayout>
             <div class="space-y-6">
                 <Heading
                     variant="small"
-                    title="Autenticacion de dos factores"
-                    description="Administra la configuracion de autenticacion de dos factores"
+                    title="Autenticación de dos factores"
+                    description="Administra la configuración de autenticación de dos factores"
                 />
 
                 <div
@@ -59,7 +59,7 @@ onUnmounted(() => {
                     <Badge variant="destructive">Deshabilitada</Badge>
 
                     <p class="text-muted-foreground">
-                        Cuando habilites la autenticacion de dos factores, se te solicitara un pin seguro durante el inicio de sesion. Este pin se puede obtener desde una aplicacion compatible con TOTP en tu telefono.
+                        Cuando habilites la autenticación de dos factores, se te solicitará un pin seguro durante el inicio de sesión. Este pin se puede obtener desde una aplicación compatible con TOTP en tu teléfono.
                     </p>
 
                     <div>
@@ -67,7 +67,7 @@ onUnmounted(() => {
                             v-if="hasSetupData"
                             @click="showSetupModal = true"
                         >
-                            <ShieldCheck />Continuar configuracion
+                            <ShieldCheck />Continuar configuración
                         </Button>
                         <Form
                             v-else
@@ -89,7 +89,7 @@ onUnmounted(() => {
                     <Badge variant="default">Habilitada</Badge>
 
                     <p class="text-muted-foreground">
-                        Con la autenticacion de dos factores habilitada, se te solicitara un pin seguro y aleatorio durante el inicio de sesion, que puedes obtener desde la aplicacion compatible con TOTP en tu telefono.
+                        Con la autenticación de dos factores habilitada, se te solicitará un pin seguro y aleatorio durante el inicio de sesión, que puedes obtener desde la aplicación compatible con TOTP en tu teléfono.
                     </p>
 
                     <TwoFactorRecoveryCodes />

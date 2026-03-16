@@ -20,34 +20,34 @@ defineProps<Props>();
 
             <div class="grid gap-6 md:grid-cols-2">
                 <Card>
-                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Detalles</CardTitle></CardHeader>
                     <CardContent class="space-y-2 text-sm">
-                        <p><strong>Date:</strong> {{ new Date(match.scheduled_at).toLocaleString() }}</p>
-                        <p><strong>Duration:</strong> {{ match.duration_minutes }} min</p>
-                        <p v-if="match.field"><strong>Field:</strong> {{ match.field.name }}</p>
-                        <p v-if="match.notes"><strong>Notes:</strong> {{ match.notes }}</p>
+                        <p><strong>Fecha:</strong> {{ new Date(match.scheduled_at).toLocaleString() }}</p>
+                        <p><strong>Duración:</strong> {{ match.duration_minutes }} min</p>
+                        <p v-if="match.field"><strong>Cancha:</strong> {{ match.field.name }}</p>
+                        <p v-if="match.notes"><strong>Notas:</strong> {{ match.notes }}</p>
                     </CardContent>
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>Players ({{ match.attendances?.filter(a => a.status === 'confirmed').length ?? 0 }})</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Jugadores ({{ match.attendances?.filter(a => a.status === 'confirmed').length ?? 0 }})</CardTitle></CardHeader>
                     <CardContent>
                         <ul v-if="match.attendances?.length" class="space-y-1">
                             <li v-for="att in match.attendances" :key="att.id" class="flex items-center justify-between text-sm">
                                 <span>{{ att.player?.name }}</span>
                                 <div class="flex gap-1">
                                     <Badge :variant="att.status === 'confirmed' ? 'default' : 'secondary'" class="text-xs">{{ att.status }}</Badge>
-                                    <Badge v-if="att.team" variant="outline" class="text-xs">Team {{ att.team.toUpperCase() }}</Badge>
+                                    <Badge v-if="att.team" variant="outline" class="text-xs">Equipo {{ att.team.toUpperCase() }}</Badge>
                                 </div>
                             </li>
                         </ul>
-                        <p v-else class="text-sm text-muted-foreground">No registrations yet.</p>
+                        <p v-else class="text-sm text-muted-foreground">Aún no hay inscripciones.</p>
                     </CardContent>
                 </Card>
             </div>
 
             <Card v-if="match.events?.length" class="mt-6">
-                <CardHeader><CardTitle>Match Events</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Eventos del Partido</CardTitle></CardHeader>
                 <CardContent>
                     <ul class="space-y-1">
                         <li v-for="event in match.events" :key="event.id" class="flex items-center justify-between text-sm">
@@ -62,7 +62,7 @@ defineProps<Props>();
             </Card>
 
             <div class="mt-8 text-center text-xs text-muted-foreground">
-                Shared via Grandes del Futbol
+                Compartido vía Grandes del Fútbol
             </div>
         </div>
     </div>
