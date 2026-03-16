@@ -180,6 +180,16 @@ class FootballMatch extends Model
         return $this->hasMany(MatchEvent::class, 'match_id');
     }
 
+    public function confirmedAttendeeUsers(): Collection
+    {
+        return $this->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->with('player.user')
+            ->get()
+            ->pluck('player.user')
+            ->filter();
+    }
+
     public function scopeUpcoming($query)
     {
         return $query->where('status', MatchStatus::Upcoming);

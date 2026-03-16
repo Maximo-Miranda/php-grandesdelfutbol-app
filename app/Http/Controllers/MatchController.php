@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
 use App\Enums\PlayerPosition;
 use App\Http\Requests\Match\StoreMatchRequest;
@@ -13,7 +12,6 @@ use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\MatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
@@ -152,8 +150,7 @@ class MatchController extends Controller
         $match->update($request->validated());
 
         if (! $hadVideo && $match->youtube_url !== null) {
-            $users = $this->getConfirmedAttendeeUsers($match);
-            Notification::send($users, new MatchVideoUploadedNotification($match));
+            Notification::send($match->confirmedAttendeeUsers(), new MatchVideoUploadedNotification($match));
         }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
@@ -204,15 +201,5 @@ class MatchController extends Controller
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
         ]);
-    }
-
-    private function getConfirmedAttendeeUsers(FootballMatch $match): Collection
-    {
-        return $match->attendances()
-            ->where('status', AttendanceStatus::Confirmed)
-            ->with('player.user')
-            ->get()
-            ->pluck('player.user')
-            ->filter();
     }
 }
