@@ -59,6 +59,16 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the model has ntfy push notifications enabled.
+     */
+    public function withNtfy(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'ntfy_enabled_at' => now(),
+        ]);
+    }
+
+    /**
      * Indicate that the model has a linked Google account.
      */
     public function withGoogle(string $providerId = '123456789'): static

@@ -16,7 +16,9 @@ class MemberLeftNotification extends Notification implements ShouldQueue
     public function __construct(
         public Club $club,
         public User $member,
-    ) {}
+    ) {
+        $this->onQueue('notifications');
+    }
 
     /** @return array<int, string> */
     public function via(object $notifiable): array

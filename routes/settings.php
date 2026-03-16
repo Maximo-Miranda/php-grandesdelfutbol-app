@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\NtfyController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
@@ -25,4 +26,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
+
+    Route::get('settings/notifications', [NtfyController::class, 'edit'])->name('ntfy.edit');
+    Route::post('settings/notifications/test', [NtfyController::class, 'sendTest'])->name('ntfy.test');
+    Route::post('settings/notifications/confirm', [NtfyController::class, 'confirm'])->name('ntfy.confirm');
+    Route::post('settings/notifications/disable', [NtfyController::class, 'disable'])->name('ntfy.disable');
 });

@@ -88,6 +88,7 @@ readonly class SetClubContext
             'user-password.*',
             'appearance.*',
             'two-factor.*',
+            'ntfy.*',
             'player-profile.*',
             'player-card',
             'dashboard',

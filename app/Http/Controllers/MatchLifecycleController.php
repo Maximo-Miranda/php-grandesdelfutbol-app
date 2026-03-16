@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Notifications\MatchStatsFinalizedNotification;
 use App\Services\MatchStatService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 
 class MatchLifecycleController extends Controller
 {
@@ -73,6 +76,15 @@ class MatchLifecycleController extends Controller
         }
 
         $this->statService->finalizeStats($match);
+
+        $users = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->with('player.user')
+            ->get()
+            ->pluck('player.user')
+            ->filter();
+
+        Notification::send($users, new MatchStatsFinalizedNotification($match));
 
         return back()->with('success', 'Estadísticas registradas.');
     }

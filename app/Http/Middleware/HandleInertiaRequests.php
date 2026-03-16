@@ -52,6 +52,7 @@ class HandleInertiaRequests extends Middleware
             'currentMemberRole' => fn () => $user && app(ClubContext::class)->get()
                 ? app(ClubContext::class)->get()->getMembership($user)?->role->value
                 : null,
+            'ntfyEnabled' => fn () => $user?->hasNtfyEnabled() ?? false,
             'googleAuthEnabled' => config('services.google.enabled'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

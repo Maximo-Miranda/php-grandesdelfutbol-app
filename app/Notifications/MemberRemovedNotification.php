@@ -12,7 +12,10 @@ class MemberRemovedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public Club $club) {}
+    public function __construct(public Club $club)
+    {
+        $this->onQueue('notifications');
+    }
 
     /** @return array<int, string> */
     public function via(object $notifiable): array

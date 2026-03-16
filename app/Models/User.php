@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 /**
@@ -29,6 +30,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $two_factor_recovery_codes
  * @property \Carbon\CarbonImmutable|null $two_factor_confirmed_at
  * @property int|null $last_club_id
+ * @property string $ntfy_token
+ * @property \Carbon\CarbonImmutable|null $ntfy_enabled_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubMember> $clubMemberships
  * @property-read int|null $club_memberships_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Club> $clubs
@@ -79,6 +82,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'terms_accepted_ip',
         'terms_accepted_user_agent',
         'last_club_id',
+        'ntfy_token',
+        'ntfy_enabled_at',
     ];
 
     /**
@@ -91,6 +96,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
+        'ntfy_token',
     ];
 
     /**
@@ -105,7 +111,27 @@ class User extends Authenticatable implements MustVerifyEmail
             'terms_accepted_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'ntfy_enabled_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->ntfy_token)) {
+                $user->ntfy_token = Str::random(26);
+            }
+        });
+    }
+
+    public function hasNtfyEnabled(): bool
+    {
+        return $this->ntfy_enabled_at !== null;
+    }
+
+    public function ntfyTopic(): string
+    {
+        return "gdf-{$this->ntfy_token}";
     }
 
     public function clubMemberships(): HasMany

@@ -12,7 +12,10 @@ class ClubInvitationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public ClubInvitation $invitation) {}
+    public function __construct(public ClubInvitation $invitation)
+    {
+        $this->onQueue('notifications');
+    }
 
     /** @return array<int, string> */
     public function via(object $notifiable): array

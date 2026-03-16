@@ -4,11 +4,13 @@ namespace App\Models;
 
 use App\Concerns\BelongsToClub;
 use App\Concerns\HasPublicUlid;
+use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * @property int $id
@@ -116,6 +118,7 @@ class FootballMatch extends Model
         'started_at',
         'ended_at',
         'stats_finalized_at',
+        'registration_notified_at',
         'applied_stats',
         'team_a_name',
         'team_b_name',
@@ -131,6 +134,7 @@ class FootballMatch extends Model
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'stats_finalized_at' => 'datetime',
+            'registration_notified_at' => 'datetime',
             'applied_stats' => 'array',
             'auto_started' => 'boolean',
             'duration_minutes' => 'integer',
@@ -139,6 +143,21 @@ class FootballMatch extends Model
             'max_substitutes' => 'integer',
             'registration_opens_hours' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (FootballMatch $match) {
+            if (! $match->isDirty('scheduled_at') || $match->registration_notified_at === null) {
+                return;
+            }
+
+            $newOpensAt = $match->scheduled_at->copy()->subHours($match->registration_opens_hours);
+
+            if (now()->lt($newOpensAt)) {
+                $match->registration_notified_at = null;
+            }
+        });
     }
 
     public function club(): BelongsTo

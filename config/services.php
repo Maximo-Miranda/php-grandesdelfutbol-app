@@ -42,4 +42,9 @@ return [
         'enabled' => env('GOOGLE_AUTH_ENABLED', false),
     ],
 
+    'ntfy' => [
+        'url' => env('NTFY_URL', 'https://ntfy.sh'),
+        'token' => env('NTFY_TOKEN'),
+    ],
+
 ];
