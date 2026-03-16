@@ -22,7 +22,7 @@ test('notifies confirmed attendees when youtube url is added', function () {
         'youtube_url' => null,
     ]);
 
-    $attendeeUser = User::factory()->create();
+    $attendeeUser = User::factory()->withNtfy()->create();
     $player = Player::factory()->linked($attendeeUser)->create(['club_id' => $club->id]);
     MatchAttendance::factory()->create([
         'match_id' => $match->id,
@@ -58,7 +58,7 @@ test('does not notify when youtube url already existed', function () {
         'youtube_url' => 'https://www.youtube.com/watch?v=existing',
     ]);
 
-    $attendeeUser = User::factory()->create();
+    $attendeeUser = User::factory()->withNtfy()->create();
     $player = Player::factory()->linked($attendeeUser)->create(['club_id' => $club->id]);
     MatchAttendance::factory()->create([
         'match_id' => $match->id,
@@ -121,7 +121,7 @@ test('does not notify declined attendees when youtube url is added', function ()
         'youtube_url' => null,
     ]);
 
-    $confirmedUser = User::factory()->create();
+    $confirmedUser = User::factory()->withNtfy()->create();
     $confirmedPlayer = Player::factory()->linked($confirmedUser)->create(['club_id' => $club->id]);
     MatchAttendance::factory()->create([
         'match_id' => $match->id,

@@ -13,9 +13,15 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
 {
     use Queueable;
 
+    private string $matchTitle;
+
+    private string $matchUrl;
+
     public function __construct(public FootballMatch $match)
     {
         $this->onQueue('notifications');
+        $this->matchTitle = $match->title;
+        $this->matchUrl = route('clubs.matches.show', [$match->club, $match]);
     }
 
     /** @return array<int, string> */
@@ -26,13 +32,10 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
 
     public function toNtfy(object $notifiable): NtfyMessage
     {
-        $match = $this->match;
-        $matchUrl = url("/clubs/{$match->club->ulid}/matches/{$match->ulid}");
-
-        return NtfyMessage::create("{$match->title} abrió la convocatoria")
+        return NtfyMessage::create("{$this->matchTitle} abrió la convocatoria")
             ->title('Confirma tu asistencia')
             ->tags('soccer,calendar')
             ->priority(4)
-            ->click($matchUrl);
+            ->click($this->matchUrl);
     }
 }

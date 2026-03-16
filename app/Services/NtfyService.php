@@ -3,14 +3,20 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class NtfyService
 {
+    public function baseUrl(): string
+    {
+        return rtrim(config('services.ntfy.url'), '/');
+    }
+
     public function publish(User $user, array $payload): void
     {
-        $url = rtrim(config('services.ntfy.url'), '/');
+        $url = $this->baseUrl();
         $topic = $user->ntfyTopic();
 
         try {
@@ -32,13 +38,11 @@ class NtfyService
 
     public function sendTestNotification(User $user): void
     {
-        $this->publish($user, [
-            'title' => 'Grandes del Futbol',
-            'message' => 'Las notificaciones push están funcionando correctamente.',
-            'priority' => 3,
-            'tags' => ['white_check_mark', 'soccer'],
-            'click' => url('/settings/notifications'),
-        ]);
+        $this->publish($user, NtfyMessage::create('Las notificaciones push están funcionando correctamente.')
+            ->title('Grandes del Futbol')
+            ->tags('white_check_mark,soccer')
+            ->click(route('ntfy.edit'))
+            ->toArray());
     }
 
     public function confirmSetup(User $user): void

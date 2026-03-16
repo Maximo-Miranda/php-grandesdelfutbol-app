@@ -8,7 +8,7 @@ import {
     ExternalLink,
     Send,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ type Props = {
     ntfyTopic: string;
     ntfyEnabled: boolean;
     ntfyUrl: string;
+    ntfyHost: string;
 };
 
 const props = defineProps<Props>();
@@ -38,13 +39,19 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const { appStoreUrl, platformLabel } = useNtfySetup();
+const { appStoreUrl, platformLabel, isMobile } = useNtfySetup();
+
+const subscribeUrl = computed(() =>
+    isMobile.value
+        ? `ntfy://${props.ntfyHost}/${props.ntfyTopic}`
+        : `${props.ntfyUrl}/${props.ntfyTopic}`,
+);
 
 const testSent = ref(false);
 const copied = ref(false);
 
 function copyTopic(): void {
-    navigator.clipboard.writeText(`${props.ntfyUrl}/${props.ntfyTopic}`);
+    navigator.clipboard.writeText(props.ntfyTopic);
     copied.value = true;
     setTimeout(() => {
         copied.value = false;
@@ -160,28 +167,32 @@ function copyTopic(): void {
                         </div>
 
                         <p class="text-sm text-muted-foreground">
-                            Abre la app de ntfy y suscríbete a tu canal personal.
+                            Toca el botón para abrir ntfy y suscribirte automáticamente a tu canal.
                         </p>
 
-                        <div class="flex flex-wrap gap-2">
-                            <a
-                                :href="`${ntfyUrl}/${ntfyTopic}`"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                                <ExternalLink class="size-4" />
-                                Suscribirse al canal
-                            </a>
-                        </div>
+                        <a
+                            :href="subscribeUrl"
+                            :target="isMobile ? '_self' : '_blank'"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                        >
+                            <ExternalLink class="size-4" />
+                            Suscribirse al canal
+                        </a>
 
                         <div class="space-y-2 rounded-md border border-border bg-muted/50 p-3">
-                            <p class="text-xs text-muted-foreground">
-                                Si prefieres hacerlo manualmente, copia esta dirección y pégala en ntfy:
+                            <p class="text-xs font-medium text-muted-foreground">
+                                Si prefieres hacerlo manualmente:
                             </p>
+                            <ol class="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                                <li>Abre la app de ntfy y toca <strong>+</strong> para agregar un canal</li>
+                                <li>Activa la opción <strong>"Usar otro servidor"</strong></li>
+                                <li>En <strong>URL del servidor</strong>, escribe: <code class="rounded bg-background px-1 font-mono">{{ ntfyUrl }}</code></li>
+                                <li>En <strong>Nombre del tema</strong>, pega:</li>
+                            </ol>
                             <div class="flex items-center gap-2">
                                 <code class="flex-1 break-all rounded bg-background px-2 py-1 font-mono text-sm">
-                                    {{ ntfyUrl }}/{{ ntfyTopic }}
+                                    {{ ntfyTopic }}
                                 </code>
                                 <Button
                                     variant="outline"

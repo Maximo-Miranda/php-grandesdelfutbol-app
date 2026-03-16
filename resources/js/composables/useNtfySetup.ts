@@ -30,9 +30,12 @@ export function useNtfySetup() {
         return 'ntfy Web App';
     });
 
+    const isMobile = computed(() => isAndroid.value || isIos.value);
+
     return {
         isAndroid,
         isIos,
+        isMobile,
         appStoreUrl,
         platformLabel,
     };

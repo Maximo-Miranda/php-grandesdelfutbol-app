@@ -37,10 +37,10 @@ class NotifyMatchRegistrationOpen extends Command
                 $users = $match->club
                     ->members()
                     ->where('status', ClubMemberStatus::Approved)
+                    ->whereHas('user', fn ($q) => $q->whereNotNull('ntfy_enabled_at'))
                     ->with('user')
                     ->get()
-                    ->pluck('user')
-                    ->filter();
+                    ->pluck('user');
 
                 Notification::send($users, new MatchRegistrationOpenNotification($match));
 

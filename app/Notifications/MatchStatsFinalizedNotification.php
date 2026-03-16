@@ -13,9 +13,15 @@ class MatchStatsFinalizedNotification extends Notification implements ShouldQueu
 {
     use Queueable;
 
+    private string $matchTitle;
+
+    private string $summaryUrl;
+
     public function __construct(public FootballMatch $match)
     {
         $this->onQueue('notifications');
+        $this->matchTitle = $match->title;
+        $this->summaryUrl = route('clubs.matches.summary', [$match->club, $match]);
     }
 
     /** @return array<int, string> */
@@ -26,13 +32,10 @@ class MatchStatsFinalizedNotification extends Notification implements ShouldQueu
 
     public function toNtfy(object $notifiable): NtfyMessage
     {
-        $match = $this->match;
-        $summaryUrl = url("/clubs/{$match->club->ulid}/matches/{$match->ulid}/summary");
-
-        return NtfyMessage::create("Las estadísticas de {$match->title} ya están disponibles")
+        return NtfyMessage::create("Las estadísticas de {$this->matchTitle} ya están disponibles")
             ->title('Estadísticas registradas')
             ->tags('soccer,bar_chart')
             ->priority(3)
-            ->click($summaryUrl);
+            ->click($this->summaryUrl);
     }
 }

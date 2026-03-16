@@ -19,7 +19,7 @@ test('notifies confirmed attendees when stats are finalized', function () {
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $attendeeUser = User::factory()->create();
+    $attendeeUser = User::factory()->withNtfy()->create();
     $player = Player::factory()->linked($attendeeUser)->create(['club_id' => $club->id]);
     MatchAttendance::factory()->create([
         'match_id' => $match->id,
@@ -43,7 +43,7 @@ test('does not notify declined attendees when stats are finalized', function () 
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $confirmedUser = User::factory()->create();
+    $confirmedUser = User::factory()->withNtfy()->create();
     $confirmedPlayer = Player::factory()->linked($confirmedUser)->create(['club_id' => $club->id]);
     MatchAttendance::factory()->create([
         'match_id' => $match->id,

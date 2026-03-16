@@ -16,12 +16,13 @@ class NtfyController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user();
-        $ntfyUrl = rtrim(config('services.ntfy.url'), '/');
+        $ntfyUrl = $this->ntfyService->baseUrl();
 
         return Inertia::render('settings/Notifications', [
             'ntfyTopic' => $user->ntfyTopic(),
             'ntfyEnabled' => $user->hasNtfyEnabled(),
             'ntfyUrl' => $ntfyUrl,
+            'ntfyHost' => parse_url($ntfyUrl, PHP_URL_HOST),
         ]);
     }
 

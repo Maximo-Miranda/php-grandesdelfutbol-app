@@ -19,6 +19,7 @@ test('ntfy settings page renders for authenticated users', function () {
             ->has('ntfyTopic')
             ->has('ntfyEnabled')
             ->has('ntfyUrl')
+            ->has('ntfyHost')
             ->where('ntfyEnabled', false),
         );
 });

@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 
 class NtfyChannel
 {
-    public function __construct(public NtfyService $ntfyService) {}
+    public function __construct(private NtfyService $ntfyService) {}
 
     public function send(User $notifiable, Notification $notification): void
     {
