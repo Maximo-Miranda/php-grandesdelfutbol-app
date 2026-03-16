@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { Camera, Shirt, Target, UserCircle } from 'lucide-vue-next';
+import { Camera, Shirt, UserCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
@@ -52,7 +52,7 @@ const initials = computed(() =>
 const playerForm = useForm({
     nickname: props.profile.nickname ?? '',
     gender: props.profile.gender ?? 'none',
-    date_of_birth: props.profile.date_of_birth ?? '',
+    date_of_birth: props.profile.date_of_birth?.substring(0, 10) ?? '',
     nationality: props.profile.nationality ?? 'Colombiano',
     bio: props.profile.bio ?? '',
     preferred_position: props.profile.preferred_position ?? 'none',
@@ -64,6 +64,49 @@ const genderOptions = [
     { value: 'female', label: 'Femenino' },
     { value: 'other', label: 'Otro' },
 ];
+
+const nationalityOptions = [
+    'Colombiano', 'Argentino', 'Mexicano', 'Brasileno', 'Peruano',
+    'Chileno', 'Ecuatoriano', 'Venezolano', 'Uruguayo', 'Paraguayo',
+    'Boliviano', 'Costarricense', 'Panameno', 'Hondureno', 'Salvadoreno',
+    'Guatemalteco', 'Nicaraguense', 'Cubano', 'Dominicano', 'Puertorriqueno',
+    'Espanol', 'Estadounidense', 'Otro',
+];
+
+const countryCodes = [
+    { code: '+57', flag: '🇨🇴', country: 'Colombia' },
+    { code: '+54', flag: '🇦🇷', country: 'Argentina' },
+    { code: '+52', flag: '🇲🇽', country: 'Mexico' },
+    { code: '+55', flag: '🇧🇷', country: 'Brasil' },
+    { code: '+51', flag: '🇵🇪', country: 'Peru' },
+    { code: '+56', flag: '🇨🇱', country: 'Chile' },
+    { code: '+593', flag: '🇪🇨', country: 'Ecuador' },
+    { code: '+58', flag: '🇻🇪', country: 'Venezuela' },
+    { code: '+598', flag: '🇺🇾', country: 'Uruguay' },
+    { code: '+595', flag: '🇵🇾', country: 'Paraguay' },
+    { code: '+591', flag: '🇧🇴', country: 'Bolivia' },
+    { code: '+506', flag: '🇨🇷', country: 'Costa Rica' },
+    { code: '+507', flag: '🇵🇦', country: 'Panama' },
+    { code: '+504', flag: '🇭🇳', country: 'Honduras' },
+    { code: '+503', flag: '🇸🇻', country: 'El Salvador' },
+    { code: '+502', flag: '🇬🇹', country: 'Guatemala' },
+    { code: '+505', flag: '🇳🇮', country: 'Nicaragua' },
+    { code: '+53', flag: '🇨🇺', country: 'Cuba' },
+    { code: '+1', flag: '🇩🇴', country: 'Rep. Dominicana' },
+    { code: '+34', flag: '🇪🇸', country: 'Espana' },
+    { code: '+1', flag: '🇺🇸', country: 'Estados Unidos' },
+];
+
+function parsePhone(phone: string): { code: string; number: string } {
+    if (!phone) return { code: '+57', number: '' };
+    const match = countryCodes.find(c => phone.startsWith(c.code));
+    if (match) return { code: match.code, number: phone.slice(match.code.length).trim() };
+    return { code: '+57', number: phone };
+}
+
+const parsed = parsePhone(props.profile.phone ?? '');
+const phoneCode = ref(parsed.code);
+const phoneNumber = ref(parsed.number);
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -111,6 +154,7 @@ function submitPlayerProfile() {
         ...data,
         gender: noneToNull(data.gender),
         preferred_position: noneToNull(data.preferred_position),
+        phone: phoneNumber.value ? `${phoneCode.value}${phoneNumber.value}` : null,
     })).patch(PlayerProfileController.update.url(), {
         forceFormData: true,
         onSuccess: () => {
@@ -128,14 +172,29 @@ function submitPlayerProfile() {
         <h1 class="sr-only">Mi perfil</h1>
 
         <SettingsLayout>
-            <!-- Hero card with photo -->
+            <!-- Player profile -->
             <div class="space-y-6">
-                <div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/10">
-                    <div class="relative z-10 flex items-center gap-5 p-6">
-                        <div class="shrink-0">
+                <Heading variant="small" title="Perfil de jugador" description="Tu perfil personal de futbol" />
+
+                <form class="space-y-6" @submit.prevent="submitPlayerProfile">
+                    <input
+                        ref="fileInput"
+                        type="file"
+                        class="hidden"
+                        accept="image/jpeg,image/png,image/webp"
+                        @change="onPhotoSelected"
+                    />
+
+                    <!-- Photo upload -->
+                    <div class="rounded-xl border border-border bg-card p-5">
+                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            <Camera class="size-4" />
+                            Foto de perfil
+                        </h3>
+                        <div class="flex items-center gap-4">
                             <button
                                 type="button"
-                                class="group relative flex size-20 items-center justify-center overflow-hidden rounded-full border-2 border-primary/30 bg-primary/10 text-2xl font-bold text-primary transition hover:border-primary/60"
+                                class="group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-primary/30 bg-primary/10 text-2xl font-bold text-primary transition hover:border-primary/60"
                                 @click="selectPhoto"
                             >
                                 <img
@@ -149,50 +208,154 @@ function submitPlayerProfile() {
                                     <Camera class="size-5 text-white" />
                                 </div>
                             </button>
-                            <p class="mt-1 text-center text-[10px] text-muted-foreground">Cambiar foto</p>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <h2 class="truncate text-xl font-extrabold uppercase tracking-tight">
-                                {{ playerForm.nickname || user.name }}
-                            </h2>
-                            <div class="mt-1 flex flex-wrap items-center gap-2">
-                                <span
-                                    v-if="playerForm.preferred_position && playerForm.preferred_position !== 'none'"
-                                    class="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary"
+                            <div class="min-w-0 flex-1">
+                                <Button type="button" variant="outline" size="sm" @click="selectPhoto">
+                                    Cambiar foto
+                                </Button>
+                                <p class="mt-1.5 text-xs text-muted-foreground">JPG, PNG o WebP. Min 200x200 px. Max 10 MB.</p>
+                                <InputError class="mt-1" :message="playerForm.errors.photo" />
+                                <Transition
+                                    enter-active-class="transition ease-in-out"
+                                    enter-from-class="opacity-0"
+                                    leave-active-class="transition ease-in-out"
+                                    leave-to-class="opacity-0"
                                 >
-                                    <Target class="size-3" />
-                                    {{ playerForm.preferred_position }}
-                                </span>
-                                <span
-                                    v-if="playerForm.nationality"
-                                    class="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                                >
-                                    {{ playerForm.nationality }}
-                                </span>
-                            </div>
-                            <p class="mt-1 text-xs text-muted-foreground">JPG, PNG o WebP. Min 200x200 px. Max 10 MB.</p>
-                            <InputError class="mt-1" :message="playerForm.errors.photo" />
-                            <Transition
-                                enter-active-class="transition ease-in-out"
-                                enter-from-class="opacity-0"
-                                leave-active-class="transition ease-in-out"
-                                leave-to-class="opacity-0"
-                            >
-                                <div v-if="playerForm.progress" class="mt-2">
-                                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                        <div
-                                            class="h-full rounded-full bg-primary transition-all"
-                                            :style="{ width: `${playerForm.progress.percentage}%` }"
-                                        />
+                                    <div v-if="playerForm.progress" class="mt-2">
+                                        <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                            <div
+                                                class="h-full rounded-full bg-primary transition-all"
+                                                :style="{ width: `${playerForm.progress.percentage}%` }"
+                                            />
+                                        </div>
+                                        <p class="mt-1 text-xs text-muted-foreground">Subiendo... {{ playerForm.progress.percentage }}%</p>
                                     </div>
-                                    <p class="mt-1 text-xs text-muted-foreground">Subiendo... {{ playerForm.progress.percentage }}%</p>
-                                </div>
-                            </Transition>
+                                </Transition>
+                            </div>
                         </div>
                     </div>
-                    <div class="h-0.5 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-                </div>
+
+                    <div class="rounded-xl border border-border bg-card p-5">
+                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            <UserCircle class="size-4" />
+                            Informacion personal
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="grid gap-2">
+                                <Label for="nickname">Apodo</Label>
+                                <Input id="nickname" v-model="playerForm.nickname" placeholder="Como te conocen en la cancha" />
+                                <InputError :message="playerForm.errors.nickname" />
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <Label for="gender">Genero</Label>
+                                    <Select v-model="playerForm.gender">
+                                        <SelectTrigger id="gender">
+                                            <SelectValue placeholder="Seleccionar" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Sin especificar</SelectItem>
+                                            <SelectItem v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+                                                {{ opt.label }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="date_of_birth">Fecha de nacimiento</Label>
+                                    <Input id="date_of_birth" v-model="playerForm.date_of_birth" type="date" />
+                                </div>
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="nationality">Nacionalidad</Label>
+                                <Select v-model="playerForm.nationality">
+                                    <SelectTrigger id="nationality">
+                                        <SelectValue placeholder="Seleccionar" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="nat in nationalityOptions" :key="nat" :value="nat">
+                                            {{ nat }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="phone">WhatsApp</Label>
+                                <div class="flex gap-2">
+                                    <Select v-model="phoneCode">
+                                        <SelectTrigger class="w-[130px] shrink-0">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem v-for="c in countryCodes" :key="c.flag + c.code" :value="c.code">
+                                                {{ c.flag }} {{ c.code }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Input
+                                        id="phone"
+                                        v-model="phoneNumber"
+                                        type="tel"
+                                        inputmode="tel"
+                                        placeholder="300 123 4567"
+                                    />
+                                </div>
+                                <InputError :message="playerForm.errors.phone" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-border bg-card p-5">
+                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            <Shirt class="size-4" />
+                            Futbol
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="grid gap-2">
+                                <Label for="preferred_position">Posicion preferida</Label>
+                                <Select v-model="playerForm.preferred_position">
+                                    <SelectTrigger id="preferred_position">
+                                        <SelectValue placeholder="Seleccionar posicion" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Sin preferencia</SelectItem>
+                                        <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
+                                            {{ pos.label }} ({{ pos.value }})
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="bio">Bio</Label>
+                                <Textarea
+                                    id="bio"
+                                    v-model="playerForm.bio"
+                                    placeholder="Cuenta algo sobre ti como jugador..."
+                                    rows="3"
+                                    class="resize-none"
+                                />
+                                <p class="text-xs text-muted-foreground">{{ (playerForm.bio?.length ?? 0) }}/500 caracteres</p>
+                                <InputError :message="playerForm.errors.bio" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <Button type="submit" :disabled="playerForm.processing">Guardar perfil</Button>
+                        <Transition
+                            enter-active-class="transition ease-in-out"
+                            enter-from-class="opacity-0"
+                            leave-active-class="transition ease-in-out"
+                            leave-to-class="opacity-0"
+                        >
+                            <p v-show="playerForm.recentlySuccessful" class="text-sm text-emerald-400">
+                                Guardado.
+                            </p>
+                        </Transition>
+                    </div>
+                </form>
             </div>
+
+            <Separator />
 
             <!-- Account info -->
             <div class="flex flex-col space-y-6">
@@ -278,110 +441,6 @@ function submitPlayerProfile() {
                         </Transition>
                     </div>
                 </Form>
-            </div>
-
-            <Separator />
-
-            <!-- Player profile -->
-            <div class="space-y-6">
-                <Heading variant="small" title="Perfil de jugador" description="Tu perfil personal de futbol" />
-
-                <form class="space-y-6" @submit.prevent="submitPlayerProfile">
-                    <input
-                        ref="fileInput"
-                        type="file"
-                        class="hidden"
-                        accept="image/jpeg,image/png,image/webp"
-                        @change="onPhotoSelected"
-                    />
-
-                    <div class="rounded-xl border border-border bg-card p-5">
-                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            <UserCircle class="size-4" />
-                            Informacion personal
-                        </h3>
-                        <div class="space-y-4">
-                            <div class="grid gap-2">
-                                <Label for="nickname">Apodo</Label>
-                                <Input id="nickname" v-model="playerForm.nickname" placeholder="Como te conocen en la cancha" />
-                                <InputError :message="playerForm.errors.nickname" />
-                            </div>
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <Label for="gender">Genero</Label>
-                                    <Select v-model="playerForm.gender">
-                                        <SelectTrigger id="gender">
-                                            <SelectValue placeholder="Seleccionar" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Sin especificar</SelectItem>
-                                            <SelectItem v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
-                                                {{ opt.label }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="date_of_birth">Fecha de nacimiento</Label>
-                                    <Input id="date_of_birth" v-model="playerForm.date_of_birth" type="date" />
-                                </div>
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="nationality">Nacionalidad</Label>
-                                <Input id="nationality" v-model="playerForm.nationality" placeholder="Ej: Dominicano" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-border bg-card p-5">
-                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            <Shirt class="size-4" />
-                            Futbol
-                        </h3>
-                        <div class="space-y-4">
-                            <div class="grid gap-2">
-                                <Label for="preferred_position">Posicion preferida</Label>
-                                <Select v-model="playerForm.preferred_position">
-                                    <SelectTrigger id="preferred_position">
-                                        <SelectValue placeholder="Seleccionar posicion" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Sin preferencia</SelectItem>
-                                        <SelectItem v-for="pos in positions" :key="pos.value" :value="pos.value">
-                                            {{ pos.label }} ({{ pos.value }})
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="bio">Bio</Label>
-                                <Textarea
-                                    id="bio"
-                                    v-model="playerForm.bio"
-                                    placeholder="Cuenta algo sobre ti como jugador..."
-                                    rows="3"
-                                    class="resize-none"
-                                />
-                                <p class="text-xs text-muted-foreground">{{ (playerForm.bio?.length ?? 0) }}/500 caracteres</p>
-                                <InputError :message="playerForm.errors.bio" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <Button type="submit" :disabled="playerForm.processing">Guardar perfil</Button>
-                        <Transition
-                            enter-active-class="transition ease-in-out"
-                            enter-from-class="opacity-0"
-                            leave-active-class="transition ease-in-out"
-                            leave-to-class="opacity-0"
-                        >
-                            <p v-show="playerForm.recentlySuccessful" class="text-sm text-emerald-400">
-                                Guardado.
-                            </p>
-                        </Transition>
-                    </div>
-                </form>
             </div>
 
             <Separator />

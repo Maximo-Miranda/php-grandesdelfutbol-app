@@ -22,6 +22,7 @@ class UpdatePlayerProfileRequest extends FormRequest
             'gender' => ['nullable', Rule::enum(Gender::class)],
             'date_of_birth' => ['nullable', 'date'],
             'nationality' => ['nullable', 'string', 'max:100'],
+            'phone' => ['nullable', 'string', 'max:20'],
             'bio' => ['nullable', 'string', 'max:500'],
             'preferred_position' => ['nullable', 'string', 'max:50'],
             'photo' => [
