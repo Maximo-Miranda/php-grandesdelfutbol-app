@@ -1,6 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
+use App\Models\PlayerProfile;
+use Spatie\MediaLibrary\Conversions\FileManipulator;
+use Spatie\MediaLibrary\MediaCollections\MediaRepository;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use TimoKoerber\LaravelOneTimeOperations\OneTimeOperation;
 
 return new class extends OneTimeOperation
@@ -9,9 +12,14 @@ return new class extends OneTimeOperation
 
     public function process(): void
     {
-        Artisan::call('media-library:regenerate', [
-            'modelType' => 'App\Models\PlayerProfile',
-            '--force' => true,
-        ]);
+        $fileManipulator = app(FileManipulator::class);
+        $mediaRepository = app(MediaRepository::class);
+
+        $mediaRepository->getByModelType(PlayerProfile::class)
+            ->each(function (Media $media) use ($fileManipulator): void {
+                $fileManipulator->createDerivedFiles($media);
+
+                gc_collect_cycles();
+            });
     }
 };
