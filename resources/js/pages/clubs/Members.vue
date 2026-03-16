@@ -4,7 +4,6 @@ import { Check, EllipsisVertical, LogOut, Mail, Search, Send, ShieldCheck, Shiel
 import { ref, watch } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import InputError from '@/components/InputError.vue';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, ClubMember } from '@/types';

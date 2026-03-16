@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import {
-    Bell,
     BellOff,
     Check,
     Clipboard,

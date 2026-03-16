@@ -2,10 +2,10 @@
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
 import { Plus, Search, UserPlus, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
