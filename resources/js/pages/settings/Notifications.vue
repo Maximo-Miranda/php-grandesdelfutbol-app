@@ -39,7 +39,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const { appStoreUrl, platformLabel, isMobile } = useNtfySetup();
+const { appStoreUrl, platformLabel, isMobile, isIos } = useNtfySetup();
 
 const subscribeUrl = computed(() =>
     isMobile.value
@@ -159,6 +159,18 @@ function copyToClipboard(text: string, flag: 'topic' | 'url'): void {
                             <Download class="size-4" />
                             Descargar en {{ platformLabel }}
                         </a>
+
+                        <div class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                            <p class="text-xs text-amber-700 dark:text-amber-400">
+                                <strong>Importante:</strong> Al abrir ntfy por primera vez, acepta los permisos de notificaciones. Si los rechazaste, actívalos manualmente:
+                            </p>
+                            <ul class="mt-1 list-inside list-disc text-xs text-amber-700 dark:text-amber-400">
+                                <li v-if="isMobile && !isIos"><strong>Android:</strong> Ajustes &gt; Aplicaciones &gt; ntfy &gt; Notificaciones</li>
+                                <li v-else-if="isIos"><strong>iPhone:</strong> Ajustes &gt; Notificaciones &gt; ntfy &gt; Permitir notificaciones</li>
+                                <li v-else><strong>Android:</strong> Ajustes &gt; Aplicaciones &gt; ntfy &gt; Notificaciones</li>
+                                <li v-if="!isMobile"><strong>iPhone:</strong> Ajustes &gt; Notificaciones &gt; ntfy &gt; Permitir notificaciones</li>
+                            </ul>
+                        </div>
                     </div>
 
                     <!-- Step 2: Subscribe -->
