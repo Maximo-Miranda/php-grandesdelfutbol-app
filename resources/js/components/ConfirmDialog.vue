@@ -41,7 +41,7 @@ const emit = defineEmits<{ confirm: [] }>();
 
             <slot />
 
-            <DialogFooter class="gap-2 sm:gap-0">
+            <DialogFooter class="gap-2">
                 <DialogClose as-child>
                     <Button variant="outline">{{ cancelLabel }}</Button>
                 </DialogClose>

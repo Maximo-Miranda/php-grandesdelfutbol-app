@@ -6,6 +6,7 @@ use App\Enums\AttachmentCollection;
 use App\Enums\ClubMemberStatus;
 use App\Http\Requests\Club\StoreClubRequest;
 use App\Http\Requests\Club\UpdateClubRequest;
+use App\Jobs\DeleteClub;
 use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\FootballMatch;
@@ -133,5 +134,27 @@ class ClubController extends Controller
         }
 
         return redirect()->route('clubs.show', $club);
+    }
+
+    public function destroy(Club $club): RedirectResponse
+    {
+        Gate::authorize('delete', $club);
+
+        $user = auth()->user();
+
+        $club->members()->where('user_id', $user->id)->delete();
+
+        DeleteClub::dispatch($club->id);
+
+        if (session('active_club_id') === $club->id) {
+            session()->forget('active_club_id');
+        }
+
+        if ($user->last_club_id === $club->id) {
+            $user->update(['last_club_id' => null]);
+        }
+
+        return redirect()->route('clubs.index')
+            ->with('success', 'El club se está eliminando.');
     }
 }

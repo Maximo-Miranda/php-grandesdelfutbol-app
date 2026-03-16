@@ -92,7 +92,7 @@ function formatDate(dateStr: string): string {
                     <LinkIcon class="size-4" />
                 </div>
                 <div class="min-w-0 flex-1">
-                    <p class="text-xs font-medium text-muted-foreground">Link de ingreso</p>
+                    <p class="text-xs font-medium text-muted-foreground">Link de ingreso al club</p>
                     <p class="truncate text-sm">{{ joinUrl }}</p>
                 </div>
                 <Button variant="outline" size="sm" class="shrink-0 gap-1.5" @click="copyJoinLink">

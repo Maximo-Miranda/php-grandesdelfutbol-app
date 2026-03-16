@@ -47,7 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('player-card', PlayerCardController::class)->name('player-card');
-    Route::resource('clubs', ClubController::class)->except('destroy');
+    Route::resource('clubs', ClubController::class);
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');
 
     Route::prefix('clubs/{club}')->name('clubs.')->group(function () {

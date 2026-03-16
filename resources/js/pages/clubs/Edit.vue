@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { Check, Copy, Share2 } from 'lucide-vue-next';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { Check, Copy, Share2, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club } from '@/types';
 
@@ -54,6 +56,18 @@ async function shareLink() {
         // User cancelled share or not supported
     }
 }
+
+const { isOwner } = useClubPermissions();
+
+const showDeleteDialog = ref(false);
+const deletingClub = ref(false);
+
+function deleteClub() {
+    router.delete(`/clubs/${props.club.ulid}`, {
+        onStart: () => (deletingClub.value = true),
+        onFinish: () => (deletingClub.value = false),
+    });
+}
 </script>
 
 <template>
@@ -83,8 +97,8 @@ async function shareLink() {
 
             <!-- Join link section -->
             <div class="mt-8 rounded-lg border border-border p-4">
-                <h3 class="mb-2 font-medium">Enlace de invitación</h3>
-                <p class="mb-3 text-sm text-muted-foreground">Comparte este enlace para que otros jugadores soliciten unirse al club. Deberas aprobar cada solicitud.</p>
+                <h3 class="mb-2 font-medium">Link de ingreso al club</h3>
+                <p class="mb-3 text-sm text-muted-foreground">Comparte este enlace para que otros jugadores soliciten unirse al club. Deberás aprobar cada solicitud.</p>
                 <div class="flex items-center gap-2">
                     <Input :model-value="joinUrl" readonly class="bg-muted/50 text-sm" />
                     <Button variant="outline" size="icon" @click="copyLink">
@@ -97,6 +111,29 @@ async function shareLink() {
                 </div>
                 <p v-if="copied" class="mt-1.5 text-xs text-green-600">Copiado!</p>
             </div>
+
+            <!-- Danger zone -->
+            <div v-if="isOwner" class="mt-8 rounded-lg border border-destructive/50 p-4">
+                <h3 class="mb-2 font-medium text-destructive">Zona de peligro</h3>
+                <p class="mb-3 text-sm text-muted-foreground">
+                    Eliminar el club borrará permanentemente todos los datos asociados: jugadores, partidos, estadísticas, sedes y miembros. Esta acción no se
+                    puede deshacer.
+                </p>
+                <Button variant="destructive" @click="showDeleteDialog = true">
+                    <Trash2 class="mr-2 size-4" />
+                    Eliminar club
+                </Button>
+            </div>
         </div>
+
+        <ConfirmDialog
+            v-model:open="showDeleteDialog"
+            title="Eliminar club"
+            description="Esta acción no se puede deshacer. Se eliminarán permanentemente todos los datos del club, incluyendo jugadores, partidos, estadísticas y miembros."
+            confirm-label="Eliminar club"
+            :destructive="true"
+            :processing="deletingClub"
+            @confirm="deleteClub"
+        />
     </AppLayout>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { router, usePoll } from '@inertiajs/vue3';
+import { router, usePage, usePoll } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
@@ -10,6 +10,7 @@ import ClubMobileNav from '@/components/ClubMobileNav.vue';
 import MobileBottomNav from '@/components/MobileBottomNav.vue';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue';
 import ToastContainer from '@/components/ToastContainer.vue';
+import { useToast } from '@/composables/useToast';
 import type { BreadcrumbItem } from '@/types';
 
 const props = withDefaults(
@@ -23,6 +24,18 @@ const props = withDefaults(
 
 // Poll server every 5 min — Inertia detects version change (409) and forces full reload
 usePoll(5 * 60 * 1000);
+
+const page = usePage();
+const { showToast } = useToast();
+
+watch(
+    () => (page.props.flash as { success?: string; error?: string })?.success,
+    (message) => {
+        if (message) {
+            showToast({ message });
+        }
+    },
+);
 
 const showBack = computed(() => props.breadcrumbs.length >= 2);
 const backFallback = computed(() => {
