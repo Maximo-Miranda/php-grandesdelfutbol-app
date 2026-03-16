@@ -28,8 +28,9 @@ test('ntfy channel sends to correct url and topic', function () {
     $channel->send($user, $notification);
 
     Http::assertSent(function ($request) use ($topic) {
-        return str_contains($request->url(), "https://push.example.com/{$topic}")
+        return $request->url() === 'https://push.example.com'
             && $request->hasHeader('Authorization', 'Bearer test-token')
+            && $request['topic'] === $topic
             && $request['message'] === 'Test message'
             && $request['title'] === 'Test title';
     });

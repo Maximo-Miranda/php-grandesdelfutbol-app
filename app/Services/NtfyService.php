@@ -17,7 +17,7 @@ class NtfyService
     public function publish(User $user, array $payload): void
     {
         $url = $this->baseUrl();
-        $topic = $user->ntfyTopic();
+        $payload['topic'] = $user->ntfyTopic();
 
         try {
             $request = Http::asJson();
@@ -27,7 +27,7 @@ class NtfyService
                 $request = $request->withToken($token);
             }
 
-            $request->post("{$url}/{$topic}", $payload);
+            $request->post($url, $payload);
         } catch (\Throwable $e) {
             Log::warning('ntfy: failed to send notification', [
                 'user_id' => $user->id,
