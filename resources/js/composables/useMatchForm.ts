@@ -103,8 +103,18 @@ export function useMatchForm(options: UseMatchFormOptions) {
 
     // --- Initial values ---
     const isEdit = !!match;
-    const initialDate = isEdit ? match.scheduled_at.slice(0, 10) : getDefaultDate();
-    const initialTimeFull = isEdit ? match.scheduled_at.slice(11, 16) : '10:00';
+
+    // Parse UTC ISO string to local date/time parts (Carbon serializes to UTC)
+    function toLocalParts(isoString: string): { date: string; time: string } {
+        const d = new Date(isoString);
+        const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        return { date, time };
+    }
+
+    const editParts = isEdit ? toLocalParts(match.scheduled_at) : null;
+    const initialDate = editParts ? editParts.date : getDefaultDate();
+    const initialTimeFull = editParts ? editParts.time : '10:00';
     const initialTime = timeOptions.includes(initialTimeFull) ? initialTimeFull : timeOptions[0];
     const initialFieldLabel = isEdit ? resolveFieldLabel(match.field_id) : 'none';
     const initialMaxPlayers = isEdit ? match.max_players : 10;

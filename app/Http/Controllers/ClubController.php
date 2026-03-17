@@ -35,7 +35,7 @@ class ClubController extends Controller
             ->forUser($user)
             ->with('owner')
             ->withCount([
-                'members',
+                'members' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Approved),
                 'matches',
                 'matches as upcoming_matches_count' => fn ($query) => $query->upcoming(),
             ])
@@ -102,7 +102,12 @@ class ClubController extends Controller
         Gate::authorize('view', $club);
 
         $club->load('owner', 'members.user');
-        $club->loadCount('members', 'matches');
+        $club->loadCount([
+            'members' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Approved),
+            'members as pending_members_count' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Pending),
+            'matches as completed_matches_count' => fn ($query) => $query->where('status', \App\Enums\MatchStatus::Completed),
+            'players' => fn ($query) => $query->where('is_active', true),
+        ]);
 
         $nextMatch = $club->matches()
             ->upcoming()

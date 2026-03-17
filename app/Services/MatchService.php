@@ -37,7 +37,7 @@ class MatchService
             'club_id' => $club->id,
             'field_id' => $data['field_id'] ?? null,
             'title' => $data['title'],
-            'scheduled_at' => $data['scheduled_at'],
+            'scheduled_at' => $scheduledAt,
             'duration_minutes' => $durationMinutes,
             'arrival_minutes' => $data['arrival_minutes'] ?? 15,
             'max_players' => $data['max_players'] ?? 10,

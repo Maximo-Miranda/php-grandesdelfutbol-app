@@ -47,7 +47,7 @@ test('match registration open notification has correct ntfy content', function (
     $notification = new MatchRegistrationOpenNotification($match);
     $message = $notification->toNtfy($user);
 
-    expect($message->getTitle())->toBe('Confirma tu asistencia')
+    expect($message->getTitle())->toBe('Convocatoria abierta')
         ->and($message->getPriority())->toBe(4)
         ->and($message->getBody())->toContain($match->title)
         ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}");
@@ -61,7 +61,7 @@ test('match video uploaded notification has correct ntfy content', function () {
     $notification = new MatchVideoUploadedNotification($match);
     $message = $notification->toNtfy($user);
 
-    expect($message->getTitle())->toBe('Video disponible')
+    expect($message->getTitle())->toBe('Resumen del partido')
         ->and($message->getPriority())->toBe(3)
         ->and($message->getBody())->toContain($match->title)
         ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
@@ -75,7 +75,7 @@ test('match stats finalized notification has correct ntfy content', function () 
     $notification = new MatchStatsFinalizedNotification($match);
     $message = $notification->toNtfy($user);
 
-    expect($message->getTitle())->toBe('Estadísticas registradas')
+    expect($message->getTitle())->toBe('Estadísticas disponibles')
         ->and($message->getPriority())->toBe(3)
         ->and($message->getBody())->toContain($match->title)
         ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
@@ -96,6 +96,37 @@ test('match notifications only use ntfy channel', function () {
         $via = $notification->via($user);
         expect($via)->toBe([NtfyChannel::class])
             ->and($via)->not->toContain('mail');
+    }
+});
+
+test('ntfy service throws exception on http error', function () {
+    Http::fake([
+        '*' => Http::response('Unauthorized', 401),
+    ]);
+
+    $user = User::factory()->withNtfy()->create();
+
+    $service = app(\App\Services\NtfyService::class);
+
+    expect(fn () => $service->publish($user, ['message' => 'test']))
+        ->toThrow(\Illuminate\Http\Client\RequestException::class);
+});
+
+test('all three match notifications use notifications queue', function () {
+    $club = Club::factory()->create();
+    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
+
+    $notifications = [
+        new MatchRegistrationOpenNotification($match),
+        new MatchVideoUploadedNotification($match),
+        new MatchStatsFinalizedNotification($match),
+    ];
+
+    foreach ($notifications as $notification) {
+        expect($notification->queue)->toBe('notifications')
+            ->and($notification->tries)->toBe(3)
+            ->and($notification->backoff)->toBe([10, 30])
+            ->and($notification->afterCommit)->toBeTrue();
     }
 });
 

@@ -34,6 +34,39 @@ test('notifies confirmed attendees when stats are finalized', function () {
     Notification::assertSentTo($attendeeUser, MatchStatsFinalizedNotification::class);
 });
 
+test('does not notify confirmed attendees without ntfy enabled when stats are finalized', function () {
+    Notification::fake();
+
+    $club = Club::factory()->create();
+    $admin = User::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
+
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    $userWithNtfy = User::factory()->withNtfy()->create();
+    $playerWithNtfy = Player::factory()->linked($userWithNtfy)->create(['club_id' => $club->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $playerWithNtfy->id,
+        'status' => AttendanceStatus::Confirmed,
+    ]);
+
+    $userWithoutNtfy = User::factory()->create();
+    $playerWithoutNtfy = Player::factory()->linked($userWithoutNtfy)->create(['club_id' => $club->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $playerWithoutNtfy->id,
+        'status' => AttendanceStatus::Confirmed,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('clubs.matches.finalizeStats', [$club, $match]))
+        ->assertRedirect();
+
+    Notification::assertSentTo($userWithNtfy, MatchStatsFinalizedNotification::class);
+    Notification::assertNotSentTo($userWithoutNtfy, MatchStatsFinalizedNotification::class);
+});
+
 test('does not notify declined attendees when stats are finalized', function () {
     Notification::fake();
 

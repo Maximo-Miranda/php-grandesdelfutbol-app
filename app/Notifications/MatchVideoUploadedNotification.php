@@ -8,10 +8,16 @@ use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Middleware\RateLimited;
 
 class MatchVideoUploadedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    /** @var array<int, int> */
+    public array $backoff = [10, 30];
 
     private string $matchTitle;
 
@@ -20,8 +26,15 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
     public function __construct(public FootballMatch $match)
     {
         $this->onQueue('notifications');
+        $this->afterCommit();
         $this->matchTitle = $match->title;
         $this->summaryUrl = route('clubs.matches.summary', [$match->club, $match]);
+    }
+
+    /** @return array<int, object> */
+    public function middleware(object $notifiable, string $channel): array
+    {
+        return [new RateLimited('ntfy')];
     }
 
     /** @return array<int, string> */
@@ -32,9 +45,9 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
 
     public function toNtfy(object $notifiable): NtfyMessage
     {
-        return NtfyMessage::create("Ya puedes ver el video de {$this->matchTitle}")
-            ->title('Video disponible')
-            ->tags('soccer,video_camera')
+        return NtfyMessage::create("{$this->matchTitle} — Video disponible")
+            ->title('Resumen del partido')
+            ->tags('clapper')
             ->priority(3)
             ->click($this->summaryUrl);
     }

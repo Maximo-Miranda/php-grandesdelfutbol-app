@@ -55,7 +55,7 @@ test('ntfy channel skips when ntfy is not enabled', function () {
     Http::assertNothingSent();
 });
 
-test('ntfy channel does not throw on http failure', function () {
+test('ntfy channel throws on http failure so queue can retry', function () {
     Http::fake(fn () => Http::response('Error', 500));
 
     $user = User::factory()->withNtfy()->create();
@@ -70,5 +70,6 @@ test('ntfy channel does not throw on http failure', function () {
 
     $channel = app(NtfyChannel::class);
 
-    expect(fn () => $channel->send($user, $notification))->not->toThrow(Exception::class);
+    expect(fn () => $channel->send($user, $notification))
+        ->toThrow(\Illuminate\Http\Client\RequestException::class);
 });

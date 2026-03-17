@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Check, Copy, LinkIcon, LogOut, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, ClubMember, FootballMatch } from '@/types';
 
 type Props = {
-    club: Club & { members: ClubMember[]; members_count: number; matches_count?: number };
+    club: Club & { members: ClubMember[]; members_count: number; pending_members_count: number; players_count: number; completed_matches_count: number };
     nextMatch?: FootballMatch & { attendances_count?: number };
 };
 
@@ -50,11 +50,14 @@ const confirmedCount = computed(() => {
     return props.nextMatch.attendances.filter(a => a.status === 'confirmed').length;
 });
 
-function formatDate(dateStr: string): string {
+function formatMatchDate(dateStr: string): string {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })
-        + ' a las '
-        + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatMatchTime(dateStr: string): string {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 </script>
 
@@ -108,13 +111,23 @@ function formatDate(dateStr: string): string {
                 :href="`${base}/matches/${nextMatch.ulid}`"
                 class="mb-4 block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
             >
-                <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
+                <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
                 <p class="text-lg font-bold">{{ nextMatch.title }}</p>
-                <p class="text-sm text-muted-foreground">
-                    {{ formatDate(nextMatch.scheduled_at) }}
-                    <span v-if="nextMatch.field"> &middot; {{ nextMatch.field.name }}</span>
-                </p>
-                <p class="mt-1 text-sm font-medium text-primary">
+                <div class="mt-2 flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays class="size-3.5 shrink-0" />
+                        <span class="capitalize">{{ formatMatchDate(nextMatch.scheduled_at) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock class="size-3.5 shrink-0" />
+                        <span>{{ formatMatchTime(nextMatch.scheduled_at) }}</span>
+                    </div>
+                    <div v-if="nextMatch.field" class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin class="size-3.5 shrink-0" />
+                        <span>{{ nextMatch.field.name }}</span>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm font-medium text-primary">
                     {{ confirmedCount }}/{{ nextMatch.max_players }} confirmados
                 </p>
             </Link>
@@ -136,7 +149,7 @@ function formatDate(dateStr: string): string {
                     </div>
                     <div>
                         <p class="font-semibold">Jugadores</p>
-                        <p class="text-sm text-muted-foreground">{{ club.members_count ?? 0 }} en el club</p>
+                        <p class="text-sm text-muted-foreground">{{ club.players_count ?? 0 }} en el club</p>
                     </div>
                 </Link>
 
@@ -149,21 +162,31 @@ function formatDate(dateStr: string): string {
                     </div>
                     <div>
                         <p class="font-semibold">Partidos</p>
-                        <p class="text-sm text-muted-foreground">{{ club.matches_count ?? 0 }} jugados</p>
+                        <p class="text-sm text-muted-foreground">{{ club.completed_matches_count ?? 0 }} jugados</p>
                     </div>
                 </Link>
 
                 <Link
                     v-if="isAdmin"
                     :href="`${base}/members`"
-                    class="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+                    class="relative flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-accent"
+                    :class="club.pending_members_count > 0 ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-border'"
                 >
-                    <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div class="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserPlus class="size-5" />
+                        <span
+                            v-if="club.pending_members_count > 0"
+                            class="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-black"
+                        >
+                            {{ club.pending_members_count }}
+                        </span>
                     </div>
                     <div>
                         <p class="font-semibold">Miembros</p>
-                        <p class="text-sm text-muted-foreground">Gestionar miembros del club</p>
+                        <p v-if="club.pending_members_count > 0" class="text-sm font-medium text-yellow-500">
+                            {{ club.pending_members_count }} solicitud{{ club.pending_members_count > 1 ? 'es' : '' }} pendiente{{ club.pending_members_count > 1 ? 's' : '' }}
+                        </p>
+                        <p v-else class="text-sm text-muted-foreground">Gestionar miembros del club</p>
                     </div>
                 </Link>
 

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Notifications\Messages\NtfyMessage;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,25 +16,28 @@ class NtfyService
         return rtrim(config('services.ntfy.url'), '/');
     }
 
+    /**
+     * @throws RequestException
+     * @throws \Throwable
+     * @throws ConnectionException
+     */
     public function publish(User $user, array $payload): void
     {
         $url = $this->baseUrl();
         $payload['topic'] = $user->ntfyTopic();
 
         try {
-            $request = Http::asJson();
-
-            $token = config('services.ntfy.token');
-            if ($token) {
-                $request = $request->withToken($token);
-            }
-
-            $request->post($url, $payload);
+            Http::asJson()
+                ->when(config('services.ntfy.token'), fn ($http, $token) => $http->withToken($token))
+                ->post($url, $payload)
+                ->throw();
         } catch (\Throwable $e) {
             Log::warning('ntfy: failed to send notification', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
     }
 

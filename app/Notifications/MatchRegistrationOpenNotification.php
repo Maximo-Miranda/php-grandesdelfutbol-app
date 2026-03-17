@@ -8,10 +8,16 @@ use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Middleware\RateLimited;
 
 class MatchRegistrationOpenNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    /** @var array<int, int> */
+    public array $backoff = [10, 30];
 
     private string $matchTitle;
 
@@ -20,8 +26,15 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
     public function __construct(public FootballMatch $match)
     {
         $this->onQueue('notifications');
+        $this->afterCommit();
         $this->matchTitle = $match->title;
         $this->matchUrl = route('clubs.matches.show', [$match->club, $match]);
+    }
+
+    /** @return array<int, object> */
+    public function middleware(object $notifiable, string $channel): array
+    {
+        return [new RateLimited('ntfy')];
     }
 
     /** @return array<int, string> */
@@ -32,9 +45,9 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
 
     public function toNtfy(object $notifiable): NtfyMessage
     {
-        return NtfyMessage::create("{$this->matchTitle} abrió la convocatoria")
-            ->title('Confirma tu asistencia')
-            ->tags('soccer,calendar')
+        return NtfyMessage::create("{$this->matchTitle} — Confirma tu asistencia")
+            ->title('Convocatoria abierta')
+            ->tags('soccer')
             ->priority(4)
             ->click($this->matchUrl);
     }

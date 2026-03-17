@@ -187,23 +187,25 @@ function leaveClub() {
                     <div
                         v-for="member in pendingMembers"
                         :key="member.ulid"
-                        class="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3"
+                        class="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3"
                     >
-                        <UserAvatar
-                            :src="member.user?.player_profile?.photo_url"
-                            :name="member.user?.name ?? '?'"
-                            class="size-9"
-                        />
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate font-medium">{{ member.user?.name }}</p>
-                            <span class="text-xs text-muted-foreground">{{ member.user?.email }}</span>
+                        <div class="flex items-center gap-3">
+                            <UserAvatar
+                                :src="member.user?.player_profile?.photo_url"
+                                :name="member.user?.name ?? '?'"
+                                class="size-9"
+                            />
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate font-medium">{{ member.user?.name }}</p>
+                                <span class="text-xs text-muted-foreground">{{ member.user?.email }}</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <Button variant="outline" size="sm" class="text-green-600 hover:bg-green-500/10 hover:text-green-500" @click="approveMember(member)">
+                        <div class="mt-2 flex gap-2">
+                            <Button variant="outline" size="sm" class="flex-1 text-green-600 hover:bg-green-500/10 hover:text-green-500" @click="approveMember(member)">
                                 <Check class="mr-1 size-3.5" />
                                 Aprobar
                             </Button>
-                            <Button variant="outline" size="sm" class="text-red-600 hover:bg-red-500/10 hover:text-red-500" @click="rejectMember(member)">
+                            <Button variant="outline" size="sm" class="flex-1 text-red-600 hover:bg-red-500/10 hover:text-red-500" @click="rejectMember(member)">
                                 <X class="mr-1 size-3.5" />
                                 Rechazar
                             </Button>
