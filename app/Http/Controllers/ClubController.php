@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AttachmentCollection;
 use App\Enums\ClubMemberStatus;
+use App\Enums\MatchStatus;
 use App\Http\Requests\Club\StoreClubRequest;
 use App\Http\Requests\Club\UpdateClubRequest;
 use App\Jobs\DeleteClub;
@@ -13,6 +14,7 @@ use App\Models\FootballMatch;
 use App\Services\AttachmentService;
 use App\Services\ClubContext;
 use App\Services\ClubService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -66,7 +68,10 @@ class ClubController extends Controller
             ->whereIn('club_id', $clubIds)
             ->upcoming()
             ->with('club', 'field')
-            ->withCount('attendances')
+            ->withCount([
+                'attendances',
+                'attendances as confirmed_count' => fn ($q) => $q->where('status', \App\Enums\AttendanceStatus::Confirmed),
+            ])
             ->orderBy('scheduled_at')
             ->first();
 
@@ -115,9 +120,25 @@ class ClubController extends Controller
             ->orderBy('scheduled_at')
             ->first();
 
+        $today = Carbon::now();
+        $currentDay = $today->day;
+        $birthdays = $club->members()
+            ->where('status', \App\Enums\ClubMemberStatus::Approved)
+            ->whereHas('user.playerProfile', fn ($q) => $q->whereMonth('date_of_birth', $today->month))
+            ->with('user.playerProfile')
+            ->get()
+            ->map(fn ($member) => [
+                'name' => $member->user->name,
+                'photo_url' => $member->user->playerProfile?->photo_url,
+                'day' => Carbon::parse($member->user->playerProfile->date_of_birth)->day,
+            ])
+            ->sortBy(fn ($b) => $b['day'] >= $currentDay ? $b['day'] - $currentDay : $b['day'] + 31)
+            ->values();
+
         return Inertia::render('clubs/Show', [
             'club' => $club,
             'nextMatch' => $nextMatch,
+            'birthdays' => $birthdays,
         ]);
     }
 

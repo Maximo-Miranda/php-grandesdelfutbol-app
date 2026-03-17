@@ -22,6 +22,9 @@ php artisan migrate --force --no-interaction
 # Run one-time operations
 php artisan operations:process --sync --no-interaction
 
+# Stop any lingering SSR process before caching
+php artisan inertia:stop-ssr 2>/dev/null || true
+
 # Cache configuration, routes, views, and events
 php artisan optimize --no-interaction
 

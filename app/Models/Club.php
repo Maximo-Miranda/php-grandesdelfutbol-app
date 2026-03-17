@@ -180,4 +180,15 @@ class Club extends Model
                 ->select('user_id'))
             ->get();
     }
+
+    /** @return \Illuminate\Support\Collection<int, User> */
+    public function ntfyEnabledMembers(): \Illuminate\Support\Collection
+    {
+        return $this->members()
+            ->where('status', ClubMemberStatus::Approved)
+            ->whereHas('user', fn ($q) => $q->whereNotNull('ntfy_enabled_at'))
+            ->with('user')
+            ->get()
+            ->pluck('user');
+    }
 }

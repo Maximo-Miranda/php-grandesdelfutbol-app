@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import UserAvatar from '@/components/UserAvatar.vue';
-import { useClubPermissions } from '@/composables/useClubPermissions';
+import { roleBadgeClass, roleLabel, useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubMember } from '@/types';
@@ -74,16 +74,6 @@ function canManage(member: ClubMember): boolean {
     return (rankMap[role.value] ?? 0) > (rankMap[member.role] ?? 0);
 }
 
-function roleLabel(r: string): string {
-    const labels: Record<string, string> = { owner: 'Dueno', admin: 'Admin', player: 'Jugador' };
-    return labels[r] ?? r;
-}
-
-function roleBadgeVariant(r: string): 'default' | 'secondary' | 'outline' {
-    if (r === 'owner') return 'default';
-    if (r === 'admin') return 'secondary';
-    return 'outline';
-}
 
 function invitationStatus(inv: Invitation): { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' } {
     if (inv.status === 'accepted') return { label: 'Aceptada', variant: 'default' };
@@ -253,7 +243,7 @@ function leaveClub() {
                             />
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-medium">{{ member.user?.name }}</p>
-                                <Badge :variant="roleBadgeVariant(member.role)" class="text-[10px]">{{ roleLabel(member.role) }}</Badge>
+                                <Badge variant="outline" :class="['text-[10px]', roleBadgeClass(member.role)]">{{ roleLabel(member.role) }}</Badge>
                             </div>
                             <DropdownMenu v-if="isAdmin && canManage(member)">
                                 <DropdownMenuTrigger as-child>

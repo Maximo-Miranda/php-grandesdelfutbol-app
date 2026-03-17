@@ -76,7 +76,7 @@ class MatchLifecycleController extends Controller
 
         $this->statService->finalizeStats($match);
 
-        Notification::send($match->confirmedAttendeeUsers(), new MatchStatsFinalizedNotification($match));
+        Notification::send($club->ntfyEnabledMembers(), new MatchStatsFinalizedNotification($match));
 
         return back()->with('success', 'Estadísticas registradas.');
     }

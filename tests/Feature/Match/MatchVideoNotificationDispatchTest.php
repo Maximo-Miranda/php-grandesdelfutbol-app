@@ -1,16 +1,13 @@
 <?php
 
-use App\Enums\AttendanceStatus;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
-use App\Models\MatchAttendance;
-use App\Models\Player;
 use App\Models\User;
 use App\Notifications\MatchVideoUploadedNotification;
 use Illuminate\Support\Facades\Notification;
 
-test('notifies confirmed attendees when youtube url is added', function () {
+test('notifies all club members with ntfy when youtube url is added', function () {
     Notification::fake();
 
     $club = Club::factory()->create();
@@ -22,13 +19,8 @@ test('notifies confirmed attendees when youtube url is added', function () {
         'youtube_url' => null,
     ]);
 
-    $attendeeUser = User::factory()->withNtfy()->create();
-    $player = Player::factory()->linked($attendeeUser)->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $player->id,
-        'status' => AttendanceStatus::Confirmed,
-    ]);
+    $memberWithNtfy = User::factory()->withNtfy()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithNtfy->id]);
 
     $this->actingAs($admin)
         ->put(route('clubs.matches.update', [$club, $match]), [
@@ -43,7 +35,7 @@ test('notifies confirmed attendees when youtube url is added', function () {
         ])
         ->assertRedirect();
 
-    Notification::assertSentTo($attendeeUser, MatchVideoUploadedNotification::class);
+    Notification::assertSentTo($memberWithNtfy, MatchVideoUploadedNotification::class);
 });
 
 test('does not notify when youtube url already existed', function () {
@@ -58,13 +50,8 @@ test('does not notify when youtube url already existed', function () {
         'youtube_url' => 'https://www.youtube.com/watch?v=existing',
     ]);
 
-    $attendeeUser = User::factory()->withNtfy()->create();
-    $player = Player::factory()->linked($attendeeUser)->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $player->id,
-        'status' => AttendanceStatus::Confirmed,
-    ]);
+    $memberWithNtfy = User::factory()->withNtfy()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithNtfy->id]);
 
     $this->actingAs($admin)
         ->put(route('clubs.matches.update', [$club, $match]), [
@@ -109,7 +96,7 @@ test('does not notify when update does not include youtube url', function () {
     Notification::assertNothingSent();
 });
 
-test('does not notify declined attendees when youtube url is added', function () {
+test('notifies club members who did not attend the match when youtube url is added', function () {
     Notification::fake();
 
     $club = Club::factory()->create();
@@ -121,20 +108,9 @@ test('does not notify declined attendees when youtube url is added', function ()
         'youtube_url' => null,
     ]);
 
-    $confirmedUser = User::factory()->withNtfy()->create();
-    $confirmedPlayer = Player::factory()->linked($confirmedUser)->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $confirmedPlayer->id,
-        'status' => AttendanceStatus::Confirmed,
-    ]);
-
-    $declinedUser = User::factory()->create();
-    $declinedPlayer = Player::factory()->linked($declinedUser)->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->declined()->create([
-        'match_id' => $match->id,
-        'player_id' => $declinedPlayer->id,
-    ]);
+    // Member with ntfy but NOT an attendee of this match
+    $nonAttendee = User::factory()->withNtfy()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $nonAttendee->id]);
 
     $this->actingAs($admin)
         ->put(route('clubs.matches.update', [$club, $match]), [
@@ -149,6 +125,40 @@ test('does not notify declined attendees when youtube url is added', function ()
         ])
         ->assertRedirect();
 
-    Notification::assertSentTo($confirmedUser, MatchVideoUploadedNotification::class);
-    Notification::assertNotSentTo($declinedUser, MatchVideoUploadedNotification::class);
+    Notification::assertSentTo($nonAttendee, MatchVideoUploadedNotification::class);
+});
+
+test('does not notify club members without ntfy when youtube url is added', function () {
+    Notification::fake();
+
+    $club = Club::factory()->create();
+    $admin = User::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
+
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'youtube_url' => null,
+    ]);
+
+    $memberWithNtfy = User::factory()->withNtfy()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithNtfy->id]);
+
+    $memberWithoutNtfy = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithoutNtfy->id]);
+
+    $this->actingAs($admin)
+        ->put(route('clubs.matches.update', [$club, $match]), [
+            'title' => $match->title,
+            'scheduled_at' => $match->scheduled_at->toISOString(),
+            'duration_minutes' => $match->duration_minutes,
+            'arrival_minutes' => $match->arrival_minutes,
+            'max_players' => $match->max_players,
+            'max_substitutes' => $match->max_substitutes,
+            'registration_opens_hours' => $match->registration_opens_hours,
+            'youtube_url' => 'https://www.youtube.com/watch?v=abc123',
+        ])
+        ->assertRedirect();
+
+    Notification::assertSentTo($memberWithNtfy, MatchVideoUploadedNotification::class);
+    Notification::assertNotSentTo($memberWithoutNtfy, MatchVideoUploadedNotification::class);
 });

@@ -150,7 +150,7 @@ class MatchController extends Controller
         $match->update($request->validated());
 
         if (! $hadVideo && $match->youtube_url !== null) {
-            Notification::send($match->confirmedAttendeeUsers(), new MatchVideoUploadedNotification($match));
+            Notification::send($club->ntfyEnabledMembers(), new MatchVideoUploadedNotification($match));
         }
 
         return redirect()->route('clubs.matches.show', [$club, $match])

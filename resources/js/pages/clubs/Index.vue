@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CalendarDays, ChevronRight, Clock, Handshake, Plus, Shield, Trophy, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, ChevronRight, Clock, Handshake, MapPin, Plus, Shield, Trophy, UsersRound } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -14,17 +15,23 @@ type Props = {
     pendingMemberships?: ClubMember[];
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mis Clubes', href: '/clubs' },
 ];
 
 function formatMatchDate(dateStr: string): string {
-    return formatDate(dateStr, { weekday: 'short', day: 'numeric', month: 'short' })
-        + ' a las '
-        + formatTime(dateStr);
+    return formatDate(dateStr, { weekday: 'long', day: 'numeric', month: 'long' });
 }
+
+function formatMatchTime(dateStr: string): string {
+    return formatTime(dateStr, { hour12: true });
+}
+
+const confirmedCount = computed(() => {
+    return (props.nextMatch as any)?.confirmed_count ?? 0;
+});
 </script>
 
 <template>
@@ -84,19 +91,28 @@ function formatMatchDate(dateStr: string): string {
                 :href="`/clubs/${nextMatch.club?.ulid}/matches/${nextMatch.ulid}`"
                 class="mb-6 block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
             >
-                <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
-                <p class="text-lg font-bold">{{ nextMatch.title }}</p>
-                <p class="text-sm text-muted-foreground">
-                    {{ formatMatchDate(nextMatch.scheduled_at) }}
-                    <span v-if="nextMatch.field"> &middot; {{ nextMatch.field.name }}</span>
-                </p>
-                <div class="mt-2 flex items-center gap-2">
-                    <Badge variant="outline">
-                        <UsersRound class="mr-1 size-3" />
-                        {{ nextMatch.attendances_count ?? 0 }}/{{ nextMatch.max_players }}
-                    </Badge>
-                    <Badge v-if="nextMatch.club" variant="secondary">{{ nextMatch.club.name }}</Badge>
+                <div class="mb-2 flex items-center gap-2">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
+                    <Badge v-if="nextMatch.club" variant="secondary" class="text-[10px]">{{ nextMatch.club.name }}</Badge>
                 </div>
+                <p class="text-lg font-bold">{{ nextMatch.title }}</p>
+                <div class="mt-2 flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays class="size-3.5 shrink-0" />
+                        <span class="capitalize">{{ formatMatchDate(nextMatch.scheduled_at) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock class="size-3.5 shrink-0" />
+                        <span>{{ formatMatchTime(nextMatch.scheduled_at) }}</span>
+                    </div>
+                    <div v-if="nextMatch.field" class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin class="size-3.5 shrink-0" />
+                        <span>{{ nextMatch.field.name }}</span>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm font-medium text-primary">
+                    {{ confirmedCount }}/{{ nextMatch.max_players }} confirmados
+                </p>
             </Link>
 
             <!-- Clubs list -->

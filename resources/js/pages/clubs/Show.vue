@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useClubPermissions } from '@/composables/useClubPermissions';
+import { roleBadgeClass, useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubMember, FootballMatch } from '@/types';
 
+type BirthdayMember = {
+    name: string;
+    photo_url: string | null;
+    day: number;
+};
+
 type Props = {
     club: Club & { members: ClubMember[]; members_count: number; pending_members_count: number; players_count: number; completed_matches_count: number };
     nextMatch?: FootballMatch & { attendances_count?: number };
+    birthdays: BirthdayMember[];
 };
 
 const props = defineProps<Props>();
@@ -24,7 +31,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const base = `/clubs/${props.club.ulid}`;
 
-const { role: userRole, isAdmin, isOwner } = useClubPermissions();
+const { role, roleDisplay, isAdmin, isOwner } = useClubPermissions();
 
 const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
 const copied = ref(false);
@@ -58,6 +65,10 @@ function formatMatchDate(dateStr: string): string {
 function formatMatchTime(dateStr: string): string {
     return formatTime(dateStr, { hour12: true });
 }
+
+const currentMonthName = computed(() => {
+    return new Date().toLocaleDateString('es', { month: 'long' });
+});
 </script>
 
 <template>
@@ -82,7 +93,7 @@ function formatMatchTime(dateStr: string): string {
                 <div>
                     <h1 class="flex items-center gap-2 text-2xl font-bold">
                         {{ club.name }}
-                        <Badge variant="outline" class="text-xs capitalize">{{ userRole }}</Badge>
+                        <Badge variant="outline" :class="['text-[10px]', roleBadgeClass(role ?? 'player')]">{{ roleDisplay }}</Badge>
                     </h1>
                     <p v-if="club.description" class="text-sm text-muted-foreground">{{ club.description }}</p>
                 </div>
@@ -135,6 +146,46 @@ function formatMatchTime(dateStr: string): string {
                 <CalendarDays class="mx-auto mb-2 size-8 text-muted-foreground" />
                 <p class="font-medium">Sin partidos proximos</p>
                 <p class="text-sm text-muted-foreground">Crea un partido para empezar a organizar.</p>
+            </div>
+
+            <!-- Birthdays this month -->
+            <div class="mb-4 overflow-hidden rounded-lg border border-border">
+                <div class="flex items-center gap-2 border-b border-border bg-gradient-to-r from-amber-500/10 to-yellow-500/5 px-4 py-2.5">
+                    <Cake class="size-4 text-amber-500" />
+                    <h2 class="text-sm font-semibold tracking-wide">
+                        Cumpleaños de <span class="capitalize">{{ currentMonthName }}</span>
+                    </h2>
+                </div>
+                <div v-if="birthdays.length > 0" class="divide-y divide-border">
+                    <div
+                        v-for="(b, i) in birthdays"
+                        :key="i"
+                        class="flex items-center gap-3 px-4 py-2.5"
+                    >
+                        <div
+                            v-if="b.photo_url"
+                            class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-amber-500/30"
+                        >
+                            <img :src="b.photo_url" :alt="b.name" class="size-full object-cover" />
+                        </div>
+                        <div
+                            v-else
+                            class="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-sm font-bold text-amber-600 ring-2 ring-amber-500/30"
+                        >
+                            {{ b.name.charAt(0) }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium">{{ b.name }}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <Cake class="size-4 text-amber-500" />
+                            <span class="text-sm font-semibold text-primary">{{ b.day }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="px-4 py-4 text-center">
+                    <p class="text-sm text-muted-foreground">Sin cumpleaños este mes</p>
+                </div>
             </div>
 
             <!-- Quick nav cards - full width on mobile, 2 cols on md+ -->
