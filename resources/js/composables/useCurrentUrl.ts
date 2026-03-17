@@ -24,7 +24,6 @@ export type UseCurrentUrlReturn = {
 
 const page = usePage();
 const currentUrlReactive = computed(() => {
-    if (typeof window === 'undefined') return page.url;
     return new URL(page.url, window.location.origin).pathname;
 });
 

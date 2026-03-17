@@ -20,7 +20,7 @@ defineProps<{
     canRegister: boolean;
 }>();
 
-const isPwa = computed(() => typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches);
+const isPwa = computed(() => window.matchMedia('(display-mode: standalone)').matches);
 </script>
 
 <template>

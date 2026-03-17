@@ -1,9 +1,4 @@
 # ==============================================================================
-# Node.js runtime (only the binary, for SSR in production)
-# ==============================================================================
-FROM node:24-alpine AS node-runtime
-
-# ==============================================================================
 # Stage 1: Composer dependencies
 # ==============================================================================
 FROM composer:2 AS vendor
@@ -36,7 +31,7 @@ COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
 RUN npm ci
-RUN npm run build:ssr
+RUN npm run build
 
 # ==============================================================================
 # Stage 3: Production image
@@ -119,14 +114,8 @@ COPY --chown=www-data:www-data . .
 # Copy vendor from composer stage
 COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
 
-# Copy Node.js binary from official image (for SSR, ~30MB, no npm)
-COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
-
 # Copy built frontend assets
 COPY --chown=www-data:www-data --from=frontend /app/public/build ./public/build
-
-# Copy SSR bundle
-COPY --chown=www-data:www-data --from=frontend /app/bootstrap/ssr ./bootstrap/ssr
 
 # Ensure storage and cache directories exist with proper permissions
 RUN mkdir -p \

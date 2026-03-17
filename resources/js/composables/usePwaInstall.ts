@@ -13,15 +13,12 @@ const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const dismissed = ref(false);
 
 export function usePwaInstall() {
-    if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(DISMISS_KEY);
-        if (stored && Date.now() - Number(stored) < COOLDOWN_MS) {
-            dismissed.value = true;
-        }
+    const stored = localStorage.getItem(DISMISS_KEY);
+    if (stored && Date.now() - Number(stored) < COOLDOWN_MS) {
+        dismissed.value = true;
     }
 
     const isStandalone = computed(() => {
-        if (typeof window === 'undefined') return false;
         return (
             (navigator as any).standalone === true ||
             window.matchMedia('(display-mode: standalone)').matches
@@ -29,7 +26,6 @@ export function usePwaInstall() {
     });
 
     const isIos = computed(() => {
-        if (typeof navigator === 'undefined') return false;
         // iPadOS 13+ reports as "Macintosh" — detect via touch support
         return /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
@@ -37,12 +33,10 @@ export function usePwaInstall() {
 
     const canInstall = computed(() => deferredPrompt.value !== null);
 
-    if (typeof window !== 'undefined') {
-        useEventListener(window, 'beforeinstallprompt', (e: Event) => {
-            e.preventDefault();
-            deferredPrompt.value = e as BeforeInstallPromptEvent;
-        });
-    }
+    useEventListener(window, 'beforeinstallprompt', (e: Event) => {
+        e.preventDefault();
+        deferredPrompt.value = e as BeforeInstallPromptEvent;
+    });
 
     async function promptInstall(): Promise<void> {
         if (!deferredPrompt.value) return;

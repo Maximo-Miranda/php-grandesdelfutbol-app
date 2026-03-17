@@ -33,10 +33,7 @@ function submit() {
     form.put(`/clubs/${props.club.ulid}`);
 }
 
-const joinUrl = computed(() => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${origin}/join/${props.club.slug}`;
-});
+const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
 
 const copied = ref(false);
 
@@ -46,7 +43,7 @@ async function copyLink() {
     setTimeout(() => (copied.value = false), 2000);
 }
 
-const canShare = computed(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+const canShare = computed(() => typeof navigator.share === 'function');
 
 async function shareLink() {
     try {
