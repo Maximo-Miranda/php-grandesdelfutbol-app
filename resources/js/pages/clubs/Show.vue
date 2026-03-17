@@ -66,9 +66,7 @@ function formatMatchTime(dateStr: string): string {
     return formatTime(dateStr, { hour12: true });
 }
 
-const currentMonthName = computed(() => {
-    return new Date().toLocaleDateString('es', { month: 'long' });
-});
+const currentMonthName = computed(() => new Date().toLocaleDateString('es', { month: 'long' }));
 </script>
 
 <template>
