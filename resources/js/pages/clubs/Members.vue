@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubMember } from '@/types';
 
 type Invitation = {
@@ -92,8 +93,8 @@ function invitationStatus(inv: Invitation): { label: string; variant: 'default' 
     return { label: inv.status, variant: 'outline' };
 }
 
-function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('es', { day: 'numeric', month: 'short' });
+function formatShortDate(dateStr: string): string {
+    return formatDate(dateStr, { day: 'numeric', month: 'short' });
 }
 
 // --- Actions ---
@@ -308,7 +309,7 @@ function leaveClub() {
                                 <p class="text-xs text-muted-foreground">
                                     <span v-if="inv.inviter">por {{ inv.inviter.name }}</span>
                                     <span v-if="inv.inviter"> &middot; </span>
-                                    {{ formatDate(inv.created_at) }}
+                                    {{ formatShortDate(inv.created_at) }}
                                 </p>
                             </div>
                             <Badge :variant="invitationStatus(inv).variant" class="shrink-0 text-xs">{{ invitationStatus(inv).label }}</Badge>

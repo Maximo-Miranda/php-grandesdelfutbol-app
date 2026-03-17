@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
+import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 
 type PlayerStats = {
@@ -39,16 +40,14 @@ const userName = computed(() => {
 
 const nextMatch = computed(() => props.upcomingMatches?.data?.[0] ?? null);
 
-function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })
+function formatMatchDate(dateStr: string): string {
+    return formatDate(dateStr, { weekday: 'short', day: 'numeric', month: 'short' })
         + ' a las '
-        + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        + formatTime(dateStr);
 }
 
 function formatShortDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+    return formatDate(dateStr, { day: 'numeric', month: 'short' });
 }
 </script>
 
@@ -103,7 +102,7 @@ function formatShortDate(dateStr: string): string {
                     <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
                     <p class="text-lg font-bold">{{ nextMatch.title }}</p>
                     <p class="text-sm text-muted-foreground">
-                        {{ formatDate(nextMatch.scheduled_at) }}
+                        {{ formatMatchDate(nextMatch.scheduled_at) }}
                         <span v-if="nextMatch.field"> &middot; {{ nextMatch.field.name }}</span>
                     </p>
                     <div class="mt-2 flex items-center gap-2">
@@ -219,7 +218,7 @@ function formatShortDate(dateStr: string): string {
                                 <div class="min-w-0">
                                     <p class="truncate font-medium">{{ match.title }}</p>
                                     <p class="text-xs text-muted-foreground">
-                                        {{ formatDate(match.scheduled_at) }}
+                                        {{ formatMatchDate(match.scheduled_at) }}
                                         <span v-if="match.club"> &middot; {{ match.club.name }}</span>
                                     </p>
                                 </div>

@@ -40,6 +40,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
 
 type PaginatedPlayers = {
@@ -87,29 +88,24 @@ const statusColor: Record<string, string> = {
 };
 
 // --- Date helpers ---
-const scheduledDate = new Date(props.match.scheduled_at);
-
 const formattedDate = computed(() => {
-    return scheduledDate.toLocaleDateString('es', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-    }).replace(/^\w/, c => c.toUpperCase());
+    return formatDate(props.match.scheduled_at, { weekday: 'long', day: 'numeric', month: 'long' })
+        .replace(/^\w/, c => c.toUpperCase());
 });
 
 const formattedTime = computed(() => {
-    return scheduledDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return formatTime(props.match.scheduled_at);
 });
 
 const arrivalTime = computed(() => {
-    const d = new Date(scheduledDate);
+    const d = new Date(props.match.scheduled_at);
     d.setMinutes(d.getMinutes() - props.match.arrival_minutes);
-    return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return formatTime(d.toISOString());
 });
 
 // --- Registration gate ---
 const registrationOpensAt = computed(() => {
-    const d = new Date(scheduledDate);
+    const d = new Date(props.match.scheduled_at);
     d.setHours(d.getHours() - props.match.registration_opens_hours);
     return d.getTime();
 });
@@ -190,12 +186,12 @@ const myRoleLabel = computed(() => {
 const canManage = computed(() => props.isAdmin && (props.match.status === 'upcoming' || props.match.status === 'in_progress'));
 const showControlPanel = computed(() => props.isAdmin && props.match.status === 'in_progress');
 const canStartMatch = computed(() => {
-    const msUntilMatch = scheduledDate.getTime() - now.value;
+    const msUntilMatch = new Date(props.match.scheduled_at).getTime() - now.value;
     return msUntilMatch <= 30 * 60 * 1000;
 });
 const startMatchHint = computed(() => {
     if (canStartMatch.value) return null;
-    const msUntil = scheduledDate.getTime() - now.value - 30 * 60 * 1000;
+    const msUntil = new Date(props.match.scheduled_at).getTime() - now.value - 30 * 60 * 1000;
     const mins = Math.ceil(msUntil / 60000);
     if (mins >= 60) {
         const h = Math.floor(mins / 60);
@@ -272,8 +268,8 @@ function teamColor(team: 'a' | 'b' | null): string | null {
 
 // --- Calendar ---
 function googleCalendarUrl(): string {
-    const start = scheduledDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const endDate = new Date(scheduledDate);
+    const start = new Date(props.match.scheduled_at).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const endDate = new Date(props.match.scheduled_at);
     endDate.setMinutes(endDate.getMinutes() + props.match.duration_minutes);
     const end = endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const details = props.match.notes ?? '';

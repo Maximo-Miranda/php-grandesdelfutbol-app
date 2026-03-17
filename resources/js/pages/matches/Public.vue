@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDateTime } from '@/lib/utils';
 import type { FootballMatch } from '@/types';
 
 type Props = { match: FootballMatch & { club: { name: string } } };
@@ -22,7 +23,7 @@ defineProps<Props>();
                 <Card>
                     <CardHeader><CardTitle>Detalles</CardTitle></CardHeader>
                     <CardContent class="space-y-2 text-sm">
-                        <p><strong>Fecha:</strong> {{ new Date(match.scheduled_at).toLocaleString() }}</p>
+                        <p><strong>Fecha:</strong> {{ formatDateTime(match.scheduled_at) }}</p>
                         <p><strong>Duración:</strong> {{ match.duration_minutes }} min</p>
                         <p v-if="match.field"><strong>Cancha:</strong> {{ match.field.name }}</p>
                         <p v-if="match.notes"><strong>Notas:</strong> {{ match.notes }}</p>

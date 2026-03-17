@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate as fmtDate, formatTime as fmtTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch } from '@/types';
 
 type Paginated<T> = { data: T[]; next_page_url: string | null };
@@ -43,13 +44,11 @@ const statusLabel: Record<string, string> = {
 };
 
 function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
+    return fmtDate(dateStr, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function formatTime(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    return fmtTime(dateStr);
 }
 </script>
 

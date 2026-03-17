@@ -4,6 +4,7 @@ import { CalendarDays, ChevronRight, Clock, Handshake, Plus, Shield, Trophy, Use
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 
 type Props = {
@@ -19,11 +20,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mis Clubes', href: '/clubs' },
 ];
 
-function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })
+function formatMatchDate(dateStr: string): string {
+    return formatDate(dateStr, { weekday: 'short', day: 'numeric', month: 'short' })
         + ' a las '
-        + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        + formatTime(dateStr);
 }
 </script>
 
@@ -87,7 +87,7 @@ function formatDate(dateStr: string): string {
                 <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Proximo partido</p>
                 <p class="text-lg font-bold">{{ nextMatch.title }}</p>
                 <p class="text-sm text-muted-foreground">
-                    {{ formatDate(nextMatch.scheduled_at) }}
+                    {{ formatMatchDate(nextMatch.scheduled_at) }}
                     <span v-if="nextMatch.field"> &middot; {{ nextMatch.field.name }}</span>
                 </p>
                 <div class="mt-2 flex items-center gap-2">

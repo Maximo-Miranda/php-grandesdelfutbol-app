@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/types';
 
 type PositionOption = { value: string; label: string };
@@ -157,19 +158,13 @@ const topScorer = computed(() => {
 });
 
 // --- Date helpers ---
-const scheduledDate = new Date(props.match.scheduled_at);
-
 const formattedDate = computed(() =>
-    scheduledDate.toLocaleDateString('es', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).replace(/^\w/, c => c.toUpperCase()),
+    formatDate(props.match.scheduled_at, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        .replace(/^\w/, c => c.toUpperCase()),
 );
 
 const formattedTime = computed(() =>
-    scheduledDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    formatTime(props.match.scheduled_at),
 );
 
 const matchDuration = computed(() => {
@@ -228,8 +223,7 @@ function saveYoutubeUrl() {
 }
 
 function formatStatsDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDate(dateStr, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // --- Manage players (admin) ---

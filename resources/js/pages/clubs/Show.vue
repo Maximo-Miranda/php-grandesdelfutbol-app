@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubMember, FootballMatch } from '@/types';
 
 type Props = {
@@ -51,13 +52,11 @@ const confirmedCount = computed(() => {
 });
 
 function formatMatchDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+    return formatDate(dateStr, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function formatMatchTime(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return formatTime(dateStr, { hour12: true });
 }
 </script>
 
