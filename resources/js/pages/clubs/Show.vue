@@ -33,7 +33,10 @@ const base = `/clubs/${props.club.ulid}`;
 
 const { role, roleDisplay, isAdmin, isOwner } = useClubPermissions();
 
-const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
+const joinUrl = computed(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/join/${props.club.slug}`;
+});
 const copied = ref(false);
 
 function copyJoinLink() {

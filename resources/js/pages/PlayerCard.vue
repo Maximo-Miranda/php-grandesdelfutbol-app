@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
-import { toPng } from 'html-to-image';
 import { Check, Download, Goal, Loader2, Share2, Shield, Sparkles, Trophy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -66,6 +65,7 @@ async function generateImage(): Promise<Blob | null> {
     if (!cardRef.value) return null;
     isGenerating.value = true;
     try {
+        const { toPng } = await import('html-to-image');
         const dataUrl = await toPng(cardRef.value, {
             pixelRatio: 3,
             cacheBust: true,

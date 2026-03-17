@@ -37,10 +37,12 @@ export function usePwaInstall() {
 
     const canInstall = computed(() => deferredPrompt.value !== null);
 
-    useEventListener(window, 'beforeinstallprompt', (e: Event) => {
-        e.preventDefault();
-        deferredPrompt.value = e as BeforeInstallPromptEvent;
-    });
+    if (typeof window !== 'undefined') {
+        useEventListener(window, 'beforeinstallprompt', (e: Event) => {
+            e.preventDefault();
+            deferredPrompt.value = e as BeforeInstallPromptEvent;
+        });
+    }
 
     async function promptInstall(): Promise<void> {
         if (!deferredPrompt.value) return;
