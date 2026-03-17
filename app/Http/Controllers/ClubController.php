@@ -108,9 +108,9 @@ class ClubController extends Controller
 
         $club->load('owner', 'members.user');
         $club->loadCount([
-            'members' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Approved),
-            'members as pending_members_count' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Pending),
-            'matches as completed_matches_count' => fn ($query) => $query->where('status', \App\Enums\MatchStatus::Completed),
+            'members' => fn ($query) => $query->where('status', ClubMemberStatus::Approved),
+            'members as pending_members_count' => fn ($query) => $query->where('status', ClubMemberStatus::Pending),
+            'matches as completed_matches_count' => fn ($query) => $query->where('status', MatchStatus::Completed),
             'players' => fn ($query) => $query->where('is_active', true),
         ]);
 
@@ -123,7 +123,7 @@ class ClubController extends Controller
         $today = Carbon::now();
         $currentDay = $today->day;
         $birthdays = $club->members()
-            ->where('status', \App\Enums\ClubMemberStatus::Approved)
+            ->where('status', ClubMemberStatus::Approved)
             ->whereHas('user.playerProfile', fn ($q) => $q->whereMonth('date_of_birth', $today->month))
             ->with('user.playerProfile')
             ->get()
