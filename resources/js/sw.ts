@@ -58,7 +58,7 @@ self.addEventListener('push', (event) => {
         self.registration.showNotification((payload.title as string) ?? 'Grandes del Futbol', {
             body: payload.body as string,
             icon: (payload.icon as string) ?? '/pwa-192x192.png',
-            badge: (payload.badge as string) ?? '/pwa-192x192.png',
+            badge: (payload.badge as string) ?? '/badge-96x96.png',
             data: (payload.data as object) ?? {},
             tag: payload.tag as string,
         }),
