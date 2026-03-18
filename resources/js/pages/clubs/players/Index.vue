@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
-import { Plus, Search, UserPlus, UserX } from 'lucide-vue-next';
+import { Bell, BellOff, Plus, Search, UserPlus, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,13 +109,31 @@ function getGoalsPerMatch(player: Player): string {
                                     <span v-if="isAdmin && !player.user_id" class="text-amber-500" title="Sin usuario asociado">
                                         <UserX class="size-3.5" />
                                     </span>
+                                    <span v-if="isAdmin && player.user_id && player.has_push" class="text-green-500/60" title="Notificaciones activas">
+                                        <Bell class="size-3" />
+                                    </span>
+                                    <span v-if="isAdmin && player.user_id && !player.has_push" class="text-muted-foreground/40" title="Sin notificaciones">
+                                        <BellOff class="size-3" />
+                                    </span>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3 text-sm text-muted-foreground">
-                                <span>{{ player.matches_played ?? 0 }} PJ</span>
-                                <span class="text-primary">{{ player.goals ?? 0 }}</span>
-                                <span>{{ player.assists ?? 0 }}</span>
-                                <span>{{ getGoalsPerMatch(player) }} G+A</span>
+                            <div class="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                                <div class="flex flex-col items-center">
+                                    <span class="font-semibold text-foreground">{{ player.matches_played ?? 0 }}</span>
+                                    <span class="text-[10px]">PJ</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <span class="font-semibold text-primary">{{ player.goals ?? 0 }}</span>
+                                    <span class="text-[10px]">Goles</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <span class="font-semibold text-foreground">{{ player.fouls ?? 0 }}</span>
+                                    <span class="text-[10px]">Faltas</span>
+                                </div>
+                                <div v-if="player.saves" class="flex flex-col items-center">
+                                    <span class="font-semibold text-blue-400">{{ player.saves }}</span>
+                                    <span class="text-[10px]">Ataj</span>
+                                </div>
                             </div>
                         </Link>
                     </div>

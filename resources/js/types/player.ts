@@ -24,6 +24,7 @@ export type Player = {
     penalties_scored: number;
     penalties_missed: number;
     is_active: boolean;
+    has_push?: boolean;
     user?: User;
     club?: Club;
     created_at: string;

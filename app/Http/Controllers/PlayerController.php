@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use NotificationChannels\WebPush\PushSubscription;
 
 class PlayerController extends Controller
 {
@@ -27,11 +28,22 @@ class PlayerController extends Controller
     {
         Gate::authorize('viewAny', [Player::class, $club]);
 
+        $user = request()->user();
+        $isAdmin = $club->isAdminOrOwner($user);
+
         return Inertia::render('clubs/players/Index', [
             'club' => $club,
+            'isAdmin' => $isAdmin,
             'players' => Inertia::scroll(
                 fn () => $club->players()
                     ->with('user.playerProfile')
+                    ->when($isAdmin, fn ($q) => $q->select('players.*')->addSelect([
+                        'has_push' => PushSubscription::query()
+                            ->selectRaw('1')
+                            ->whereColumn('subscribable_id', 'players.user_id')
+                            ->where('subscribable_type', User::class)
+                            ->limit(1),
+                    ]))
                     ->orderByRaw('(COALESCE(goals, 0) + COALESCE(assists, 0)) DESC')
                     ->simplePaginate(20),
             ),
