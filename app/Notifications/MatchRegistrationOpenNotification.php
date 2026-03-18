@@ -43,7 +43,7 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
             ->title('Convocatoria abierta')
             ->body("{$this->matchTitle} — Confirma tu asistencia")
             ->icon('/pwa-192x192.png')
-            ->badge('/pwa-192x192.png')
+            ->badge('/badge-96x96.png')
             ->tag("match-registration-{$this->match->id}")
             ->data(['url' => $this->matchUrl]);
     }

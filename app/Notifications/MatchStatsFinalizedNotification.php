@@ -43,7 +43,7 @@ class MatchStatsFinalizedNotification extends Notification implements ShouldQueu
             ->title('Estadísticas disponibles')
             ->body("{$this->matchTitle} — Revisa tus números")
             ->icon('/pwa-192x192.png')
-            ->badge('/pwa-192x192.png')
+            ->badge('/badge-96x96.png')
             ->tag("match-stats-{$this->match->id}")
             ->data(['url' => $this->summaryUrl]);
     }

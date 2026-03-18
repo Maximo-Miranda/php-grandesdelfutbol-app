@@ -43,7 +43,7 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
             ->title('Resumen del partido')
             ->body("{$this->matchTitle} — Video disponible")
             ->icon('/pwa-192x192.png')
-            ->badge('/pwa-192x192.png')
+            ->badge('/badge-96x96.png')
             ->tag("match-video-{$this->match->id}")
             ->data(['url' => $this->summaryUrl]);
     }
