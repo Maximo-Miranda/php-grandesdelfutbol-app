@@ -233,6 +233,8 @@ test('past matches are created with correct timestamps', function () {
 });
 
 test('admins can add youtube url to matches', function () {
+    Illuminate\Support\Facades\Bus::fake([\App\Jobs\PublishClubNtfy::class]);
+
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
