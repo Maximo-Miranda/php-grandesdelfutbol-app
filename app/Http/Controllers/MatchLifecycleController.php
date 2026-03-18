@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MatchStatus;
+use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Notifications\MatchStatsFinalizedNotification;
@@ -76,7 +77,14 @@ class MatchLifecycleController extends Controller
 
         $this->statService->finalizeStats($match);
 
-        Notification::send($club->ntfyEnabledMembers(), new MatchStatsFinalizedNotification($match));
+        $notification = new MatchStatsFinalizedNotification($match);
+
+        $members = $club->approvedMemberUsersWithPush();
+        if ($members->isNotEmpty()) {
+            Notification::send($members, $notification);
+        }
+
+        PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
 
         return back()->with('success', 'Estadísticas registradas.');
     }

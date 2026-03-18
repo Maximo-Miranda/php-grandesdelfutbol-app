@@ -24,9 +24,15 @@ export default defineConfig({
             formVariants: true,
         }),
         VitePWA({
+            strategies: 'injectManifest',
+            srcDir: 'resources/js',
+            filename: 'sw.ts',
             registerType: 'prompt',
             injectRegister: null,
             scope: '/',
+            injectManifest: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+            },
             manifest: {
                 name: 'Grandes del Futbol',
                 short_name: 'GDF',
@@ -84,33 +90,6 @@ export default defineConfig({
                         sizes: '750x1334',
                         type: 'image/png',
                         form_factor: 'narrow',
-                    },
-                ],
-            },
-            workbox: {
-                navigateFallback: null,
-                runtimeCaching: [
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-                        handler: 'StaleWhileRevalidate',
-                        options: {
-                            cacheName: 'images',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 30,
-                            },
-                        },
-                    },
-                    {
-                        urlPattern: /\.(?:woff2?|ttf|eot)$/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'fonts',
-                            expiration: {
-                                maxEntries: 20,
-                                maxAgeSeconds: 60 * 60 * 24 * 365,
-                            },
-                        },
                     },
                 ],
             },

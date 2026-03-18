@@ -1,14 +1,17 @@
 <?php
 
+use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
 use App\Models\User;
 use App\Notifications\MatchStatsFinalizedNotification;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 
-test('notifies all club members with ntfy when stats are finalized', function () {
+test('dispatches web push and ntfy when stats are finalized', function () {
     Notification::fake();
+    Bus::fake([PublishClubNtfy::class]);
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -16,18 +19,18 @@ test('notifies all club members with ntfy when stats are finalized', function ()
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $memberWithNtfy = User::factory()->withNtfy()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithNtfy->id]);
-
     $this->actingAs($admin)
         ->post(route('clubs.matches.finalizeStats', [$club, $match]))
         ->assertRedirect();
 
-    Notification::assertSentTo($memberWithNtfy, MatchStatsFinalizedNotification::class);
+    Bus::assertDispatched(PublishClubNtfy::class, function ($job) use ($club) {
+        return $job->club->id === $club->id;
+    });
 });
 
-test('does not notify club members without ntfy enabled when stats are finalized', function () {
+test('sends web push to members with push subscriptions when stats are finalized', function () {
     Notification::fake();
+    Bus::fake([PublishClubNtfy::class]);
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -35,22 +38,26 @@ test('does not notify club members without ntfy enabled when stats are finalized
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $memberWithNtfy = User::factory()->withNtfy()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithNtfy->id]);
+    // Member with push subscription
+    $memberWithPush = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithPush->id]);
+    $memberWithPush->updatePushSubscription('https://push.example.com/1', 'key1', 'auth1');
 
-    $memberWithoutNtfy = User::factory()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithoutNtfy->id]);
+    // Member without push subscription
+    $memberWithout = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithout->id]);
 
     $this->actingAs($admin)
         ->post(route('clubs.matches.finalizeStats', [$club, $match]))
         ->assertRedirect();
 
-    Notification::assertSentTo($memberWithNtfy, MatchStatsFinalizedNotification::class);
-    Notification::assertNotSentTo($memberWithoutNtfy, MatchStatsFinalizedNotification::class);
+    Notification::assertSentTo($memberWithPush, MatchStatsFinalizedNotification::class);
+    Notification::assertNotSentTo($memberWithout, MatchStatsFinalizedNotification::class);
 });
 
-test('notifies club members who did not attend the match when stats are finalized', function () {
+test('always dispatches ntfy job even when no push subscriptions exist', function () {
     Notification::fake();
+    Bus::fake([PublishClubNtfy::class]);
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -58,13 +65,10 @@ test('notifies club members who did not attend the match when stats are finalize
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    // Member with ntfy but NOT an attendee of this match
-    $nonAttendee = User::factory()->withNtfy()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $nonAttendee->id]);
-
     $this->actingAs($admin)
         ->post(route('clubs.matches.finalizeStats', [$club, $match]))
         ->assertRedirect();
 
-    Notification::assertSentTo($nonAttendee, MatchStatsFinalizedNotification::class);
+    Notification::assertNothingSent();
+    Bus::assertDispatched(PublishClubNtfy::class);
 });

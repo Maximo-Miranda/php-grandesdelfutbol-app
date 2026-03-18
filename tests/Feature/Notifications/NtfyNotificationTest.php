@@ -1,90 +1,57 @@
 <?php
 
-use App\Channels\NtfyChannel;
+use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\FootballMatch;
-use App\Models\User;
 use App\Notifications\MatchRegistrationOpenNotification;
 use App\Notifications\MatchStatsFinalizedNotification;
 use App\Notifications\MatchVideoUploadedNotification;
 use Illuminate\Support\Facades\Http;
+use NotificationChannels\WebPush\WebPushChannel;
 
-test('ntfy notification is sent when user has ntfy enabled', function () {
-    Http::fake();
-
+test('match registration open notification has correct ntfy payload', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->withNtfy()->create();
 
     $notification = new MatchRegistrationOpenNotification($match);
-    $channel = app(NtfyChannel::class);
-    $channel->send($user, $notification);
+    $payload = $notification->toNtfyPayload();
 
-    Http::assertSentCount(1);
+    expect($payload['title'])->toBe('Convocatoria abierta')
+        ->and($payload['priority'])->toBe(4)
+        ->and($payload['message'])->toContain($match->title)
+        ->and($payload['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}");
 });
 
-test('ntfy notification is not sent when user has ntfy disabled', function () {
-    Http::fake();
-
+test('match video uploaded notification has correct ntfy payload', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->create();
-
-    expect($user->hasNtfyEnabled())->toBeFalse();
-
-    $notification = new MatchRegistrationOpenNotification($match);
-    $channel = app(NtfyChannel::class);
-    $channel->send($user, $notification);
-
-    Http::assertNothingSent();
-});
-
-test('match registration open notification has correct ntfy content', function () {
-    $club = Club::factory()->create();
-    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->withNtfy()->create();
-
-    $notification = new MatchRegistrationOpenNotification($match);
-    $message = $notification->toNtfy($user);
-
-    expect($message->getTitle())->toBe('Convocatoria abierta')
-        ->and($message->getPriority())->toBe(4)
-        ->and($message->getBody())->toContain($match->title)
-        ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}");
-});
-
-test('match video uploaded notification has correct ntfy content', function () {
-    $club = Club::factory()->create();
-    $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->withNtfy()->create();
 
     $notification = new MatchVideoUploadedNotification($match);
-    $message = $notification->toNtfy($user);
+    $payload = $notification->toNtfyPayload();
 
-    expect($message->getTitle())->toBe('Resumen del partido')
-        ->and($message->getPriority())->toBe(3)
-        ->and($message->getBody())->toContain($match->title)
-        ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
+    expect($payload['title'])->toBe('Resumen del partido')
+        ->and($payload['priority'])->toBe(3)
+        ->and($payload['message'])->toContain($match->title)
+        ->and($payload['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
 });
 
-test('match stats finalized notification has correct ntfy content', function () {
+test('match stats finalized notification has correct ntfy payload', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->withNtfy()->create();
 
     $notification = new MatchStatsFinalizedNotification($match);
-    $message = $notification->toNtfy($user);
+    $payload = $notification->toNtfyPayload();
 
-    expect($message->getTitle())->toBe('Estadísticas disponibles')
-        ->and($message->getPriority())->toBe(3)
-        ->and($message->getBody())->toContain($match->title)
-        ->and($message->toArray()['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
+    expect($payload['title'])->toBe('Estadísticas disponibles')
+        ->and($payload['priority'])->toBe(3)
+        ->and($payload['message'])->toContain($match->title)
+        ->and($payload['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
 });
 
-test('match notifications only use ntfy channel', function () {
+test('match notifications use web push channel', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = User::factory()->withNtfy()->create();
+    $user = \App\Models\User::factory()->create();
 
     $notifications = [
         new MatchRegistrationOpenNotification($match),
@@ -94,9 +61,27 @@ test('match notifications only use ntfy channel', function () {
 
     foreach ($notifications as $notification) {
         $via = $notification->via($user);
-        expect($via)->toBe([NtfyChannel::class])
-            ->and($via)->not->toContain('mail');
+        expect($via)->toBe([WebPushChannel::class]);
     }
+});
+
+test('ntfy service publishes to club topic', function () {
+    Http::fake();
+
+    config(['services.ntfy.url' => 'https://push.example.com']);
+    config(['services.ntfy.token' => 'test-token']);
+
+    $club = Club::factory()->create();
+
+    $service = app(\App\Services\NtfyService::class);
+    $service->publish($club, ['message' => 'Test']);
+
+    Http::assertSent(function ($request) use ($club) {
+        return $request->url() === 'https://push.example.com'
+            && $request->hasHeader('Authorization', 'Bearer test-token')
+            && $request['topic'] === "gdf-{$club->ulid}"
+            && $request['message'] === 'Test';
+    });
 });
 
 test('ntfy service throws exception on http error', function () {
@@ -104,12 +89,27 @@ test('ntfy service throws exception on http error', function () {
         '*' => Http::response('Unauthorized', 401),
     ]);
 
-    $user = User::factory()->withNtfy()->create();
+    $club = Club::factory()->create();
 
     $service = app(\App\Services\NtfyService::class);
 
-    expect(fn () => $service->publish($user, ['message' => 'test']))
+    expect(fn () => $service->publish($club, ['message' => 'test']))
         ->toThrow(\Illuminate\Http\Client\RequestException::class);
+});
+
+test('publish club ntfy job publishes to ntfy service', function () {
+    Http::fake();
+
+    $club = Club::factory()->create();
+    $payload = ['message' => 'Test notification', 'title' => 'Test'];
+
+    $job = new PublishClubNtfy($club, $payload);
+    $job->handle(app(\App\Services\NtfyService::class));
+
+    Http::assertSent(function ($request) use ($club) {
+        return $request['topic'] === "gdf-{$club->ulid}"
+            && $request['message'] === 'Test notification';
+    });
 });
 
 test('all three match notifications use notifications queue', function () {
@@ -132,7 +132,7 @@ test('all three match notifications use notifications queue', function () {
 
 test('original notifications only use mail channel', function () {
     $club = Club::factory()->create();
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $invitation = \App\Models\ClubInvitation::factory()->create(['club_id' => $club->id]);
 
     $notifications = [
@@ -146,6 +146,12 @@ test('original notifications only use mail channel', function () {
     foreach ($notifications as $notification) {
         $via = $notification->via($user);
         expect($via)->toBe(['mail'])
-            ->and($via)->not->toContain(NtfyChannel::class);
+            ->and($via)->not->toContain(WebPushChannel::class);
     }
+});
+
+test('club ntfy topic uses club ulid', function () {
+    $club = Club::factory()->create();
+
+    expect($club->ntfyTopic())->toBe("gdf-{$club->ulid}");
 });

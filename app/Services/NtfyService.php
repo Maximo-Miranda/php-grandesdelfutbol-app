@@ -2,10 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\User;
+use App\Models\Club;
 use App\Notifications\Messages\NtfyMessage;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,14 +15,14 @@ class NtfyService
     }
 
     /**
-     * @throws RequestException
+     * @param  array<string, mixed>  $payload
+     *
      * @throws \Throwable
-     * @throws ConnectionException
      */
-    public function publish(User $user, array $payload): void
+    public function publish(Club $club, array $payload): void
     {
         $url = $this->baseUrl();
-        $payload['topic'] = $user->ntfyTopic();
+        $payload['topic'] = $club->ntfyTopic();
 
         try {
             Http::asJson()
@@ -33,7 +31,7 @@ class NtfyService
                 ->throw();
         } catch (\Throwable $e) {
             Log::warning('ntfy: failed to send notification', [
-                'user_id' => $user->id,
+                'club_id' => $club->id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -41,22 +39,11 @@ class NtfyService
         }
     }
 
-    public function sendTestNotification(User $user): void
+    public function sendTestNotification(Club $club): void
     {
-        $this->publish($user, NtfyMessage::create('Las notificaciones push están funcionando correctamente.')
+        $this->publish($club, NtfyMessage::create('Las notificaciones push están funcionando correctamente.')
             ->title('Grandes del Futbol')
             ->tags('white_check_mark,soccer')
-            ->click(route('ntfy.edit'))
             ->toArray());
-    }
-
-    public function confirmSetup(User $user): void
-    {
-        $user->update(['ntfy_enabled_at' => now()]);
-    }
-
-    public function disable(User $user): void
-    {
-        $user->update(['ntfy_enabled_at' => null]);
     }
 }

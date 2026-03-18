@@ -2,13 +2,13 @@
 
 namespace App\Notifications;
 
-use App\Channels\NtfyChannel;
 use App\Models\FootballMatch;
 use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\Middleware\RateLimited;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 class MatchVideoUploadedNotification extends Notification implements ShouldQueue
 {
@@ -31,24 +31,31 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
         $this->summaryUrl = route('clubs.matches.summary', [$match->club, $match]);
     }
 
-    /** @return array<int, object> */
-    public function middleware(object $notifiable, string $channel): array
-    {
-        return [new RateLimited('ntfy')];
-    }
-
     /** @return array<int, string> */
     public function via(object $notifiable): array
     {
-        return [NtfyChannel::class];
+        return [WebPushChannel::class];
     }
 
-    public function toNtfy(object $notifiable): NtfyMessage
+    public function toWebPush(object $notifiable, object $notification): WebPushMessage
+    {
+        return (new WebPushMessage)
+            ->title('Resumen del partido')
+            ->body("{$this->matchTitle} — Video disponible")
+            ->icon('/pwa-192x192.png')
+            ->badge('/pwa-192x192.png')
+            ->tag("match-video-{$this->match->id}")
+            ->data(['url' => $this->summaryUrl]);
+    }
+
+    /** @return array<string, mixed> */
+    public function toNtfyPayload(): array
     {
         return NtfyMessage::create("{$this->matchTitle} — Video disponible")
             ->title('Resumen del partido')
             ->tags('clapper')
             ->priority(3)
-            ->click($this->summaryUrl);
+            ->click($this->summaryUrl)
+            ->toArray();
     }
 }

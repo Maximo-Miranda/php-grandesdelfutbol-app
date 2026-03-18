@@ -6,6 +6,7 @@ use App\Enums\MatchStatus;
 use App\Enums\PlayerPosition;
 use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
+use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Notifications\MatchVideoUploadedNotification;
@@ -84,8 +85,7 @@ class MatchController extends Controller
         $user = request()->user();
         $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
 
-        $member = $club->members()->where('user_id', $user->id)->first();
-        $isAdmin = $member && in_array($member->role->value, ['owner', 'admin']);
+        $isAdmin = $club->isAdminOrOwner($user);
 
         if ($match->status === MatchStatus::InProgress && $isAdmin) {
             return Inertia::render('clubs/matches/Live', [
@@ -150,7 +150,14 @@ class MatchController extends Controller
         $match->update($request->validated());
 
         if (! $hadVideo && $match->youtube_url !== null) {
-            Notification::send($club->ntfyEnabledMembers(), new MatchVideoUploadedNotification($match));
+            $notification = new MatchVideoUploadedNotification($match);
+
+            $members = $club->approvedMemberUsersWithPush();
+            if ($members->isNotEmpty()) {
+                Notification::send($members, $notification);
+            }
+
+            PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
         }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
@@ -184,11 +191,9 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $user = request()->user();
         $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
 
-        $member = $club->members()->where('user_id', $user->id)->first();
-        $isAdmin = $member && in_array($member->role->value, ['owner', 'admin']);
+        $isAdmin = $club->isAdminOrOwner(request()->user());
 
         return Inertia::render('clubs/matches/Summary', [
             'club' => $club,

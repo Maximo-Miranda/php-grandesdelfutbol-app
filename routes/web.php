@@ -4,6 +4,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubJoinController;
 use App\Http\Controllers\ClubMemberController;
+use App\Http\Controllers\ClubNotificationsController;
 use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationCodeController;
@@ -85,6 +86,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/complete', [MatchLifecycleController::class, 'complete'])->name('matches.complete');
         Route::post('matches/{match}/cancel', [MatchLifecycleController::class, 'cancel'])->name('matches.cancel');
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
+
+        Route::get('notifications', [ClubNotificationsController::class, 'show'])->name('notifications.show');
+        Route::post('notifications/test', [ClubNotificationsController::class, 'sendTest'])->name('notifications.test');
     });
 
     Route::get('player-profile', [PlayerProfileController::class, 'edit'])->name('player-profile.edit');

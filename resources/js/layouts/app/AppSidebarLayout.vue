@@ -8,8 +8,8 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import ClubMobileNav from '@/components/ClubMobileNav.vue';
 import MobileBottomNav from '@/components/MobileBottomNav.vue';
-import NtfySetupBanner from '@/components/NtfySetupBanner.vue';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue';
+import WebPushPrompt from '@/components/WebPushPrompt.vue';
 import ToastContainer from '@/components/ToastContainer.vue';
 import { useToast } from '@/composables/useToast';
 import type { BreadcrumbItem } from '@/types';
@@ -59,7 +59,7 @@ function goBack() {
         <AppContent variant="sidebar" class="overflow-x-hidden">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <ClubMobileNav />
-            <NtfySetupBanner />
+            <WebPushPrompt />
             <button
                 v-if="showBack"
                 type="button"

@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Settings\NtfyController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
+use App\Http\Controllers\WebPushController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -27,8 +27,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
 
-    Route::get('settings/notifications', [NtfyController::class, 'edit'])->name('ntfy.edit');
-    Route::post('settings/notifications/test', [NtfyController::class, 'sendTest'])->name('ntfy.test');
-    Route::post('settings/notifications/confirm', [NtfyController::class, 'confirm'])->name('ntfy.confirm');
-    Route::post('settings/notifications/disable', [NtfyController::class, 'disable'])->name('ntfy.disable');
+    Route::post('web-push/subscribe', [WebPushController::class, 'store'])->name('web-push.store');
+    Route::delete('web-push/subscribe', [WebPushController::class, 'destroy'])->name('web-push.destroy');
 });

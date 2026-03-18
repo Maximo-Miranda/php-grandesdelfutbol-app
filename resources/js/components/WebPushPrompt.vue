@@ -2,16 +2,29 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { Bell, ChevronRight } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { edit } from '@/routes/ntfy';
+import { useWebPush } from '@/composables/useWebPush';
 
-const page = usePage<{ ntfyEnabled: boolean }>();
-const visible = computed(() => !page.props.ntfyEnabled);
+const page = usePage<{ auth: { user: unknown }; currentClub?: { ulid: string } }>();
+const { isSupported, isSubscribed, permission, needsInstall } = useWebPush();
+
+const visible = computed(() =>
+    page.props.auth.user &&
+    page.props.currentClub &&
+    isSupported.value &&
+    !isSubscribed.value &&
+    !needsInstall.value &&
+    permission.value !== 'denied',
+);
+
+const href = computed(() =>
+    page.props.currentClub ? `/clubs/${page.props.currentClub.ulid}/notifications` : '#',
+);
 </script>
 
 <template>
     <Link
         v-if="visible"
-        :href="edit()"
+        :href="href"
         class="flex items-center gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2.5 transition-colors hover:bg-primary/15"
     >
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/20">

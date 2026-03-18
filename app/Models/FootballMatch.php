@@ -184,7 +184,6 @@ class FootballMatch extends Model
     {
         return $this->attendances()
             ->where('status', AttendanceStatus::Confirmed)
-            ->whereHas('player.user', fn ($q) => $q->whereNotNull('ntfy_enabled_at'))
             ->with('player.user')
             ->get()
             ->pluck('player.user')

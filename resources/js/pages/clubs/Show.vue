@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Badge } from '@/components/ui/badge';
@@ -235,6 +235,19 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                             {{ club.pending_members_count }} solicitud{{ club.pending_members_count > 1 ? 'es' : '' }} pendiente{{ club.pending_members_count > 1 ? 's' : '' }}
                         </p>
                         <p v-else class="text-sm text-muted-foreground">Gestionar miembros del club</p>
+                    </div>
+                </Link>
+
+                <Link
+                    :href="`${base}/notifications`"
+                    class="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+                >
+                    <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                        <Bell class="size-5" />
+                    </div>
+                    <div>
+                        <p class="font-semibold">Notificaciones</p>
+                        <p class="text-sm text-muted-foreground">Push y alertas del club</p>
                     </div>
                 </Link>
 

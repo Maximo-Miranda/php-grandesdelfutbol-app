@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\ClubMemberStatus;
 use App\Enums\MatchStatus;
+use App\Jobs\PublishClubNtfy;
 use App\Models\FootballMatch;
 use App\Notifications\MatchRegistrationOpenNotification;
 use Illuminate\Console\Command;
@@ -42,25 +42,22 @@ class NotifyMatchRegistrationOpen extends Command
 
         $query->chunkById(100, function ($matches) {
             foreach ($matches as $match) {
-                $users = $match->club
-                    ->members()
-                    ->where('status', ClubMemberStatus::Approved)
-                    ->whereHas('user', fn ($q) => $q->whereNotNull('ntfy_enabled_at'))
-                    ->with('user')
-                    ->get()
-                    ->pluck('user');
+                $notification = new MatchRegistrationOpenNotification($match);
 
-                if ($users->isEmpty()) {
-                    $this->info("Match #{$match->id} '{$match->title}': no eligible users with ntfy enabled.");
-                    Log::info('matches:notify-registration-open — no eligible users', ['match_id' => $match->id]);
-                } else {
-                    Notification::send($users, new MatchRegistrationOpenNotification($match));
-                    $this->info("Match #{$match->id} '{$match->title}': notified {$users->count()} user(s).");
-                    Log::info('matches:notify-registration-open — notified', [
-                        'match_id' => $match->id,
-                        'user_count' => $users->count(),
-                    ]);
+                $users = $match->club->approvedMemberUsersWithPush();
+
+                if ($users->isNotEmpty()) {
+                    Notification::send($users, $notification);
+                    $this->info("Match #{$match->id} '{$match->title}': web push sent to {$users->count()} user(s).");
                 }
+
+                // ntfy to club topic
+                PublishClubNtfy::dispatch($match->club, $notification->toNtfyPayload());
+
+                Log::info('matches:notify-registration-open — notified', [
+                    'match_id' => $match->id,
+                    'web_push_count' => $users->count(),
+                ]);
 
                 $match->update(['registration_notified_at' => now()]);
             }
