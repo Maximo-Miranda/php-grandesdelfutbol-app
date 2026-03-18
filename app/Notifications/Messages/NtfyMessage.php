@@ -12,12 +12,18 @@ class NtfyMessage
 
     protected ?string $clickUrl = null;
 
+    protected ?string $icon = null;
+
     protected bool $useMarkdown = false;
 
     /** @var array<int, array{action: string, label: string, url: string}> */
     protected array $actions = [];
 
-    public function __construct(protected string $body) {}
+    public function __construct(protected string $body)
+    {
+        $appUrl = rtrim((string) config('app.url'), '/');
+        $this->icon = $appUrl.'/notification-icon.svg';
+    }
 
     public static function create(string $body): self
     {
@@ -52,6 +58,13 @@ class NtfyMessage
         return $this;
     }
 
+    public function icon(string $url): self
+    {
+        $this->icon = $url;
+
+        return $this;
+    }
+
     public function markdown(): self
     {
         $this->useMarkdown = true;
@@ -79,6 +92,7 @@ class NtfyMessage
             'title' => $this->title,
             'tags' => $this->tags ? explode(',', $this->tags) : null,
             'click' => $this->clickUrl,
+            'icon' => $this->icon,
             'markdown' => $this->useMarkdown ?: null,
             'actions' => $this->actions ?: null,
         ], fn ($value) => $value !== null);
