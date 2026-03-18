@@ -9,8 +9,8 @@ import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import ClubMobileNav from '@/components/ClubMobileNav.vue';
 import MobileBottomNav from '@/components/MobileBottomNav.vue';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue';
-import WebPushPrompt from '@/components/WebPushPrompt.vue';
 import ToastContainer from '@/components/ToastContainer.vue';
+import WebPushPrompt from '@/components/WebPushPrompt.vue';
 import { useToast } from '@/composables/useToast';
 import type { BreadcrumbItem } from '@/types';
 

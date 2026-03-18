@@ -4,8 +4,8 @@ import { CalendarDays, ChevronRight, Clock, Goal, Handshake, Shield, Trophy, Use
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard } from '@/routes';
 import { formatDate, formatTime } from '@/lib/utils';
+import { dashboard } from '@/routes';
 import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 
 type PlayerStats = {
