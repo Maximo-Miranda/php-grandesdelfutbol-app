@@ -14,7 +14,6 @@ test('ntfy message fluent api builds correct array', function () {
         ->priority(4)
         ->tags('soccer,tada')
         ->click('https://example.com')
-        ->icon('https://example.com/custom-icon.png')
         ->markdown()
         ->action('View', 'https://example.com/view');
 
@@ -25,7 +24,6 @@ test('ntfy message fluent api builds correct array', function () {
         ->and($array['priority'])->toBe(4)
         ->and($array['tags'])->toBe(['soccer', 'tada'])
         ->and($array['click'])->toBe('https://example.com')
-        ->and($array['icon'])->toBe('https://example.com/custom-icon.png')
         ->and($array['markdown'])->toBeTrue()
         ->and($array['actions'])->toHaveCount(1)
         ->and($array['actions'][0])->toBe([
@@ -42,20 +40,11 @@ test('ntfy message omits optional fields when not set', function () {
 
     expect($array)->toHaveKey('message')
         ->and($array)->toHaveKey('priority')
-        ->and($array)->toHaveKey('icon')
         ->and($array)->not->toHaveKey('title')
         ->and($array)->not->toHaveKey('tags')
         ->and($array)->not->toHaveKey('click')
         ->and($array)->not->toHaveKey('markdown')
         ->and($array)->not->toHaveKey('actions');
-});
-
-test('ntfy message includes default icon from app url', function () {
-    $message = NtfyMessage::create('Test');
-
-    $array = $message->toArray();
-
-    expect($array['icon'])->toContain('/notification-icon.svg');
 });
 
 test('ntfy message getters return correct values', function () {
