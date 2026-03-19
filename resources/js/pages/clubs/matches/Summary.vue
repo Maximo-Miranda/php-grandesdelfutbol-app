@@ -8,8 +8,13 @@ import {
     ChevronUp,
     CircleDot,
     Clock,
+    CornerDownRight,
+    Crosshair,
+    Droplets,
+    Flag,
     MapPin,
     Minus,
+    Pause,
     Pencil,
     Play,
     Plus,
@@ -66,9 +71,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 function countTeamGoals(team: 'a' | 'b'): number {
     const opposite = team === 'a' ? 'b' : 'a';
     return (props.match.events ?? []).filter((e: MatchEvent) => {
+        const isGoalType = e.event_type === 'goal' || e.event_type === 'penalty_scored';
+        const isOwnGoal = e.event_type === 'own_goal';
+        if (!isGoalType && !isOwnGoal) return false;
+
+        if (!e.player_id) {
+            if (isGoalType) return e.team === team;
+            if (isOwnGoal) return e.team === opposite;
+            return false;
+        }
+
         const playerTeam = props.match.attendances?.find(a => a.player_id === e.player_id)?.team;
-        if (e.event_type === 'goal' || e.event_type === 'penalty_scored') return playerTeam === team;
-        if (e.event_type === 'own_goal') return playerTeam === opposite;
+        if (isGoalType) return playerTeam === team;
+        if (isOwnGoal) return playerTeam === opposite;
         return false;
     }).length;
 }
@@ -77,7 +92,7 @@ const teamAGoals = computed(() => countTeamGoals('a'));
 const teamBGoals = computed(() => countTeamGoals('b'));
 
 // --- Events ---
-const sortedEvents = computed(() => [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute));
+const sortedEvents = computed(() => [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute || a.second - b.second));
 
 const eventLabel: Record<string, string> = {
     goal: 'Gol',
@@ -93,12 +108,28 @@ const eventLabel: Record<string, string> = {
     injury: 'Lesión',
     foul: 'Falta',
     handball: 'Mano',
+    shot_on_target: 'Tiro al marco',
+    corner_kick: 'Tiro de esquina',
+    throw_in: 'Saque de banda',
+    offside: 'Fuera de juego',
+    team_foul: 'Falta (equipo)',
+    team_handball: 'Mano (equipo)',
+    team_penalty: 'Penal (equipo)',
     timeout: 'Tiempo',
+    ball_touched_referee: 'Balón tocó árbitro',
+    stoppage_start: 'Tiempo detenido',
+    stoppage_end: 'Reanudación',
+    water_break: 'Pausa hidratación',
 };
 
-function getPlayerTeam(playerId: number): 'a' | 'b' | null {
+function getPlayerTeam(playerId: number | null): 'a' | 'b' | null {
+    if (!playerId) return null;
     const att = props.match.attendances?.find(a => a.player_id === playerId);
     return att?.team ?? null;
+}
+
+function getEventTeam(event: MatchEvent): 'a' | 'b' | null {
+    return event.team ?? getPlayerTeam(event.player_id);
 }
 
 // --- Player stats ---
@@ -116,6 +147,7 @@ type PlayerStat = {
 const playerStats = computed(() => {
     const map = new Map<number, PlayerStat>();
     for (const event of props.match.events ?? []) {
+        if (!event.player_id) continue;
         if (!map.has(event.player_id)) {
             const att = props.match.attendances?.find(a => a.player_id === event.player_id);
             map.set(event.player_id, {
@@ -275,7 +307,40 @@ const showEditEvents = ref(false);
 const editSelectedPlayerId = ref<number | null>(null);
 const editSelectedPlayerName = ref('');
 const editMinute = ref(0);
+const editSecond = ref(0);
 const editSubmitting = ref(false);
+
+function adjustEditTime(delta: number) {
+    let totalSeconds = editMinute.value * 60 + editSecond.value + delta;
+    if (totalSeconds < 0) totalSeconds = 0;
+    if (totalSeconds > 200 * 60 + 59) totalSeconds = 200 * 60 + 59;
+    editMinute.value = Math.floor(totalSeconds / 60);
+    editSecond.value = totalSeconds % 60;
+}
+
+let editRepeatTimer: ReturnType<typeof setTimeout> | null = null;
+let editRepeatInterval: ReturnType<typeof setTimeout> | null = null;
+
+function startEditRepeat(delta: number) {
+    stopEditRepeat();
+    adjustEditTime(delta);
+    editRepeatTimer = setTimeout(() => {
+        let speed = 150;
+        const tick = () => {
+            adjustEditTime(delta);
+            speed = Math.max(50, speed - 10);
+            editRepeatInterval = setTimeout(tick, speed);
+        };
+        editRepeatInterval = setTimeout(tick, speed);
+    }, 400);
+}
+
+function stopEditRepeat() {
+    if (editRepeatTimer) { clearTimeout(editRepeatTimer); editRepeatTimer = null; }
+    if (editRepeatInterval) { clearTimeout(editRepeatInterval); editRepeatInterval = null; }
+}
+
+const showEditTimeHint = ref(true);
 
 const editEventTypes = [
     { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
@@ -291,7 +356,23 @@ const editEventTypes = [
     { value: 'injury', label: 'Lesión', icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20' },
     { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
     { value: 'handball', label: 'Mano', icon: Hand, color: 'text-orange-300', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+];
+
+const editTeamEventTypes = [
+    { value: 'goal', label: 'Gol', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20' },
+    { value: 'shot_on_target', label: 'Tiro al marco', icon: Crosshair, color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/30 hover:bg-teal-500/20' },
+    { value: 'corner_kick', label: 'Esquina', icon: CornerDownRight, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20' },
+    { value: 'throw_in', label: 'Saque banda', icon: ArrowLeftRight, color: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/30 hover:bg-slate-500/20' },
+    { value: 'offside', label: 'Fuera juego', icon: Flag, color: 'text-pink-400', bg: 'bg-pink-500/10 border-pink-500/30 hover:bg-pink-500/20' },
+];
+
+const editNeutralEventTypes = [
     { value: 'timeout', label: 'Tiempo', icon: Timer, color: 'text-zinc-300', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
+    { value: 'ball_touched_referee', label: 'Balón árbitro', icon: Shield, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
+    { value: 'stoppage_start', label: 'Detener', icon: Pause, color: 'text-yellow-300', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
+    { value: 'stoppage_end', label: 'Reanudar', icon: Play, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'water_break', label: 'Hidratación', icon: Droplets, color: 'text-blue-300', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
 ];
 
 const confirmedPlayers = computed(() =>
@@ -316,6 +397,7 @@ function addEvent(eventType: string) {
         player_id: editSelectedPlayerId.value,
         event_type: eventType,
         minute: editMinute.value,
+        second: editSecond.value,
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -324,6 +406,35 @@ function addEvent(eventType: string) {
             editSubmitting.value = false;
         },
         onError: () => { editSubmitting.value = false; },
+    });
+}
+
+function addTeamEvent(eventType: string, team: 'a' | 'b') {
+    if (editSubmitting.value) return;
+    editSubmitting.value = true;
+
+    router.post(`${base}/${props.match.ulid}/events`, {
+        event_type: eventType,
+        team,
+        minute: editMinute.value,
+        second: editSecond.value,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { editSubmitting.value = false; },
+    });
+}
+
+function addNeutralEvent(eventType: string) {
+    if (editSubmitting.value) return;
+    editSubmitting.value = true;
+
+    router.post(`${base}/${props.match.ulid}/events`, {
+        event_type: eventType,
+        minute: editMinute.value,
+        second: editSecond.value,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { editSubmitting.value = false; },
     });
 }
 
@@ -502,13 +613,13 @@ function submitCreatePlayer() {
                         v-for="event in sortedEvents"
                         :key="event.id"
                         class="relative flex items-center gap-2 py-1.5"
-                        :class="getPlayerTeam(event.player_id) === 'b' ? 'flex-row-reverse' : ''"
+                        :class="getEventTeam(event) === 'b' ? 'flex-row-reverse' : ''"
                     >
                         <!-- Event card -->
                         <div
                             class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2"
-                            :class="getPlayerTeam(event.player_id) === 'b' ? 'flex-row-reverse text-right' : ''"
-                            :style="{ borderColor: teamColor(getPlayerTeam(event.player_id)) + '40', backgroundColor: teamColor(getPlayerTeam(event.player_id)) + '08' }"
+                            :class="getEventTeam(event) === 'b' ? 'flex-row-reverse text-right' : ''"
+                            :style="{ borderColor: teamColor(getEventTeam(event)) + '40', backgroundColor: teamColor(getEventTeam(event)) + '08' }"
                         >
                             <CircleDot v-if="event.event_type === 'goal' || event.event_type === 'penalty_scored'" class="size-3.5 shrink-0 text-emerald-400" />
                             <RectangleVertical v-else-if="event.event_type === 'yellow_card'" class="size-3.5 shrink-0 text-yellow-400" />
@@ -522,6 +633,9 @@ function submitCreatePlayer() {
                                     :href="`/clubs/${club.ulid}/players/${event.player.ulid}`"
                                     class="block truncate text-sm font-medium hover:text-primary hover:underline"
                                 >{{ event.player.display_name }}</Link>
+                                <span v-else-if="event.team" class="block truncate text-sm font-medium">
+                                    {{ event.team === 'a' ? match.team_a_name : match.team_b_name }}
+                                </span>
                                 <p class="text-[10px] text-muted-foreground">{{ eventLabel[event.event_type] ?? event.event_type }}</p>
                             </div>
                             <button
@@ -534,9 +648,14 @@ function submitCreatePlayer() {
                         </div>
 
                         <!-- Minute bubble (center) -->
-                        <span class="z-10 flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-bold tabular-nums">
-                            {{ event.minute }}'
-                        </span>
+                        <div class="z-10 flex shrink-0 flex-col items-center">
+                            <span class="flex size-10 items-center justify-center rounded-full border border-border bg-card text-xs font-bold tabular-nums">
+                                {{ event.minute }}<span class="text-[8px] text-muted-foreground">'</span>
+                            </span>
+                            <span v-if="event.second > 0" class="mt-0.5 text-[8px] tabular-nums text-muted-foreground">
+                                {{ String(event.second).padStart(2, '0') }}s
+                            </span>
+                        </div>
 
                         <!-- Spacer for the other side -->
                         <div class="flex-1"></div>
@@ -664,24 +783,57 @@ function submitCreatePlayer() {
                         </button>
                     </div>
 
-                    <!-- Minute -->
-                    <div class="mb-3 flex items-center justify-between">
-                        <p class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Minuto</p>
+                    <!-- Minute & Second -->
+                    <div class="mb-3">
+                        <div class="flex items-center justify-between">
+                        <p class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Tiempo</p>
                         <div class="flex items-center gap-1">
                             <button
-                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
-                                @click="editMinute = Math.max(0, editMinute - 1)"
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95 select-none touch-none"
+                                @pointerdown.prevent="startEditRepeat(-1)"
+                                @pointerup="stopEditRepeat"
+                                @pointerleave="stopEditRepeat"
+                                @pointercancel="stopEditRepeat"
+                                @contextmenu.prevent
                             >
                                 <Minus class="size-3.5" />
                             </button>
-                            <span class="w-10 text-center text-sm font-bold tabular-nums">{{ editMinute }}'</span>
+                            <div class="flex flex-col items-center gap-0.5">
+                                <input
+                                    v-model.number="editMinute"
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    class="w-12 rounded-lg border border-border bg-accent/50 px-1 py-1 text-center text-sm font-bold tabular-nums outline-none"
+                                />
+                                <span class="text-[8px] font-semibold tracking-wider text-muted-foreground uppercase">min</span>
+                            </div>
+                            <span class="text-sm font-bold">:</span>
+                            <div class="flex flex-col items-center gap-0.5">
+                                <input
+                                    v-model.number="editSecond"
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    class="w-12 rounded-lg border border-border bg-accent/50 px-1 py-1 text-center text-sm font-bold tabular-nums outline-none"
+                                />
+                                <span class="text-[8px] font-semibold tracking-wider text-muted-foreground uppercase">seg</span>
+                            </div>
                             <button
-                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95"
-                                @click="editMinute = Math.min(200, editMinute + 1)"
+                                class="flex size-8 items-center justify-center rounded-lg border border-border bg-accent/50 transition-colors hover:bg-accent active:scale-95 select-none touch-none"
+                                @pointerdown.prevent="startEditRepeat(1)"
+                                @pointerup="stopEditRepeat"
+                                @pointerleave="stopEditRepeat"
+                                @pointercancel="stopEditRepeat"
+                                @contextmenu.prevent
                             >
                                 <Plus class="size-3.5" />
                             </button>
                         </div>
+                        </div>
+                        <p v-if="showEditTimeHint" class="mt-1 text-right text-[9px] text-muted-foreground">
+                            Mantener presionado +/- para avance rapido
+                        </p>
                     </div>
 
                     <!-- Event type buttons -->
@@ -700,8 +852,51 @@ function submitCreatePlayer() {
                     </div>
 
                     <p v-if="!editSelectedPlayerId" class="mt-2 text-center text-[10px] text-muted-foreground">
-                        Selecciona un jugador para agregar un evento
+                        Selecciona un jugador para agregar un evento de jugador
                     </p>
+
+                    <!-- Team events -->
+                    <div class="mt-4">
+                        <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Eventos de equipo</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div v-for="team in (['a', 'b'] as const)" :key="team">
+                                <p class="mb-1.5 text-center text-xs font-bold tracking-wide text-zinc-400 uppercase">
+                                    {{ team === 'a' ? match.team_a_name : match.team_b_name }}
+                                </p>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <button
+                                        v-for="et in editTeamEventTypes"
+                                        :key="et.value"
+                                        :disabled="editSubmitting"
+                                        class="flex flex-col items-center justify-center gap-1 rounded-xl border p-2 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                                        :class="et.bg"
+                                        @click="addTeamEvent(et.value, team)"
+                                    >
+                                        <component :is="et.icon" class="size-4" :class="et.color" />
+                                        <span class="whitespace-pre-line text-center text-[8px] font-semibold leading-tight" :class="et.color">{{ et.label }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Neutral events -->
+                    <div class="mt-4">
+                        <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Eventos del partido</p>
+                        <div class="grid grid-cols-5 gap-1.5">
+                            <button
+                                v-for="et in editNeutralEventTypes"
+                                :key="et.value"
+                                :disabled="editSubmitting"
+                                class="flex flex-col items-center justify-center gap-1 rounded-xl border p-2 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                                :class="et.bg"
+                                @click="addNeutralEvent(et.value)"
+                            >
+                                <component :is="et.icon" class="size-4" :class="et.color" />
+                                <span class="whitespace-pre-line text-center text-[8px] font-semibold leading-tight" :class="et.color">{{ et.label }}</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

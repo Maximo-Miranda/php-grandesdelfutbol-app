@@ -24,3 +24,7 @@ export function formatTime(dateStr: string, options: Intl.DateTimeFormatOptions 
 export function formatDateTime(dateStr: string): string {
     return new Date(dateStr).toLocaleString('es', { timeZone: APP_TIMEZONE });
 }
+
+export function formatEventTime(minute: number, second: number): string {
+    return `${minute}:${String(second).padStart(2, '0')}`;
+}

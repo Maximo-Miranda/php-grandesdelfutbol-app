@@ -2,8 +2,8 @@
 
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -16,6 +16,9 @@ self.addEventListener('message', (event) => {
 
 // Precache assets (Workbox injects the manifest automatically)
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Navigation requests always go to the network (Inertia SPA)
+registerRoute(new NavigationRoute(new NetworkFirst({ cacheName: 'pages' })));
 
 // Runtime caching: images
 registerRoute(

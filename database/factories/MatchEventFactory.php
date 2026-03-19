@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MatchEventType;
 use App\Models\FootballMatch;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,79 +19,78 @@ class MatchEventFactory extends Factory
             'ulid' => (string) Str::ulid(),
             'match_id' => FootballMatch::factory(),
             'player_id' => Player::factory(),
-            'event_type' => fake()->randomElement(['goal', 'assist', 'yellow_card', 'red_card']),
+            'event_type' => fake()->randomElement([MatchEventType::Goal, MatchEventType::Assist, MatchEventType::YellowCard, MatchEventType::RedCard]),
             'minute' => fake()->numberBetween(1, 90),
+            'second' => fake()->numberBetween(0, 59),
             'notes' => null,
         ];
     }
 
     public function goal(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'goal',
-        ]);
+        return $this->state(['event_type' => MatchEventType::Goal]);
     }
 
     public function assist(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'assist',
-        ]);
+        return $this->state(['event_type' => MatchEventType::Assist]);
     }
 
     public function yellowCard(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'yellow_card',
-        ]);
+        return $this->state(['event_type' => MatchEventType::YellowCard]);
     }
 
     public function redCard(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'red_card',
-        ]);
+        return $this->state(['event_type' => MatchEventType::RedCard]);
     }
 
     public function foul(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'foul',
-        ]);
+        return $this->state(['event_type' => MatchEventType::Foul]);
     }
 
     public function save(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'save',
-        ]);
+        return $this->state(['event_type' => MatchEventType::Save]);
     }
 
     public function handball(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'handball',
-        ]);
+        return $this->state(['event_type' => MatchEventType::Handball]);
     }
 
     public function ownGoal(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'own_goal',
-        ]);
+        return $this->state(['event_type' => MatchEventType::OwnGoal]);
     }
 
     public function penaltyScored(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'penalty_scored',
-        ]);
+        return $this->state(['event_type' => MatchEventType::PenaltyScored]);
     }
 
     public function penaltyMissed(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'event_type' => 'penalty_missed',
+        return $this->state(['event_type' => MatchEventType::PenaltyMissed]);
+    }
+
+    public function teamEvent(MatchEventType $eventType = MatchEventType::ShotOnTarget, string $team = 'a'): static
+    {
+        return $this->state([
+            'event_type' => $eventType,
+            'team' => $team,
+            'player_id' => null,
+        ]);
+    }
+
+    public function neutralEvent(MatchEventType $eventType = MatchEventType::Timeout): static
+    {
+        return $this->state([
+            'event_type' => $eventType,
+            'team' => null,
+            'player_id' => null,
         ]);
     }
 }

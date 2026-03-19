@@ -41,6 +41,8 @@ use Illuminate\Support\Collection;
  * @property-read \App\Models\Club $club
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MatchEvent> $events
  * @property-read int|null $events_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MatchReel> $reels
+ * @property-read int|null $reels_count
  * @property-read \App\Models\Field|null $field
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch completed()
@@ -75,6 +77,7 @@ use Illuminate\Support\Collection;
  * @property bool $auto_started
  * @property array<array-key, mixed>|null $applied_stats
  * @property string|null $youtube_url
+ * @property int $video_offset_seconds
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAutoStarted($value)
@@ -115,6 +118,7 @@ class FootballMatch extends Model
         'registration_opens_hours',
         'notes',
         'youtube_url',
+        'video_offset_seconds',
         'started_at',
         'ended_at',
         'stats_finalized_at',
@@ -178,6 +182,11 @@ class FootballMatch extends Model
     public function events(): HasMany
     {
         return $this->hasMany(MatchEvent::class, 'match_id');
+    }
+
+    public function reels(): HasMany
+    {
+        return $this->hasMany(MatchReel::class, 'match_id');
     }
 
     public function confirmedAttendeeUsers(): Collection

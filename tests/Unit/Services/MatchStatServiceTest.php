@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MatchEventType;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
@@ -265,4 +266,37 @@ test('revert stats decrements own_goals and penalty stats correctly', function (
         ->and($player->own_goals)->toBe(0)
         ->and($player->penalties_scored)->toBe(0)
         ->and($player->penalties_missed)->toBe(0);
+});
+
+test('team and neutral events do not affect player stats', function () {
+    $match = FootballMatch::factory()->completed()->create();
+    $player = Player::factory()->create([
+        'club_id' => $match->club_id,
+        'goals' => 0,
+        'assists' => 0,
+    ]);
+
+    // Player event — should count
+    MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    // Team events — should NOT count
+    MatchEvent::factory()->teamEvent(MatchEventType::ShotOnTarget, 'a')->create(['match_id' => $match->id]);
+    MatchEvent::factory()->teamEvent(MatchEventType::CornerKick, 'b')->create(['match_id' => $match->id]);
+
+    // Neutral events — should NOT count
+    MatchEvent::factory()->neutralEvent(MatchEventType::Timeout)->create(['match_id' => $match->id]);
+    MatchEvent::factory()->neutralEvent(MatchEventType::WaterBreak)->create(['match_id' => $match->id]);
+
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+
+    $service = new MatchStatService;
+    $service->finalizeStats($match);
+
+    $player->refresh();
+    expect($player->goals)->toBe(1)
+        ->and($player->assists)->toBe(0);
 });

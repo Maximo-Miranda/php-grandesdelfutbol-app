@@ -18,6 +18,7 @@ export type FootballMatch = {
     registration_opens_hours: number;
     notes: string | null;
     youtube_url: string | null;
+    video_offset_seconds: number;
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;
@@ -29,6 +30,7 @@ export type FootballMatch = {
     field?: Field;
     attendances?: MatchAttendance[];
     events?: MatchEvent[];
+    reels?: MatchReel[];
     attendances_count?: number;
     created_at: string;
     updated_at: string;
@@ -52,11 +54,34 @@ export type MatchEvent = {
     id: number;
     ulid: string;
     match_id: number;
-    player_id: number;
-    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul' | 'handball' | 'timeout';
+    player_id: number | null;
+    related_player_id: number | null;
+    team: 'a' | 'b' | null;
+    event_type: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'penalty_scored' | 'penalty_missed' | 'free_kick' | 'save' | 'own_goal' | 'substitution' | 'injury' | 'foul' | 'handball' | 'shot_on_target' | 'corner_kick' | 'throw_in' | 'offside' | 'team_foul' | 'team_handball' | 'team_penalty' | 'timeout' | 'ball_touched_referee' | 'stoppage_start' | 'stoppage_end' | 'water_break';
     minute: number;
+    second: number;
     notes: string | null;
     player?: Player;
+    related_player?: Player;
+    created_at: string;
+    updated_at: string;
+};
+
+export type MatchReel = {
+    id: number;
+    ulid: string;
+    match_id: number;
+    event_id: number | null;
+    player_id: number | null;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    title: string;
+    start_second: number;
+    end_second: number;
+    duration: number;
+    error_message: string | null;
+    processed_at: string | null;
+    player?: Player;
+    media_url?: string | null;
     created_at: string;
     updated_at: string;
 };

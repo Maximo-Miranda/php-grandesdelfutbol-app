@@ -84,6 +84,7 @@ readonly class SetClubContext
             'invitations.*',
             'clubs.join',
             'clubs.join.store',
+            'match.public',
             'profile.*',
             'user-password.*',
             'appearance.*',

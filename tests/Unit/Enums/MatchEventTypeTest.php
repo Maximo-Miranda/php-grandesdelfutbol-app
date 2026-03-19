@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MatchEventScope;
 use App\Enums\MatchEventType;
 
 test('it has the correct values', function () {
@@ -16,12 +17,25 @@ test('it has the correct values', function () {
         ->and(MatchEventType::Injury->value)->toBe('injury')
         ->and(MatchEventType::Foul->value)->toBe('foul')
         ->and(MatchEventType::Handball->value)->toBe('handball')
-        ->and(MatchEventType::Timeout->value)->toBe('timeout');
+        ->and(MatchEventType::ShotOnTarget->value)->toBe('shot_on_target')
+        ->and(MatchEventType::CornerKick->value)->toBe('corner_kick')
+        ->and(MatchEventType::ThrowIn->value)->toBe('throw_in')
+        ->and(MatchEventType::Offside->value)->toBe('offside')
+        ->and(MatchEventType::TeamFoul->value)->toBe('team_foul')
+        ->and(MatchEventType::TeamHandball->value)->toBe('team_handball')
+        ->and(MatchEventType::TeamPenalty->value)->toBe('team_penalty')
+        ->and(MatchEventType::Timeout->value)->toBe('timeout')
+        ->and(MatchEventType::BallTouchedReferee->value)->toBe('ball_touched_referee')
+        ->and(MatchEventType::StoppageStart->value)->toBe('stoppage_start')
+        ->and(MatchEventType::StoppageEnd->value)->toBe('stoppage_end')
+        ->and(MatchEventType::WaterBreak->value)->toBe('water_break');
 });
 
 test('it can be created from value', function () {
     expect(MatchEventType::from('goal'))->toBe(MatchEventType::Goal)
-        ->and(MatchEventType::from('own_goal'))->toBe(MatchEventType::OwnGoal);
+        ->and(MatchEventType::from('own_goal'))->toBe(MatchEventType::OwnGoal)
+        ->and(MatchEventType::from('shot_on_target'))->toBe(MatchEventType::ShotOnTarget)
+        ->and(MatchEventType::from('water_break'))->toBe(MatchEventType::WaterBreak);
 });
 
 test('tryFrom returns null for invalid value', function () {
@@ -37,5 +51,66 @@ test('it has labels', function () {
         ->and(MatchEventType::Injury->label())->toBe('Lesión')
         ->and(MatchEventType::Foul->label())->toBe('Falta')
         ->and(MatchEventType::Handball->label())->toBe('Mano')
-        ->and(MatchEventType::Timeout->label())->toBe('Tiempo');
+        ->and(MatchEventType::ShotOnTarget->label())->toBe('Tiro al marco')
+        ->and(MatchEventType::CornerKick->label())->toBe('Tiro de esquina')
+        ->and(MatchEventType::ThrowIn->label())->toBe('Saque de banda')
+        ->and(MatchEventType::Offside->label())->toBe('Fuera de juego')
+        ->and(MatchEventType::TeamFoul->label())->toBe('Falta (equipo)')
+        ->and(MatchEventType::TeamHandball->label())->toBe('Mano (equipo)')
+        ->and(MatchEventType::TeamPenalty->label())->toBe('Penal (equipo)')
+        ->and(MatchEventType::Timeout->label())->toBe('Tiempo')
+        ->and(MatchEventType::BallTouchedReferee->label())->toBe('Balón tocó árbitro')
+        ->and(MatchEventType::StoppageStart->label())->toBe('Tiempo detenido')
+        ->and(MatchEventType::StoppageEnd->label())->toBe('Reanudación')
+        ->and(MatchEventType::WaterBreak->label())->toBe('Pausa hidratación');
+});
+
+test('all event types have a label', function () {
+    foreach (MatchEventType::cases() as $case) {
+        expect($case->label())->toBeString()->not->toBeEmpty();
+    }
+});
+
+test('all event types have a scope', function () {
+    foreach (MatchEventType::cases() as $case) {
+        expect($case->scope())->toBeInstanceOf(MatchEventScope::class);
+    }
+});
+
+test('player-scoped events have correct scope', function () {
+    $playerEvents = [
+        MatchEventType::Goal, MatchEventType::Assist, MatchEventType::YellowCard,
+        MatchEventType::RedCard, MatchEventType::PenaltyScored, MatchEventType::PenaltyMissed,
+        MatchEventType::FreeKick, MatchEventType::Save, MatchEventType::OwnGoal,
+        MatchEventType::Substitution, MatchEventType::Injury, MatchEventType::Foul,
+        MatchEventType::Handball,
+    ];
+
+    foreach ($playerEvents as $event) {
+        expect($event->scope())->toBe(MatchEventScope::Player);
+    }
+});
+
+test('team-scoped events have correct scope', function () {
+    $teamEvents = [
+        MatchEventType::ShotOnTarget, MatchEventType::CornerKick, MatchEventType::ThrowIn,
+        MatchEventType::Offside, MatchEventType::TeamFoul, MatchEventType::TeamHandball,
+        MatchEventType::TeamPenalty,
+    ];
+
+    foreach ($teamEvents as $event) {
+        expect($event->scope())->toBe(MatchEventScope::Team);
+    }
+});
+
+test('neutral-scoped events have correct scope', function () {
+    $neutralEvents = [
+        MatchEventType::Timeout, MatchEventType::BallTouchedReferee,
+        MatchEventType::StoppageStart, MatchEventType::StoppageEnd,
+        MatchEventType::WaterBreak,
+    ];
+
+    foreach ($neutralEvents as $event) {
+        expect($event->scope())->toBe(MatchEventScope::Neutral);
+    }
 });

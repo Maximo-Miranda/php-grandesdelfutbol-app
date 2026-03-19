@@ -2,31 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\MatchEventType;
+use App\Http\Requests\Match\StoreMatchEventRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class MatchEventController extends Controller
 {
-    public function store(Request $request, Club $club, FootballMatch $match): RedirectResponse
+    public function store(StoreMatchEventRequest $request, Club $club, FootballMatch $match): RedirectResponse
+    {
+        $match->events()->create($request->validated());
+
+        return back();
+    }
+
+    public function update(Request $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
     {
         Gate::authorize('update', $match);
 
         $validated = $request->validate([
-            'player_id' => ['required', 'exists:players,id'],
-            'event_type' => ['required', 'string', Rule::enum(MatchEventType::class)],
-            'minute' => ['required', 'integer', 'min:0', 'max:200'],
-            'notes' => ['nullable', 'string', 'max:500'],
+            'player_id' => ['nullable', 'exists:players,id'],
         ]);
 
-        $match->events()->create($validated);
+        $event->update($validated);
 
-        return back()->with('success', 'Evento registrado.');
+        return back();
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse

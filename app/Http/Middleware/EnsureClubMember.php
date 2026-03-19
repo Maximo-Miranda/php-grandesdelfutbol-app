@@ -20,6 +20,12 @@ class EnsureClubMember
         $membership = $club->getMembership($request->user());
 
         if (! $membership) {
+            // If viewing a match with a share token, redirect to public view
+            $match = $request->route('match');
+            if ($match && $match->share_token) {
+                return redirect()->route('match.public', $match->share_token);
+            }
+
             abort(403, 'You are not a member of this club.');
         }
 

@@ -16,7 +16,7 @@ class MatchStatService
                 $this->revertStats($match);
             }
 
-            $events = $match->events()->get();
+            $events = $match->events()->whereNotNull('player_id')->get();
 
             $playerStats = [];
 
@@ -87,6 +87,23 @@ class MatchStatService
         });
     }
 
+    /**
+     * @return array{a: array<string, int>, b: array<string, int>}
+     */
+    public function getTeamStats(FootballMatch $match): array
+    {
+        $stats = ['a' => [], 'b' => []];
+        $teamEvents = $match->events()->whereNotNull('team')->get();
+
+        foreach ($teamEvents as $event) {
+            $team = $event->team->value;
+            $type = $event->event_type->value;
+            $stats[$team][$type] = ($stats[$team][$type] ?? 0) + 1;
+        }
+
+        return $stats;
+    }
+
     public function revertStats(FootballMatch $match): void
     {
         $appliedStats = $match->applied_stats;
@@ -102,7 +119,7 @@ class MatchStatService
             $player = Player::find($playerId);
             if ($player) {
                 foreach ($stats as $stat => $count) {
-                    $value = (int) ($count ?? 0);
+                    $value = (int) $count;
                     if ($value > 0) {
                         $player->decrement($stat, $value);
                     }

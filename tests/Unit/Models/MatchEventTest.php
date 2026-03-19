@@ -31,6 +31,19 @@ test('match event casts minute to integer', function () {
         ->and($event->minute)->toBe(45);
 });
 
+test('match event casts second to integer', function () {
+    $event = MatchEvent::factory()->create(['second' => 30]);
+
+    expect($event->second)->toBeInt()
+        ->and($event->second)->toBe(30);
+});
+
+test('match event second defaults to zero', function () {
+    $event = MatchEvent::factory()->create(['second' => 0]);
+
+    expect($event->second)->toBe(0);
+});
+
 test('football match has many events', function () {
     $match = FootballMatch::factory()->create();
     MatchEvent::factory()->count(3)->create(['match_id' => $match->id]);

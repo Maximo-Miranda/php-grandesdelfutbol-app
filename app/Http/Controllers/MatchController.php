@@ -78,12 +78,16 @@ class MatchController extends Controller
             ->with('success', 'Partido creado.');
     }
 
-    public function show(Club $club, FootballMatch $match): Response
+    public function show(Club $club, FootballMatch $match): Response|RedirectResponse
     {
+        if (Gate::denies('view', $match) && $match->share_token) {
+            return redirect()->route('match.public', $match->share_token);
+        }
+
         Gate::authorize('view', $match);
 
         $user = request()->user();
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
         $isAdmin = $club->isAdminOrOwner($user);
 
@@ -178,7 +182,7 @@ class MatchController extends Controller
     {
         Gate::authorize('update', $match);
 
-        $match->load('field', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
+        $match->load('field', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
         return Inertia::render('clubs/matches/Live', [
             'club' => $club,
@@ -191,7 +195,7 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
         $isAdmin = $club->isAdminOrOwner(request()->user());
 
