@@ -304,24 +304,27 @@ const confirmedPlayers = computed(() => props.match.attendances?.filter(a => a.s
 
 // --- Fullscreen ---
 async function toggleFullscreen() {
-    if (!document.fullscreenElement) {
+    if (!isFullscreen.value) {
         try {
             await document.documentElement.requestFullscreen?.();
             await (screen.orientation as any)?.lock?.('landscape').catch(() => {});
-        } catch { /* ignore */ }
+        } catch { /* ignore — iOS doesn't support Fullscreen API */ }
         isFullscreen.value = true;
     } else {
         try {
             screen.orientation?.unlock?.();
-            await document.exitFullscreen?.();
+            if (document.fullscreenElement) {
+                await document.exitFullscreen?.();
+            }
         } catch { /* ignore */ }
         isFullscreen.value = false;
     }
 }
 
 function onFullscreenChange() {
-    isFullscreen.value = !!document.fullscreenElement;
-    if (!isFullscreen.value) {
+    const nativeFullscreen = !!document.fullscreenElement;
+    if (!nativeFullscreen && isFullscreen.value) {
+        isFullscreen.value = false;
         screen.orientation?.unlock?.();
     }
 }

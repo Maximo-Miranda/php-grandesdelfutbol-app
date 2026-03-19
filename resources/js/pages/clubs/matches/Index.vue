@@ -26,11 +26,7 @@ const tabs = [
 ] as const;
 
 function switchTab(tab: string) {
-    const params: Record<string, string> = {};
-    if (tab !== 'all') {
-        params.filter = tab;
-    }
-    router.get(`/clubs/${props.club.ulid}/matches`, params, {
+    router.get(`/clubs/${props.club.ulid}/matches`, { filter: tab }, {
         preserveState: false,
     });
 }
