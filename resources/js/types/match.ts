@@ -1,3 +1,4 @@
+import type { User } from './auth';
 import type { Club } from './club';
 import type { Player } from './player';
 import type { Field } from './venue';
@@ -19,6 +20,7 @@ export type FootballMatch = {
     notes: string | null;
     youtube_url: string | null;
     video_offset_seconds: number;
+    video_duration_seconds: number | null;
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;
@@ -30,7 +32,6 @@ export type FootballMatch = {
     field?: Field;
     attendances?: MatchAttendance[];
     events?: MatchEvent[];
-    reels?: MatchReel[];
     attendances_count?: number;
     created_at: string;
     updated_at: string;
@@ -61,6 +62,7 @@ export type MatchEvent = {
     minute: number;
     second: number;
     notes: string | null;
+    highlighted: boolean;
     player?: Player;
     related_player?: Player;
     created_at: string;
@@ -73,14 +75,19 @@ export type MatchReel = {
     match_id: number;
     event_id: number | null;
     player_id: number | null;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    requested_by: number | null;
+    status: 'requested' | 'pending' | 'processing' | 'completed' | 'failed';
+    source: 'auto' | 'manual' | 'request';
     title: string;
     start_second: number;
     end_second: number;
     duration: number;
     error_message: string | null;
+    request_notes: string | null;
     processed_at: string | null;
+    view_count: number;
     player?: Player;
+    requester?: User;
     media_url?: string | null;
     created_at: string;
     updated_at: string;

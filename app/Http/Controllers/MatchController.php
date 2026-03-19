@@ -11,6 +11,7 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\MatchService;
+use App\Services\ReelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -112,6 +113,12 @@ class MatchController extends Controller
                 'positions' => $isAdmin
                     ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                     : [],
+                'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
+                'reels' => fn () => $match->reels()
+                    ->whereIn('source', ['auto', 'manual'])
+                    ->with('player', 'event', 'media')
+                    ->orderBy('start_second')
+                    ->simplePaginate(10, pageName: 'reels'),
             ]);
         }
 
@@ -164,6 +171,10 @@ class MatchController extends Controller
             }
 
             PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
+
+            if ($match->status === MatchStatus::Completed) {
+                app(ReelService::class)->generateReelsForMatch($match);
+            }
         }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
@@ -199,7 +210,8 @@ class MatchController extends Controller
 
         $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
-        $isAdmin = $club->isAdminOrOwner(request()->user());
+        $user = request()->user();
+        $isAdmin = $club->isAdminOrOwner($user);
 
         return Inertia::render('clubs/matches/Summary', [
             'club' => $club,
@@ -211,6 +223,13 @@ class MatchController extends Controller
             'positions' => $isAdmin
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
+            'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
+            'reels' => Inertia::scroll(
+                fn () => $match->reels()
+                    ->with('player', 'event', 'requester', 'media')
+                    ->orderBy('start_second')
+                    ->simplePaginate(6, pageName: 'reels'),
+            ),
         ]);
     }
 }

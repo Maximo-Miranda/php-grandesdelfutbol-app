@@ -81,6 +81,7 @@ watch(() => props.manualMode, (isManual) => {
             <div class="flex items-center gap-0.5 rounded-xl border-2 border-amber-400/40 bg-amber-500/5 p-1.5">
                 <!-- Minus -->
                 <button
+                    type="button"
                     class="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 transition-colors hover:bg-amber-500/20 active:scale-95 select-none touch-none"
                     @pointerdown.prevent="startRepeat(-1)"
                     @pointerup="stopRepeat"
@@ -119,6 +120,7 @@ watch(() => props.manualMode, (isManual) => {
 
                 <!-- Plus -->
                 <button
+                    type="button"
                     class="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 transition-colors hover:bg-amber-500/20 active:scale-95 select-none touch-none"
                     @pointerdown.prevent="startRepeat(1)"
                     @pointerup="stopRepeat"
@@ -132,6 +134,7 @@ watch(() => props.manualMode, (isManual) => {
                 <!-- Auto button (hidden when always expanded - no clock in post-match) -->
                 <button
                     v-if="!alwaysExpanded"
+                    type="button"
                     class="ml-0.5 flex size-10 items-center justify-center rounded-lg border border-amber-400/30 text-amber-400/70 transition-colors hover:bg-amber-500/10 active:scale-95"
                     title="Volver a tiempo automatico"
                     @click="emit('toggleManual')"

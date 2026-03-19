@@ -90,6 +90,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
 
         Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->name('matches.reels.generate');
+        Route::post('matches/{match}/reels', [MatchReelController::class, 'store'])->name('matches.reels.store');
+        Route::post('matches/{match}/reels/request', [MatchReelController::class, 'request'])->name('matches.reels.request');
+        Route::post('matches/{match}/reels/request-player', [MatchReelController::class, 'requestForPlayer'])->name('matches.reels.requestForPlayer');
+        Route::post('matches/{match}/reels/{reel}/approve', [MatchReelController::class, 'approve'])->name('matches.reels.approve');
+        Route::delete('matches/{match}/reels/{reel}/reject', [MatchReelController::class, 'reject'])->name('matches.reels.reject');
+        Route::post('matches/{match}/reels/{reel}/view', [MatchReelController::class, 'view'])->name('matches.reels.view');
         Route::delete('matches/{match}/reels/{reel}', [MatchReelController::class, 'destroy'])->name('matches.reels.destroy');
 
         Route::get('notifications', [ClubNotificationsController::class, 'show'])->name('notifications.show');

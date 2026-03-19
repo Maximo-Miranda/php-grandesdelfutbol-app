@@ -7,9 +7,13 @@ import {
     Check,
     CircleDot,
     Clock,
+    Copy,
     CornerDownRight,
     Crosshair,
+    Download,
     Droplets,
+    Eye,
+    Film,
     Flag,
     Hand,
     MapPin,
@@ -20,7 +24,9 @@ import {
     Play,
     Plus,
     RectangleVertical,
+    RefreshCw,
     Search,
+    Share2,
     Shield,
     Star,
     Timer,
@@ -55,13 +61,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
 import { formatDate, formatTime, formatEventTime } from '@/lib/utils';
-import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, Player } from '@/types';
+import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, MatchReel, Player } from '@/types';
 
 type PositionOption = { value: string; label: string };
-type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[] };
+type PaginatedReels = { data: MatchReel[] };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.ulid}/matches`;
@@ -217,8 +225,16 @@ function formatStatsDate(dateStr: string): string {
     return formatDate(dateStr, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ===== TABS (admin only) =====
-const activeTab = ref<'resumen' | 'eventos' | 'jugadores'>('resumen');
+const copiedYoutube = ref(false);
+function copyYoutubeUrl() {
+    if (!props.match.youtube_url) return;
+    navigator.clipboard.writeText(props.match.youtube_url);
+    copiedYoutube.value = true;
+    setTimeout(() => { copiedYoutube.value = false; }, 2000);
+}
+
+// ===== TABS =====
+const activeTab = ref<'resumen' | 'eventos' | 'jugadores' | 'reels'>('resumen');
 
 // ===== TAB: EVENTOS — event flow (adapted from Live.vue, no clock/poll) =====
 type EventScope = 'player' | 'team' | 'neutral';
@@ -304,24 +320,27 @@ const confirmedPlayers = computed(() => props.match.attendances?.filter(a => a.s
 
 // --- Fullscreen ---
 async function toggleFullscreen() {
-    if (!document.fullscreenElement) {
+    if (!isFullscreen.value) {
         try {
             await document.documentElement.requestFullscreen?.();
             await (screen.orientation as any)?.lock?.('landscape').catch(() => {});
-        } catch { /* ignore */ }
+        } catch { /* ignore — iOS doesn't support Fullscreen API */ }
         isFullscreen.value = true;
     } else {
         try {
             screen.orientation?.unlock?.();
-            await document.exitFullscreen?.();
+            if (document.fullscreenElement) {
+                await document.exitFullscreen?.();
+            }
         } catch { /* ignore */ }
         isFullscreen.value = false;
     }
 }
 
 function onFullscreenChange() {
-    isFullscreen.value = !!document.fullscreenElement;
-    if (!isFullscreen.value) {
+    const nativeFullscreen = !!document.fullscreenElement;
+    if (!nativeFullscreen && isFullscreen.value) {
+        isFullscreen.value = false;
         screen.orientation?.unlock?.();
     }
 }
@@ -640,6 +659,154 @@ function submitCreatePlayer() {
         },
     });
 }
+
+// ===== TAB: REELS =====
+const showManualClipForm = ref(false);
+const deletingReelUlid = ref<string | null>(null);
+
+const manualClipForm = useForm({
+    title: '',
+    minute: 0,
+    second: 0,
+    player_id: 'none',
+    request_notes: '',
+});
+
+const allReels = computed(() => props.reels?.data ?? []);
+const completedReels = computed(() => allReels.value.filter(r => r.status === 'completed' && r.source !== 'request'));
+const displayReels = computed(() => allReels.value.filter(r => r.source !== 'request'));
+
+function submitManualClip() {
+    manualClipForm.transform((data) => ({
+        title: data.title || null,
+        minute: data.minute,
+        second: data.second,
+        player_id: data.player_id === 'none' ? null : data.player_id,
+        request_notes: data.request_notes || null,
+    })).post(`${base}/${props.match.ulid}/reels`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            manualClipForm.reset();
+            showManualClipForm.value = false;
+        },
+    });
+}
+
+function trackReelView(reel: MatchReel) {
+    router.post(`${base}/${props.match.ulid}/reels/${reel.ulid}/view`, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+}
+
+const refreshingReels = ref(false);
+const confirmDeleteReelUlid = ref<string | null>(null);
+
+function refreshReels() {
+    refreshingReels.value = true;
+    router.reload({
+        only: ['reels'],
+        preserveScroll: true,
+        onFinish: () => { refreshingReels.value = false; },
+    });
+}
+
+function onDeleteReelClick(reel: MatchReel) {
+    if (reel.status === 'failed' || reel.status === 'pending') {
+        deleteReel(reel);
+    } else {
+        confirmDeleteReelUlid.value = reel.ulid;
+    }
+}
+
+function deleteReel(reel: MatchReel) {
+    deletingReelUlid.value = reel.ulid;
+    router.delete(`${base}/${props.match.ulid}/reels/${reel.ulid}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            deletingReelUlid.value = null;
+            confirmDeleteReelUlid.value = null;
+        },
+    });
+}
+
+function toggleHighlighted(event: MatchEvent) {
+    router.patch(`${base}/${props.match.ulid}/events/${event.ulid}`, {
+        highlighted: !event.highlighted,
+    }, { preserveScroll: true });
+}
+
+function formatSeconds(totalSeconds: number): string {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function sourceBadgeClass(source: string): string {
+    if (source === 'auto') return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+    if (source === 'manual') return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+    return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+}
+
+function sourceLabel(source: string): string {
+    if (source === 'auto') return 'Auto';
+    if (source === 'manual') return 'Manual';
+    return 'Solicitud';
+}
+
+async function downloadReel(reel: MatchReel) {
+    if (!reel.media_url) return;
+    const response = await fetch(reel.media_url);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${reel.title.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '_')}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function shareReel(reel: MatchReel) {
+    if (!reel.media_url) return;
+
+    const shareData: ShareData = {
+        title: reel.title,
+        text: `${reel.title} — ${props.match.title}`,
+    };
+
+    // Try sharing the actual file on mobile
+    if (navigator.canShare) {
+        try {
+            const response = await fetch(reel.media_url);
+            const blob = await response.blob();
+            const file = new File([blob], `${reel.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`, { type: 'video/mp4' });
+            const fileShareData = { ...shareData, files: [file] };
+
+            if (navigator.canShare(fileShareData)) {
+                await navigator.share(fileShareData);
+                return;
+            }
+        } catch {
+            // Fall through to URL share
+        }
+    }
+
+    // Fallback: share URL or copy
+    if (navigator.share) {
+        try {
+            await navigator.share({ ...shareData, url: reel.media_url });
+            return;
+        } catch {
+            // User cancelled or error
+        }
+    }
+
+    // Final fallback: copy to clipboard
+    await navigator.clipboard.writeText(reel.media_url);
+    alert('Enlace copiado al portapapeles');
+}
 </script>
 
 <template>
@@ -735,64 +902,68 @@ function submitCreatePlayer() {
             </a>
 
             <!-- YouTube URL inline edit (admin) -->
-            <div v-if="isAdmin && !isFullscreen" class="mt-3 flex items-center gap-2">
-                <div class="relative flex-1">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Video class="size-4 text-muted-foreground" />
+            <div v-if="isAdmin && !isFullscreen" class="mt-3 space-y-2">
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <Video class="size-4 text-muted-foreground" />
+                        </div>
+                        <Input
+                            v-model="youtubeInput"
+                            :placeholder="youtubeId ? 'Cambiar enlace de YouTube...' : 'Pegar enlace de YouTube del partido...'"
+                            class="pl-9 text-sm"
+                            @keydown.enter.prevent="saveYoutubeUrl"
+                        />
                     </div>
-                    <Input
-                        v-model="youtubeInput"
-                        :placeholder="youtubeId ? 'Cambiar enlace de YouTube...' : 'Pegar enlace de YouTube del partido...'"
-                        class="pl-9 text-sm"
-                        @keydown.enter.prevent="saveYoutubeUrl"
-                    />
+                    <Button
+                        v-if="match.youtube_url"
+                        size="icon"
+                        variant="outline"
+                        class="shrink-0"
+                        title="Copiar enlace"
+                        @click="copyYoutubeUrl"
+                    >
+                        <Copy class="size-3.5" />
+                    </Button>
                 </div>
                 <Button
+                    v-if="youtubeInput !== (match.youtube_url ?? '')"
                     size="sm"
-                    :disabled="savingYoutube || youtubeInput === (match.youtube_url ?? '')"
-                    class="shrink-0 gap-1.5"
+                    :disabled="savingYoutube"
+                    class="w-full gap-1.5"
                     @click="saveYoutubeUrl"
                 >
-                    <Check class="size-3.5" />
-                    Guardar
+                    <Film class="size-3.5" />
+                    {{ savingYoutube ? 'Guardando...' : 'Guardar y generar reels' }}
                 </Button>
             </div>
 
-            <!-- ===== MATCH INFO STRIP ===== -->
-            <div v-if="!isFullscreen" class="mt-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card">
-                <div class="flex flex-col items-center gap-1 px-2 py-3">
-                    <Calendar class="size-4 text-muted-foreground" />
-                    <p class="text-center text-xs font-medium">{{ formattedDate }}</p>
-                    <p class="text-xs text-muted-foreground">{{ formattedTime }}</p>
-                </div>
-                <div class="flex flex-col items-center gap-1 px-2 py-3">
-                    <Clock class="size-4 text-muted-foreground" />
-                    <p class="text-xs font-medium">{{ matchDuration }}'</p>
-                    <p class="text-xs text-muted-foreground">Duracion</p>
-                </div>
-                <div class="flex flex-col items-center gap-1 px-2 py-3">
-                    <MapPin class="size-4 text-muted-foreground" />
-                    <p class="text-center text-xs font-medium">{{ match.field?.name ?? 'Sin cancha' }}</p>
-                    <p v-if="match.field?.field_type" class="text-xs text-muted-foreground">{{ match.field.field_type }}</p>
-                </div>
-            </div>
-
-            <!-- Venue details -->
-            <div v-if="match.field?.venue && !isFullscreen" class="mt-2 rounded-xl border border-border bg-card px-4 py-3 text-center text-sm text-muted-foreground">
-                {{ match.field.venue.name }}
-                <span v-if="match.field.venue.address"> &mdash; {{ match.field.venue.address }}</span>
+            <!-- ===== MATCH INFO (compact) ===== -->
+            <div v-if="!isFullscreen" class="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span class="inline-flex items-center gap-1">
+                    <Calendar class="size-3" />
+                    {{ formattedDate }}, {{ formattedTime }}
+                </span>
+                <span class="inline-flex items-center gap-1">
+                    <Clock class="size-3" />
+                    {{ matchDuration }}'
+                </span>
+                <span v-if="match.field" class="inline-flex items-center gap-1">
+                    <MapPin class="size-3" />
+                    {{ match.field.name }}<template v-if="match.field.venue"> · {{ match.field.venue.name }}</template>
+                </span>
             </div>
 
             <!-- Stats finalized badge -->
-            <div v-if="match.stats_finalized_at && !isFullscreen" class="mt-3 text-center">
+            <div v-if="match.stats_finalized_at && !isFullscreen" class="mt-2 text-center">
                 <Badge variant="secondary" class="gap-1">
                     <Star class="size-3" />
                     Estadisticas acumuladas el {{ formatStatsDate(match.stats_finalized_at) }}
                 </Badge>
             </div>
 
-            <!-- ===== TAB BAR (admin only) ===== -->
-            <div v-if="isAdmin && !isFullscreen" class="mt-4 flex rounded-xl border border-border bg-card p-1">
+            <!-- ===== TAB BAR (non-admin, when reels exist) ===== -->
+            <div v-if="!isAdmin && completedReels.length && !isFullscreen" class="mt-4 flex rounded-xl border border-border bg-card p-1">
                 <button
                     class="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors"
                     :class="activeTab === 'resumen' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
@@ -803,26 +974,57 @@ function submitCreatePlayer() {
                 </button>
                 <button
                     class="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors"
+                    :class="activeTab === 'reels'
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/30'
+                        : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'"
+                    @click="activeTab = 'reels'"
+                >
+                    <Film class="size-3.5" />
+                    Lo mejor
+                    <span class="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold" :class="activeTab === 'reels' ? 'bg-white/20 text-white' : 'text-emerald-400'">{{ completedReels.length }}</span>
+                </button>
+            </div>
+
+            <!-- ===== TAB BAR (admin) ===== -->
+            <div v-if="isAdmin && !isFullscreen" class="mt-4 flex rounded-xl border border-border bg-card p-1">
+                <button
+                    class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors"
+                    :class="activeTab === 'resumen' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
+                    @click="activeTab = 'resumen'"
+                >
+                    <Trophy class="size-3.5 shrink-0" />
+                    Resumen
+                </button>
+                <button
+                    class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors"
                     :class="activeTab === 'eventos' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
                     @click="activeTab = 'eventos'"
                 >
-                    <Pencil class="size-3.5" />
+                    <Pencil class="size-3.5 shrink-0" />
                     Eventos
                 </button>
                 <button
-                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors"
+                    class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors"
                     :class="activeTab === 'jugadores' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
                     @click="activeTab = 'jugadores'"
                 >
-                    <Users class="size-3.5" />
+                    <Users class="size-3.5 shrink-0" />
                     Jugadores
+                </button>
+                <button
+                    class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors"
+                    :class="activeTab === 'reels' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
+                    @click="activeTab = 'reels'"
+                >
+                    <Film class="size-3.5 shrink-0" />
+                    Lo mejor
                 </button>
             </div>
 
             <!-- ========================================== -->
             <!-- TAB: RESUMEN (or default for non-admin)    -->
             <!-- ========================================== -->
-            <div v-if="!isAdmin || activeTab === 'resumen'" v-show="!isFullscreen">
+            <div v-if="activeTab === 'resumen'" v-show="!isFullscreen">
                 <!-- ===== TIMELINE ===== -->
                 <div v-if="sortedEvents.length" class="mt-6">
                     <h3 class="mb-4 text-xs font-extrabold tracking-widest text-muted-foreground uppercase">
@@ -887,6 +1089,17 @@ function submitCreatePlayer() {
                                         </span>
                                     </div>
                                 </div>
+
+                                <!-- Highlight toggle (admin, player-scoped events) -->
+                                <button
+                                    v-if="isAdmin && event.player_id"
+                                    class="shrink-0 p-1 transition-colors"
+                                    :class="event.highlighted ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400/60'"
+                                    :title="event.highlighted ? 'Quitar destacado' : 'Marcar como destacado'"
+                                    @click.prevent="toggleHighlighted(event)"
+                                >
+                                    <Star class="size-3.5" :class="event.highlighted ? 'fill-amber-400' : ''" />
+                                </button>
                             </div>
 
                             <!-- Minute bubble (center) -->
@@ -1386,6 +1599,262 @@ function submitCreatePlayer() {
                     {{ playerSearchQuery ? 'No se encontraron jugadores.' : 'Todos los jugadores activos ya están registrados.' }}
                 </p>
             </div>
+
+            <!-- ========================================== -->
+            <!-- TAB: REELS (admin only)                    -->
+            <!-- ========================================== -->
+            <div v-if="isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
+                <!-- Create reel (admin — with title + player) -->
+                <Dialog v-if="match.youtube_url" v-model:open="showManualClipForm">
+                    <DialogTrigger as-child>
+                        <button
+                            class="flex w-full items-center gap-3 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-left transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 active:scale-[0.98]"
+                        >
+                            <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                                <Plus class="size-4 text-emerald-400" />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-emerald-400">Crear reel</p>
+                                <p class="text-xs text-emerald-300/60">Selecciona el momento del video</p>
+                            </div>
+                        </button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Crear reel</DialogTitle>
+                            <DialogDescription>
+                                Indica el minuto y segundo de la jugada.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form class="space-y-4" @submit.prevent="submitManualClip">
+                            <div class="grid gap-1.5">
+                                <Label for="clip-title" class="text-xs">Título (opcional)</Label>
+                                <Input id="clip-title" v-model="manualClipForm.title" placeholder="Se genera automáticamente" class="h-9 text-sm" />
+                                <InputError :message="manualClipForm.errors.title" />
+                            </div>
+                            <div>
+                                <div class="flex justify-center">
+                                    <MinuteSecondInput
+                                        v-model:minute="manualClipForm.minute"
+                                        v-model:second="manualClipForm.second"
+                                        :manual-mode="true"
+                                        always-expanded
+                                    />
+                                </div>
+                                <p class="mt-2 text-center text-xs text-muted-foreground">
+                                    Se creará un clip de 25s (15s antes y 10s después)
+                                </p>
+                                <InputError :message="manualClipForm.errors.minute" />
+                                <InputError :message="manualClipForm.errors.second" />
+                            </div>
+                            <div class="grid gap-1.5">
+                                <Label for="clip-player" class="text-xs">Jugador (opcional, se le asigna el reel)</Label>
+                                <Select v-model="manualClipForm.player_id">
+                                    <SelectTrigger id="clip-player" class="h-9 text-sm">
+                                        <SelectValue placeholder="Sin jugador" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Sin jugador</SelectItem>
+                                        <SelectItem v-for="p in players" :key="p.id" :value="String(p.id)">
+                                            {{ p.display_name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div class="grid gap-1.5">
+                                <Label for="admin-notes" class="text-xs">Notas (opcional)</Label>
+                                <Textarea id="admin-notes" v-model="manualClipForm.request_notes" placeholder="Describe la jugada..." class="text-sm" rows="2" />
+                            </div>
+                            <div class="flex flex-col gap-2 pt-2">
+                                <Button type="submit" class="w-full gap-2" :disabled="manualClipForm.processing">
+                                    <Film class="size-4" />
+                                    Crear reel
+                                </Button>
+                                <DialogClose as-child>
+                                    <Button type="button" variant="ghost" class="w-full">Cancelar</Button>
+                                </DialogClose>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                <!-- Reels list -->
+                <div class="space-y-3">
+                    <div
+                        v-for="reel in displayReels"
+                        :key="reel.ulid"
+                        class="overflow-hidden rounded-xl border border-border"
+                    >
+                        <div class="bg-card px-3 py-2.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-semibold">{{ reel.title }}</p>
+                                    <p v-if="reel.request_notes" class="mt-0.5 text-xs text-foreground/70">{{ reel.request_notes }}</p>
+                                    <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                        <span class="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium" :class="sourceBadgeClass(reel.source)">
+                                            {{ sourceLabel(reel.source) }}
+                                        </span>
+                                        <span>{{ formatSeconds(reel.start_second) }} - {{ formatSeconds(reel.end_second) }}</span>
+                                        <span v-if="reel.player">· {{ reel.player.display_name }}</span>
+                                        <span v-if="reel.status === 'completed'" class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reel.view_count }}</span>
+                                    </div>
+                                </div>
+                                <span
+                                    v-if="reel.status !== 'completed'"
+                                    class="mt-0.5 inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="{
+                                        'border-amber-500/30 bg-amber-500/10 text-amber-400': reel.status === 'pending',
+                                        'border-blue-500/30 bg-blue-500/10 text-blue-400 animate-pulse': reel.status === 'processing',
+                                        'border-red-500/30 bg-red-500/10 text-red-400': reel.status === 'failed',
+                                    }"
+                                >
+                                    {{ reel.status === 'pending' ? 'En cola' : reel.status === 'processing' ? 'Procesando...' : 'Falló' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Processing -->
+                        <div v-if="reel.status === 'processing'" class="border-t border-blue-500/20 bg-blue-500/5 px-3 py-3">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="size-4 animate-spin rounded-full border-2 border-blue-500/30 border-t-blue-400"></div>
+                                <p class="text-xs text-blue-400">Generando reel...</p>
+                            </div>
+                            <button
+                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 disabled:opacity-50"
+                                :disabled="refreshingReels"
+                                @click="refreshReels"
+                            >
+                                <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
+                                Actualizar
+                            </button>
+                        </div>
+
+                        <!-- Pending -->
+                        <div v-else-if="reel.status === 'pending'" class="border-t border-amber-500/20 bg-amber-500/5 px-3 py-3">
+                            <p class="text-center text-xs text-amber-400">Reel en cola, se procesará pronto.</p>
+                            <button
+                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                :disabled="refreshingReels"
+                                @click="refreshReels"
+                            >
+                                <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
+                                Actualizar
+                            </button>
+                        </div>
+
+                        <!-- Failed -->
+                        <div v-else-if="reel.status === 'failed'" class="border-t border-red-500/20 bg-red-500/5 px-3 py-3">
+                            <p class="text-center text-xs text-red-400">No se pudo generar el reel. Intenta crearlo de nuevo.</p>
+                            <button
+                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                                :disabled="deletingReelUlid === reel.ulid"
+                                @click="deleteReel(reel)"
+                            >
+                                <Trash2 class="size-3" />
+                                Eliminar
+                            </button>
+                        </div>
+
+                        <!-- Completed -->
+                        <template v-else-if="reel.status === 'completed'">
+                            <div v-if="reel.media_url" class="border-t border-border bg-black">
+                                <video
+                                    :src="reel.media_url"
+                                    controls
+                                    preload="metadata"
+                                    class="mx-auto max-h-80 w-full"
+                                    @play="trackReelView(reel)"
+                                ></video>
+                            </div>
+                            <div v-if="reel.media_url" class="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-2.5">
+                                <button
+                                    class="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                    @click="downloadReel(reel)"
+                                >
+                                    <Download class="size-3.5" />
+                                    Descargar
+                                </button>
+                                <button
+                                    v-if="confirmDeleteReelUlid !== reel.ulid"
+                                    class="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                    @click="onDeleteReelClick(reel)"
+                                >
+                                    <Trash2 class="size-3.5" />
+                                </button>
+                                <button
+                                    v-else
+                                    class="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                                    :disabled="deletingReelUlid === reel.ulid"
+                                    @click="deleteReel(reel)"
+                                >
+                                    Confirmar
+                                </button>
+                                <button
+                                    class="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-500 active:scale-95"
+                                    @click="shareReel(reel)"
+                                >
+                                    <Share2 class="size-4" />
+                                    Compartir
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <p v-if="!displayReels.length" class="text-center text-sm text-muted-foreground">
+                    No hay reels generados.
+                </p>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB: LO MEJOR (non-admin)                 -->
+            <!-- ========================================== -->
+            <div v-if="!isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
+                <div
+                    v-for="reel in completedReels"
+                    :key="reel.ulid"
+                    class="overflow-hidden rounded-xl border border-border"
+                >
+                    <div class="bg-card px-3 py-2">
+                        <p class="text-sm font-semibold">{{ reel.title }}</p>
+                        <p v-if="reel.request_notes" class="mt-0.5 text-xs text-foreground/70">{{ reel.request_notes }}</p>
+                        <div class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span v-if="reel.player">{{ reel.player.display_name }}</span>
+                            <span class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reel.view_count }}</span>
+                        </div>
+                    </div>
+                    <div v-if="reel.media_url" class="border-t border-border bg-black">
+                        <video
+                            :src="reel.media_url"
+                            controls
+                            preload="metadata"
+                            class="mx-auto max-h-80 w-full"
+                        ></video>
+                    </div>
+                    <div v-if="reel.media_url" class="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-2.5">
+                        <a
+                            :href="reel.media_url"
+                            download
+                            class="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                            <Download class="size-3.5" />
+                            Descargar
+                        </a>
+                        <button
+                            class="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-500 active:scale-95"
+                            @click="shareReel(reel)"
+                        >
+                            <Share2 class="size-4" />
+                            Compartir
+                        </button>
+                    </div>
+                </div>
+
+                <p v-if="!completedReels.length" class="text-center text-sm text-muted-foreground">
+                    Aún no hay jugadas disponibles.
+                </p>
+            </div>
+
         </div>
     </component>
 </template>

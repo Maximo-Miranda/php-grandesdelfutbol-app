@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
+use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,18 +17,23 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $match_id
  * @property int|null $event_id
  * @property int|null $player_id
+ * @property int|null $requested_by
  * @property ReelStatus $status
+ * @property ReelSource $source
  * @property string $title
  * @property int $start_second
  * @property int $end_second
  * @property int $duration
  * @property string|null $error_message
+ * @property string|null $request_notes
  * @property \Carbon\CarbonImmutable|null $processed_at
+ * @property int $view_count
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
  * @property-read \App\Models\FootballMatch $match
  * @property-read \App\Models\MatchEvent|null $event
  * @property-read \App\Models\Player|null $player
+ * @property-read \App\Models\User|null $requester
  *
  * @method static \Database\Factories\MatchReelFactory factory($count = null, $state = [])
  */
@@ -36,27 +42,35 @@ class MatchReel extends Model implements HasMedia
     /** @use HasFactory<\Database\Factories\MatchReelFactory> */
     use HasFactory, HasPublicUlid, InteractsWithMedia;
 
+    protected $appends = ['media_url'];
+
     protected $fillable = [
         'match_id',
         'event_id',
         'player_id',
+        'requested_by',
         'status',
+        'source',
         'title',
         'start_second',
         'end_second',
         'duration',
         'error_message',
+        'request_notes',
         'processed_at',
+        'view_count',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => ReelStatus::class,
+            'source' => ReelSource::class,
             'start_second' => 'integer',
             'end_second' => 'integer',
             'duration' => 'integer',
             'processed_at' => 'immutable_datetime',
+            'view_count' => 'integer',
         ];
     }
 
@@ -80,5 +94,15 @@ class MatchReel extends Model implements HasMedia
     public function player(): BelongsTo
     {
         return $this->belongsTo(Player::class);
+    }
+
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function getMediaUrlAttribute(): ?string
+    {
+        return $this->getFirstMediaUrl('reel') ?: null;
     }
 }

@@ -2,8 +2,8 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     CalendarDays,
+    Film,
     Home,
-    IdCard,
     MapPin,
     Settings,
     Shield,
@@ -35,7 +35,7 @@ const currentClub = computed(() => page.props.currentClub);
 
 const globalNavItems: NavItem[] = [
     { title: 'Mis Clubes', href: '/clubs', icon: Shield },
-    { title: 'Mi Tarjeta', href: '/player-card', icon: IdCard },
+    { title: 'Mis Jugadas', href: '/player-card', icon: Film },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {

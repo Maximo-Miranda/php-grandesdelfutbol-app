@@ -78,6 +78,8 @@ use Illuminate\Support\Collection;
  * @property array<array-key, mixed>|null $applied_stats
  * @property string|null $youtube_url
  * @property int $video_offset_seconds
+ * @property int|null $video_duration_seconds
+ * @property string|null $video_path
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAutoStarted($value)
@@ -119,6 +121,8 @@ class FootballMatch extends Model
         'notes',
         'youtube_url',
         'video_offset_seconds',
+        'video_duration_seconds',
+        'video_path',
         'started_at',
         'ended_at',
         'stats_finalized_at',

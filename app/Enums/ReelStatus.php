@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum ReelStatus: string
 {
+    case Requested = 'requested';
     case Pending = 'pending';
     case Processing = 'processing';
     case Completed = 'completed';
@@ -12,6 +13,7 @@ enum ReelStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::Requested => 'Solicitado',
             self::Pending => 'Pendiente',
             self::Processing => 'Procesando',
             self::Completed => 'Completado',

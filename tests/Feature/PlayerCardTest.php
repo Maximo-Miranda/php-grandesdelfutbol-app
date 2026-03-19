@@ -30,11 +30,12 @@ test('player card renders with stats', function () {
         ->assertInertia(fn ($page) => $page
             ->component('PlayerCard')
             ->where('playerStats.goals', 7)
+            ->where('playerStats.assists', 4)
             ->where('playerStats.matches', 12)
-            ->where('playerStats.yellowCards', 2)
-            ->where('playerStats.redCards', 1)
+            ->where('playerStats.saves', 0)
             ->has('clubs', 1)
             ->has('profile')
+            ->has('reels')
         );
 });
 

@@ -67,6 +67,11 @@ RUN apk add --no-cache \
     && apk del linux-headers \
     && rm -rf /var/cache/apk/*
 
+# yt-dlp (standalone binary, no Python needed) + ffmpeg for reel generation
+RUN apk add --no-cache ffmpeg \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
+
 # PHP production configuration
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 

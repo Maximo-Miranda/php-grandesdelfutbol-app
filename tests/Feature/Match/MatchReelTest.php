@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\MatchEventType;
+use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
+use App\Jobs\GenerateMatchReel;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
@@ -10,8 +12,9 @@ use App\Models\MatchReel;
 use App\Models\Player;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Queue;
 
-test('generate endpoint dispatches correct number of jobs', function () {
+test('generate endpoint dispatches jobs for goals and highlighted events only', function () {
     Bus::fake();
 
     $user = User::factory()->create();
@@ -25,6 +28,12 @@ test('generate endpoint dispatches correct number of jobs', function () {
 
     MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
     MatchEvent::factory()->assist()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'event_type' => MatchEventType::Save,
+        'highlighted' => true,
+    ]);
 
     $this->actingAs($user)
         ->post(route('clubs.matches.reels.generate', [$club, $match]))
@@ -52,7 +61,7 @@ test('generate fails without youtube url', function () {
         ->assertSessionHas('error');
 });
 
-test('generate fails when reels already exist', function () {
+test('generate fails when auto reels already exist', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
@@ -61,7 +70,7 @@ test('generate fails when reels already exist', function () {
         'youtube_url' => 'https://youtube.com/watch?v=test123',
     ]);
 
-    MatchReel::factory()->create(['match_id' => $match->id]);
+    MatchReel::factory()->create(['match_id' => $match->id, 'source' => 'auto']);
 
     $this->actingAs($user)
         ->post(route('clubs.matches.reels.generate', [$club, $match]))
@@ -101,7 +110,7 @@ test('reel casts status to ReelStatus enum', function () {
         ->and($reel->status)->toBe(ReelStatus::Pending);
 });
 
-test('team and neutral events are excluded from reel generation', function () {
+test('only goals, penalty scored, and highlighted events generate reels', function () {
     Bus::fake();
 
     $user = User::factory()->create();
@@ -113,8 +122,11 @@ test('team and neutral events are excluded from reel generation', function () {
     ]);
     $player = Player::factory()->create(['club_id' => $club->id]);
 
-    // Player event - should generate reel
+    // Goal - should generate reel
     MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    // Assist (not highlighted) - should NOT generate reel
+    MatchEvent::factory()->assist()->create(['match_id' => $match->id, 'player_id' => $player->id]);
 
     // Team event - should NOT generate reel
     MatchEvent::factory()->teamEvent(MatchEventType::ShotOnTarget, 'a')->create(['match_id' => $match->id]);
@@ -127,4 +139,286 @@ test('team and neutral events are excluded from reel generation', function () {
         ->assertRedirect();
 
     expect(MatchReel::count())->toBe(1);
+});
+
+test('admin can create manual clip with minute and second', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'title' => 'Jugada increíble',
+            'minute' => 2,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $reel = MatchReel::first();
+    expect($reel->title)->toBe('Jugada increíble')
+        ->and($reel->source)->toBe(ReelSource::Manual)
+        ->and($reel->status)->toBe(ReelStatus::Pending)
+        ->and($reel->start_second)->toBe(105) // 120 - 15
+        ->and($reel->end_second)->toBe(130) // 120 + 10
+        ->and($reel->duration)->toBe(25);
+
+    Queue::assertPushed(GenerateMatchReel::class);
+});
+
+test('manual clip requires youtube url', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'title' => 'Test',
+            'minute' => 1,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+});
+
+test('any member can create match-level reel with minute and second', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.request', [$club, $match]), [
+            'minute' => 5,
+            'second' => 30,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $reel = MatchReel::first();
+    expect($reel->source)->toBe(ReelSource::Request)
+        ->and($reel->status)->toBe(ReelStatus::Pending)
+        ->and($reel->player_id)->toBeNull()
+        ->and($reel->requested_by)->toBeNull()
+        ->and($reel->start_second)->toBe(315) // (5*60+30) - 15 = 315
+        ->and($reel->end_second)->toBe(340) // (5*60+30) + 10 = 340
+        ->and($reel->duration)->toBe(25);
+
+    Queue::assertPushed(GenerateMatchReel::class);
+});
+
+test('player can create player-level reel with minute and second', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.requestForPlayer', [$club, $match]), [
+            'minute' => 1,
+            'second' => 0,
+            'request_notes' => 'Mi gol del minuto 1',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $reel = MatchReel::first();
+    expect($reel->source)->toBe(ReelSource::Request)
+        ->and($reel->status)->toBe(ReelStatus::Pending)
+        ->and($reel->requested_by)->toBe($user->id)
+        ->and($reel->player_id)->toBe($player->id)
+        ->and($reel->request_notes)->toBe('Mi gol del minuto 1')
+        ->and($reel->start_second)->toBe(45) // 60 - 15 = 45
+        ->and($reel->end_second)->toBe(70); // 60 + 10 = 70
+
+    Queue::assertPushed(GenerateMatchReel::class);
+});
+
+test('admin can approve clip request', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    $reel = MatchReel::factory()->requested()->create([
+        'match_id' => $match->id,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.approve', [$club, $match, $reel]))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $reel->refresh();
+    expect($reel->status)->toBe(ReelStatus::Pending);
+
+    Queue::assertPushed(GenerateMatchReel::class);
+});
+
+test('admin can reject clip request', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    $reel = MatchReel::factory()->requested()->create([
+        'match_id' => $match->id,
+    ]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.matches.reels.reject', [$club, $match, $reel]))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->assertDatabaseMissing('match_reels', ['id' => $reel->id]);
+});
+
+test('cannot approve non-requested reel', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    $reel = MatchReel::factory()->create(['match_id' => $match->id, 'status' => ReelStatus::Pending]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.approve', [$club, $match, $reel]))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+});
+
+test('admin can toggle event highlighted', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+    $event = MatchEvent::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'highlighted' => false,
+    ]);
+
+    $this->actingAs($user)
+        ->patch(route('clubs.matches.events.update', [$club, $match, $event]), [
+            'highlighted' => true,
+        ])
+        ->assertRedirect();
+
+    $event->refresh();
+    expect($event->highlighted)->toBeTrue();
+});
+
+test('reel source casts to ReelSource enum', function () {
+    $reel = MatchReel::factory()->manual()->create();
+
+    expect($reel->source)->toBeInstanceOf(ReelSource::class)
+        ->and($reel->source)->toBe(ReelSource::Manual);
+});
+
+test('generate is idempotent for existing event reels', function () {
+    Bus::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+    $event = MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+
+    // Create existing reel for event (manual source, so auto generate should still be possible)
+    MatchReel::factory()->manual()->create(['match_id' => $match->id]);
+
+    // Also create an auto reel for this event already
+    MatchReel::factory()->create([
+        'match_id' => $match->id,
+        'event_id' => $event->id,
+        'source' => ReelSource::Auto,
+    ]);
+
+    // Service should skip this event since a reel already exists for it
+    app(\App\Services\ReelService::class)->generateReelsForMatch($match);
+
+    // Should still be only 2 reels (the manual one + the existing auto one)
+    expect(MatchReel::count())->toBe(2);
+});
+
+test('clip request validates second max 59', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.request', [$club, $match]), [
+            'minute' => 5,
+            'second' => 70,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('second');
+});
+
+test('manual clip validates second max 59', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'title' => 'Test',
+            'minute' => 1,
+            'second' => 70,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('second');
+});
+
+test('summary page includes myPlayer prop', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->get(route('clubs.matches.summary', [$club, $match]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('clubs/matches/Summary')
+            ->has('myPlayer')
+            ->where('myPlayer.id', $player->id)
+        );
 });

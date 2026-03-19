@@ -25,6 +25,7 @@ class MatchEventController extends Controller
 
         $validated = $request->validate([
             'player_id' => ['nullable', 'exists:players,id'],
+            'highlighted' => ['sometimes', 'boolean'],
         ]);
 
         $event->update($validated);

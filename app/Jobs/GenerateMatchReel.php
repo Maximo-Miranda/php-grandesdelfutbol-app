@@ -3,12 +3,14 @@
 namespace App\Jobs;
 
 use App\Enums\ReelStatus;
+use App\Models\FootballMatch;
 use App\Models\MatchReel;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
 
 class GenerateMatchReel implements ShouldQueue
 {
@@ -49,10 +51,12 @@ class GenerateMatchReel implements ShouldQueue
         $outputFile = $tempDir.'/'.$this->reel->ulid.'.mp4';
 
         try {
-            $this->downloadSegment($match->youtube_url, $outputFile);
+            $sourceVideo = $this->ensureFullVideoDownloaded($match, $tempDir);
+
+            $this->cutSegment($sourceVideo, $outputFile);
 
             if (! file_exists($outputFile)) {
-                $this->markFailed('yt-dlp did not produce an output file.');
+                $this->markFailed('ffmpeg did not produce an output file.');
 
                 return;
             }
@@ -73,14 +77,43 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    protected function downloadSegment(string $youtubeUrl, string $outputFile): void
+    protected function ensureFullVideoDownloaded(FootballMatch $match, string $tempDir): string
     {
-        $start = $this->reel->start_second;
-        $end = $this->reel->end_second;
+        $s3Path = "match-videos/{$match->ulid}.mp4";
 
-        $result = Process::timeout(240)->run([
+        $localPath = $tempDir."/full-{$match->ulid}.mp4";
+
+        if ($match->video_path && Storage::disk('s3')->exists($match->video_path)) {
+            if (! file_exists($localPath)) {
+                $stream = Storage::disk('s3')->readStream($match->video_path);
+                $local = fopen($localPath, 'wb');
+                stream_copy_to_stream($stream, $local);
+                fclose($local);
+                fclose($stream);
+            }
+
+            return $localPath;
+        }
+
+        if (! file_exists($localPath)) {
+            $this->downloadFullVideo($match->youtube_url, $localPath);
+        }
+
+        $stream = fopen($localPath, 'rb');
+        Storage::disk('s3')->put($s3Path, $stream);
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
+        $match->update(['video_path' => $s3Path]);
+
+        return $localPath;
+    }
+
+    protected function downloadFullVideo(string $youtubeUrl, string $outputFile): void
+    {
+        $result = Process::timeout(600)->run([
             'yt-dlp',
-            '--download-sections', "*{$start}-{$end}",
             '-f', 'bestvideo[height<=720]+bestaudio',
             '--merge-output-format', 'mp4',
             '--rate-limit', '5M',
@@ -91,6 +124,30 @@ class GenerateMatchReel implements ShouldQueue
 
         if (! $result->successful()) {
             throw new \RuntimeException('yt-dlp failed: '.$result->errorOutput());
+        }
+    }
+
+    protected function cutSegment(string $sourceFile, string $outputFile): void
+    {
+        $start = $this->reel->start_second;
+        $duration = $this->reel->end_second - $this->reel->start_second;
+
+        $result = Process::timeout(120)->run([
+            'ffmpeg',
+            '-y',
+            '-i', $sourceFile,
+            '-ss', (string) $start,
+            '-t', (string) $duration,
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', '23',
+            '-c:a', 'aac',
+            '-movflags', '+faststart',
+            $outputFile,
+        ]);
+
+        if (! $result->successful()) {
+            throw new \RuntimeException('ffmpeg cut failed: '.$result->errorOutput());
         }
     }
 

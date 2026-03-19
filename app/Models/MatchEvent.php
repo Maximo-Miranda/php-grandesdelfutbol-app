@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $minute
  * @property int $second
  * @property string|null $notes
+ * @property bool $highlighted
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
  * @property-read \App\Models\FootballMatch $match
@@ -55,6 +56,7 @@ class MatchEvent extends Model
         'minute',
         'second',
         'notes',
+        'highlighted',
     ];
 
     protected function casts(): array
@@ -64,6 +66,7 @@ class MatchEvent extends Model
             'team' => AttendanceTeam::class,
             'minute' => 'integer',
             'second' => 'integer',
+            'highlighted' => 'boolean',
         ];
     }
 

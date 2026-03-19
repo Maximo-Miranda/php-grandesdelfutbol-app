@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { IdCard, Shield, UserCircle } from 'lucide-vue-next';
+import { Film, Shield, UserCircle } from 'lucide-vue-next';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 
 const { isCurrentOrParentUrl } = useCurrentUrl();
 
 const tabs = [
     { title: 'Clubes', href: '/clubs', icon: Shield },
-    { title: 'Mi Tarjeta', href: '/player-card', icon: IdCard },
+    { title: 'Mis Jugadas', href: '/player-card', icon: Film },
     { title: 'Perfil', href: '/settings/profile', icon: UserCircle },
 ];
 
