@@ -26,7 +26,9 @@ class MatchController extends Controller
     {
         Gate::authorize('viewAny', [FootballMatch::class, $club]);
 
-        $filter = $request->enum('filter', MatchStatus::class);
+        $filter = $request->query('filter') === 'all'
+            ? 'all'
+            : ($request->enum('filter', MatchStatus::class) ?? MatchStatus::Upcoming);
 
         $query = $club->matches()
             ->with('field')
@@ -55,7 +57,7 @@ class MatchController extends Controller
 
         return Inertia::render('clubs/matches/Index', [
             'club' => $club,
-            'filter' => $filter?->value ?? 'all',
+            'filter' => $filter instanceof MatchStatus ? $filter->value : $filter,
             'matches' => Inertia::scroll(fn () => $query->simplePaginate(15)),
         ]);
     }

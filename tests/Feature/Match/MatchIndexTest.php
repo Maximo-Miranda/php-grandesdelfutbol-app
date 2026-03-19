@@ -11,8 +11,9 @@ beforeEach(function () {
     ClubMember::factory()->create(['club_id' => $this->club->id, 'user_id' => $this->user->id]);
 });
 
-test('matches index returns paginated data', function () {
+test('matches index defaults to upcoming filter', function () {
     FootballMatch::factory()->count(3)->create(['club_id' => $this->club->id]);
+    FootballMatch::factory()->completed()->create(['club_id' => $this->club->id]);
 
     $this->actingAs($this->user)
         ->get(route('clubs.matches.index', $this->club))
@@ -20,7 +21,7 @@ test('matches index returns paginated data', function () {
         ->assertInertia(fn ($page) => $page
             ->component('clubs/matches/Index')
             ->has('matches.data', 3)
-            ->where('filter', 'all')
+            ->where('filter', 'upcoming')
         );
 });
 
@@ -104,9 +105,10 @@ test('all tab orders completed most recent first within their group', function (
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('clubs.matches.index', $this->club))
+        ->get(route('clubs.matches.index', [$this->club, 'filter' => 'all']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
+            ->where('filter', 'all')
             ->where('matches.data.0.id', $upcoming->id)
             ->where('matches.data.1.id', $recentCompleted->id)
             ->where('matches.data.2.id', $oldCompleted->id)
@@ -124,9 +126,10 @@ test('all tab shows upcoming before completed', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('clubs.matches.index', $this->club))
+        ->get(route('clubs.matches.index', [$this->club, 'filter' => 'all']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
+            ->where('filter', 'all')
             ->where('matches.data.0.id', $upcoming->id)
             ->where('matches.data.1.id', $completed->id)
         );

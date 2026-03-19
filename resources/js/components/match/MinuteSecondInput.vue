@@ -8,6 +8,7 @@ const second = defineModel<number>('second', { required: true });
 
 const props = defineProps<{
     manualMode: boolean;
+    alwaysExpanded?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -66,7 +67,7 @@ watch(() => props.manualMode, (isManual) => {
     <div>
         <!-- Collapsed: show time + pencil to edit -->
         <button
-            v-if="!manualMode"
+            v-if="!manualMode && !alwaysExpanded"
             class="flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-base font-bold tabular-nums text-emerald-400 transition-all active:scale-95 hover:bg-emerald-500/15 font-mono"
             @click="emit('toggleManual')"
         >
@@ -128,8 +129,9 @@ watch(() => props.manualMode, (isManual) => {
                     <ChevronUp class="size-5" />
                 </button>
 
-                <!-- Auto button -->
+                <!-- Auto button (hidden when always expanded - no clock in post-match) -->
                 <button
+                    v-if="!alwaysExpanded"
                     class="ml-0.5 flex size-10 items-center justify-center rounded-lg border border-amber-400/30 text-amber-400/70 transition-colors hover:bg-amber-500/10 active:scale-95"
                     title="Volver a tiempo automatico"
                     @click="emit('toggleManual')"

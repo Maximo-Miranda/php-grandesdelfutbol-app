@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import { CalendarDays, Clock, MapPin, Plus, Users } from 'lucide-vue-next';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -21,9 +20,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const tabs = [
-    { key: 'all', label: 'Todos' },
     { key: 'upcoming', label: 'Proximos' },
     { key: 'completed', label: 'Finalizados' },
+    { key: 'all', label: 'Todos' },
 ] as const;
 
 function switchTab(tab: string) {
@@ -36,11 +35,11 @@ function switchTab(tab: string) {
     });
 }
 
-const statusLabel: Record<string, string> = {
-    upcoming: 'Proximo',
-    in_progress: 'En juego',
-    completed: 'Finalizado',
-    cancelled: 'Cancelado',
+const statusConfig: Record<string, { label: string; class: string }> = {
+    upcoming: { label: 'Proximo', class: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400' },
+    in_progress: { label: 'En juego', class: 'border-orange-500/40 bg-orange-500/15 text-orange-400 animate-pulse' },
+    completed: { label: 'Finalizado', class: 'border-blue-500/40 bg-blue-500/15 text-blue-400' },
+    cancelled: { label: 'Cancelado', class: 'border-zinc-500/40 bg-zinc-500/15 text-zinc-400' },
 };
 
 function formatDate(dateStr: string): string {
@@ -90,7 +89,10 @@ function formatTime(dateStr: string): string {
                     >
                         <div class="flex items-start justify-between">
                             <h3 class="font-semibold">{{ m.title }}</h3>
-                            <Badge variant="outline" class="text-xs">{{ statusLabel[m.status] ?? m.status }}</Badge>
+                            <span
+                                class="shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase"
+                                :class="statusConfig[m.status]?.class ?? 'border-border text-muted-foreground'"
+                            >{{ statusConfig[m.status]?.label ?? m.status }}</span>
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span class="flex items-center gap-1"><CalendarDays class="size-3.5" />{{ formatDate(m.scheduled_at) }}</span>

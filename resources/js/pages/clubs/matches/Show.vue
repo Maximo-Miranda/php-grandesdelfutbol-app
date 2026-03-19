@@ -12,6 +12,8 @@ import {
     Navigation,
     Pencil,
     Play,
+    Plus,
+    Search,
     Shield,
     Shuffle,
     Trash2,
@@ -39,6 +41,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
@@ -202,6 +205,20 @@ const startMatchHint = computed(() => {
 });
 const isFull = computed(() => confirmedCount.value >= totalSlots.value);
 
+// --- Admin player search ---
+const adminPlayerSearch = ref('');
+
+const filteredUnregistered = computed(() => {
+    const players = props.unregisteredPlayers?.data ?? [];
+    const q = adminPlayerSearch.value.toLowerCase().trim();
+    if (!q) return players;
+    return players.filter(p =>
+        p.display_name.toLowerCase().includes(q)
+        || p.position_label?.toLowerCase().includes(q)
+        || String(p.jersey_number ?? '').includes(q),
+    );
+});
+
 // --- Team selection dialog ---
 const showTeamDialog = ref(false);
 
@@ -217,8 +234,20 @@ function confirmWithTeam(team: 'a' | 'b' | null) {
 }
 
 // --- Actions ---
-function registerPlayer(playerId: number, status: string) {
-    router.post(`${base}/attendance`, { player_id: playerId, status });
+const addingPlayerKey = ref<string | null>(null);
+
+function registerPlayer(playerId: number, status: string, team?: 'a' | 'b' | null) {
+    if (status === 'confirmed') {
+        addingPlayerKey.value = `${playerId}-${team ?? 'none'}`;
+    }
+    router.post(`${base}/attendance`, {
+        player_id: playerId,
+        status,
+        team: team ?? null,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { addingPlayerKey.value = null; },
+    });
 }
 
 function confirmAttendance() {
@@ -582,7 +611,7 @@ function pad(n: number): string {
             <div class="mt-6">
                 <div class="mb-3 flex items-center gap-2">
                     <Shield class="size-4 text-emerald-500" />
-                    <h3 class="font-semibold">Confirmados ({{ startersAndPending }}/{{ match.max_players }})</h3>
+                    <h3 class="font-semibold">Titulares ({{ startersAndPending }}/{{ match.max_players }})</h3>
                 </div>
 
                 <!-- Grouped by team -->
@@ -991,42 +1020,87 @@ function pad(n: number): string {
             <!-- Admin: Register players manually -->
             <div
                 v-if="canManage && unregisteredPlayers?.data?.length"
-                class="mt-6 rounded-xl border border-border bg-card p-4"
+                class="mt-6"
             >
-                <h3 class="mb-3 font-semibold">Registrar jugadores</h3>
+                <p class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    Agregar jugadores al partido
+                </p>
 
                 <div v-if="isFull" class="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
                     Cupo lleno — {{ confirmedCount }}/{{ totalSlots }} confirmados
                 </div>
 
+                <div class="relative mb-2">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Search class="size-4 text-muted-foreground" />
+                    </div>
+                    <Input
+                        v-model="adminPlayerSearch"
+                        placeholder="Buscar jugador..."
+                        class="pl-9 text-sm"
+                    />
+                </div>
+
                 <InfiniteScroll data="unregisteredPlayers" preserve-url only-next>
-                    <div class="space-y-2">
+                    <div v-if="filteredUnregistered.length" class="max-h-72 divide-y divide-border/50 overflow-y-auto rounded-lg border border-border">
+                        <div class="sticky top-0 z-10 flex items-center justify-end gap-3 border-b border-border bg-card/95 px-2 py-1 text-[9px] font-medium text-muted-foreground backdrop-blur-sm">
+                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>{{ match.team_a_name }}</span>
+                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>{{ match.team_b_name }}</span>
+                            <span class="text-zinc-500">Sin eq.</span>
+                            <span class="text-destructive/50">No va</span>
+                        </div>
                         <div
-                            v-for="player in unregisteredPlayers.data"
+                            v-for="player in filteredUnregistered"
                             :key="player.id"
-                            class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                            class="flex items-center gap-2 px-2 py-1.5"
                         >
-                            <div class="flex items-center gap-2">
-                                <div class="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                    {{ player.display_name.charAt(0).toUpperCase() }}
-                                </div>
-                                <div>
-                                    <span class="text-sm">{{ player.display_name }}</span>
-                                    <p v-if="player.position_label" class="text-xs text-muted-foreground">{{ player.position_label }}</p>
-                                </div>
+                            <span
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
+                            >{{ player.jersey_number ?? player.display_name.charAt(0) }}</span>
+                            <div class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium">{{ player.display_name }}</span>
+                                <span v-if="player.position_label || player.jersey_number" class="text-[10px] text-muted-foreground">
+                                    {{ [player.position_label, player.jersey_number ? `#${player.jersey_number}` : ''].filter(Boolean).join(' · ') }}
+                                </span>
                             </div>
-                            <div class="flex gap-1.5">
-                                <Button size="sm" class="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" :disabled="isFull" @click="registerPlayer(player.id, 'confirmed')">
-                                    <Check class="size-3.5" />
-                                    <span class="hidden sm:inline">Confirmar</span>
-                                </Button>
-                                <Button size="sm" variant="outline" class="h-8 gap-1" @click="registerPlayer(player.id, 'declined')">
+                            <div class="flex shrink-0 gap-1">
+                                <button
+                                    :disabled="isFull || addingPlayerKey === `${player.id}-a`"
+                                    :title="`Agregar a ${match.team_a_name}`"
+                                    class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                    @click="registerPlayer(player.id, 'confirmed', 'a')"
+                                >
+                                    <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                </button>
+                                <button
+                                    :disabled="isFull || addingPlayerKey === `${player.id}-b`"
+                                    :title="`Agregar a ${match.team_b_name}`"
+                                    class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                    @click="registerPlayer(player.id, 'confirmed', 'b')"
+                                >
+                                    <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                </button>
+                                <button
+                                    :disabled="isFull || addingPlayerKey === `${player.id}-none`"
+                                    title="Sin equipo"
+                                    class="flex size-8 items-center justify-center rounded-lg border border-dashed border-zinc-600 text-zinc-500 transition-all active:scale-90 disabled:opacity-40"
+                                    @click="registerPlayer(player.id, 'confirmed', null)"
+                                >
+                                    <Plus class="size-3.5" />
+                                </button>
+                                <button
+                                    :title="`Marcar que ${player.display_name} no asiste`"
+                                    class="flex size-8 items-center justify-center rounded-lg text-destructive/50 transition-all hover:bg-destructive/10 hover:text-destructive active:scale-90"
+                                    @click="registerPlayer(player.id, 'declined')"
+                                >
                                     <X class="size-3.5" />
-                                    <span class="hidden sm:inline">Rechazar</span>
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </div>
+                    <p v-else class="text-center text-xs text-muted-foreground">
+                        {{ adminPlayerSearch ? 'No se encontraron jugadores.' : 'Todos los jugadores activos ya estan registrados.' }}
+                    </p>
 
                     <template #loading>
                         <div class="flex justify-center py-3">
