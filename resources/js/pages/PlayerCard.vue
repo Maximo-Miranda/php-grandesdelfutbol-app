@@ -99,6 +99,13 @@ const selectedMatch = computed(() =>
     props.matchesWithVideo.find(m => String(m.id) === selectedMatchId.value),
 );
 
+const playerClipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(null);
+
+const playerVideoMaxSeconds = computed(() => {
+    if (!selectedMatch.value) return undefined;
+    return selectedMatch.value.video_duration_seconds ?? selectedMatch.value.duration_minutes * 60;
+});
+
 const createReelForm = useForm({
     minute: 0,
     second: 0,
@@ -394,10 +401,12 @@ async function shareCard() {
                             <div v-if="selectedMatch">
                                 <div class="flex justify-center">
                                     <MinuteSecondInput
+                                        ref="playerClipTimeInput"
                                         v-model:minute="createReelForm.minute"
                                         v-model:second="createReelForm.second"
                                         :manual-mode="true"
                                         always-expanded
+                                        :max-seconds="playerVideoMaxSeconds"
                                     />
                                 </div>
                                 <p class="mt-2 text-center text-xs text-muted-foreground">
@@ -413,7 +422,7 @@ async function shareCard() {
                             </div>
 
                             <div class="flex flex-col gap-2 pt-2">
-                                <Button type="submit" class="w-full gap-2" :disabled="createReelForm.processing || !selectedMatch">
+                                <Button type="submit" class="w-full gap-2" :disabled="createReelForm.processing || !selectedMatch || playerClipTimeInput?.isOverMax">
                                     <Film class="size-4" />
                                     Crear reel
                                 </Button>

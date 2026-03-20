@@ -406,6 +406,86 @@ test('manual clip validates second max 59', function () {
         ->assertSessionHasErrors('second');
 });
 
+test('manual clip rejects minute exceeding video duration', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+        'video_duration_seconds' => 4440, // 74 minutes
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'minute' => 80,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('minute');
+});
+
+test('manual clip allows minute within video duration', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+        'video_duration_seconds' => 4440,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'minute' => 70,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+});
+
+test('player reel request rejects minute exceeding video duration', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+        'video_duration_seconds' => 3600, // 60 minutes
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.requestForPlayer', [$club, $match]), [
+            'minute' => 65,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('minute');
+});
+
+test('time validation falls back to duration_minutes when video_duration_seconds is null', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create([
+        'club_id' => $club->id,
+        'youtube_url' => 'https://youtube.com/watch?v=test123',
+        'video_duration_seconds' => null,
+        'duration_minutes' => 60,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.store', [$club, $match]), [
+            'minute' => 65,
+            'second' => 0,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('minute');
+});
+
 test('summary page includes myPlayer prop', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronUp, Clock, Pencil } from 'lucide-vue-next';
-import { onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { formatEventTime } from '@/lib/utils';
 
 const minute = defineModel<number>('minute', { required: true });
@@ -9,16 +9,22 @@ const second = defineModel<number>('second', { required: true });
 const props = defineProps<{
     manualMode: boolean;
     alwaysExpanded?: boolean;
+    maxSeconds?: number;
 }>();
 
 const emit = defineEmits<{
     toggleManual: [];
 }>();
 
+const maxTotalSeconds = computed(() => props.maxSeconds ?? 200 * 60 + 59);
+const isOverMax = computed(() => minute.value * 60 + second.value > maxTotalSeconds.value);
+
+defineExpose({ isOverMax });
+
 function adjustTime(delta: number) {
     let totalSeconds = minute.value * 60 + second.value + delta;
     if (totalSeconds < 0) totalSeconds = 0;
-    if (totalSeconds > 200 * 60 + 59) totalSeconds = 200 * 60 + 59;
+    if (totalSeconds > maxTotalSeconds.value) totalSeconds = maxTotalSeconds.value;
     minute.value = Math.floor(totalSeconds / 60);
     second.value = totalSeconds % 60;
 }
@@ -78,7 +84,7 @@ watch(() => props.manualMode, (isManual) => {
 
         <!-- Expanded: editable time control -->
         <div v-else>
-            <div class="flex items-center gap-0.5 rounded-xl border-2 border-amber-400/40 bg-amber-500/5 p-1.5">
+            <div class="flex items-center gap-0.5 rounded-xl border-2 p-1.5" :class="isOverMax ? 'border-red-400/60 bg-red-500/5' : 'border-amber-400/40 bg-amber-500/5'">
                 <!-- Minus -->
                 <button
                     type="button"
@@ -143,6 +149,11 @@ watch(() => props.manualMode, (isManual) => {
                 </button>
             </div>
 
+            <!-- Over-max error -->
+            <p v-if="isOverMax" class="mt-1 text-center text-xs font-medium text-red-400">
+                El tiempo excede la duración del video ({{ Math.floor(maxTotalSeconds / 60) }}:{{ String(maxTotalSeconds % 60).padStart(2, '0') }})
+            </p>
+
             <!-- Hint -->
             <Transition
                 enter-active-class="transition-all duration-300 ease-out"
@@ -152,7 +163,7 @@ watch(() => props.manualMode, (isManual) => {
                 leave-from-class="opacity-100"
                 leave-to-class="opacity-0"
             >
-                <p v-if="showHint" class="mt-1 text-right text-[9px] text-muted-foreground">
+                <p v-if="showHint && !isOverMax" class="mt-1 text-right text-[9px] text-muted-foreground">
                     Mantener presionado para avance rapido
                 </p>
             </Transition>

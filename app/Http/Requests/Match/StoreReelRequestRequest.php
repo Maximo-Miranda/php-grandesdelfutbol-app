@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Match;
 
+use App\Concerns\ValidatesReelTime;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReelRequestRequest extends FormRequest
 {
+    use ValidatesReelTime;
+
     public function authorize(): bool
     {
         return true;

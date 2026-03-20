@@ -663,6 +663,9 @@ function submitCreatePlayer() {
 // ===== TAB: REELS =====
 const showManualClipForm = ref(false);
 const deletingReelUlid = ref<string | null>(null);
+const clipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(null);
+
+const videoMaxSeconds = computed(() => props.match.video_duration_seconds ?? props.match.duration_minutes * 60);
 
 const manualClipForm = useForm({
     title: '',
@@ -1635,10 +1638,12 @@ async function shareReel(reel: MatchReel) {
                             <div>
                                 <div class="flex justify-center">
                                     <MinuteSecondInput
+                                        ref="clipTimeInput"
                                         v-model:minute="manualClipForm.minute"
                                         v-model:second="manualClipForm.second"
                                         :manual-mode="true"
                                         always-expanded
+                                        :max-seconds="videoMaxSeconds"
                                     />
                                 </div>
                                 <p class="mt-2 text-center text-xs text-muted-foreground">
@@ -1666,7 +1671,7 @@ async function shareReel(reel: MatchReel) {
                                 <Textarea id="admin-notes" v-model="manualClipForm.request_notes" placeholder="Describe la jugada..." class="text-sm" rows="2" />
                             </div>
                             <div class="flex flex-col gap-2 pt-2">
-                                <Button type="submit" class="w-full gap-2" :disabled="manualClipForm.processing">
+                                <Button type="submit" class="w-full gap-2" :disabled="manualClipForm.processing || clipTimeInput?.isOverMax">
                                     <Film class="size-4" />
                                     Crear reel
                                 </Button>

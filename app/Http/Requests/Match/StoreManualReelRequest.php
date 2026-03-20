@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Match;
 
+use App\Concerns\ValidatesReelTime;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
 class StoreManualReelRequest extends FormRequest
 {
+    use ValidatesReelTime;
+
     public function authorize(): bool
     {
         return Gate::allows('update', $this->route('match'));
