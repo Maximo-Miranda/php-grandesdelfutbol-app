@@ -25,21 +25,20 @@ class PlayerCardController extends Controller
 
         $clubIds = $clubs->pluck('id');
 
-        $playerStats = Player::withoutGlobalScope(ClubScope::class)
+        $userPlayersQuery = Player::withoutGlobalScope(ClubScope::class)
             ->whereIn('club_id', $clubIds)
-            ->where('user_id', $user->id)
+            ->where('user_id', $user->id);
+
+        $playerStats = (clone $userPlayersQuery)
             ->selectRaw('SUM(goals) as total_goals')
             ->selectRaw('SUM(assists) as total_assists')
             ->selectRaw('SUM(matches_played) as total_matches')
             ->selectRaw('SUM(saves) as total_saves')
             ->first();
 
-        $profile = $user->playerProfile ?? new PlayerProfile;
+        $playerIds = (clone $userPlayersQuery)->pluck('id');
 
-        $playerIds = Player::withoutGlobalScope(ClubScope::class)
-            ->whereIn('club_id', $clubIds)
-            ->where('user_id', $user->id)
-            ->pluck('id');
+        $profile = $user->playerProfile ?? new PlayerProfile;
 
         $matchesWithVideo = FootballMatch::query()
             ->whereIn('club_id', $clubIds)
@@ -62,10 +61,9 @@ class PlayerCardController extends Controller
             'matchesWithVideo' => $matchesWithVideo,
             'reels' => fn () => MatchReel::query()
                 ->where(function ($q) use ($playerIds, $user) {
-                    $q->where(function ($q) use ($playerIds) {
-                        $q->whereIn('player_id', $playerIds)
-                            ->where('status', ReelStatus::Completed);
-                    })->orWhere('requested_by', $user->id);
+                    $q->whereIn('player_id', $playerIds)
+                        ->where('status', ReelStatus::Completed)
+                        ->orWhere('requested_by', $user->id);
                 })
                 ->with('player', 'match', 'media')
                 ->orderByDesc('created_at')

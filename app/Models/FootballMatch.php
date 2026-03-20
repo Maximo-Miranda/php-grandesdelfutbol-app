@@ -138,11 +138,11 @@ class FootballMatch extends Model
     {
         return [
             'status' => MatchStatus::class,
-            'scheduled_at' => 'datetime',
-            'started_at' => 'datetime',
-            'ended_at' => 'datetime',
-            'stats_finalized_at' => 'datetime',
-            'registration_notified_at' => 'datetime',
+            'scheduled_at' => 'immutable_datetime',
+            'started_at' => 'immutable_datetime',
+            'ended_at' => 'immutable_datetime',
+            'stats_finalized_at' => 'immutable_datetime',
+            'registration_notified_at' => 'immutable_datetime',
             'applied_stats' => 'array',
             'auto_started' => 'boolean',
             'duration_minutes' => 'integer',

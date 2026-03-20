@@ -87,19 +87,14 @@ class ReelService
             $match->video_offset_seconds ?? 0,
         );
 
-        $playerId = $data['player_id'] ?? null;
-        $player = $playerId ? Player::find($playerId) : null;
+        $player = Player::find($data['player_id'] ?? null);
 
-        $title = $data['title'] ?? sprintf(
-            'Reel %d:%02d%s',
-            $data['minute'],
-            $data['second'],
-            $player ? " — {$player->display_name}" : '',
-        );
+        $playerSuffix = $player ? " — {$player->display_name}" : '';
+        $title = $data['title'] ?? sprintf('Reel %d:%02d%s', $data['minute'], $data['second'], $playerSuffix);
 
         $reel = MatchReel::create([
             'match_id' => $match->id,
-            'player_id' => $playerId,
+            'player_id' => $player?->id,
             'requested_by' => $player?->user_id,
             'status' => ReelStatus::Pending,
             'source' => ReelSource::Manual,
@@ -202,7 +197,7 @@ class ReelService
 
     public function fetchVideoDuration(FootballMatch $match): void
     {
-        if ($match->video_duration_seconds || ! $match->youtube_url) {
+        if (! $match->youtube_url || $match->video_duration_seconds) {
             return;
         }
 

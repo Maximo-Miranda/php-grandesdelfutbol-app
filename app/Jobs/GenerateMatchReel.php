@@ -20,7 +20,6 @@ class GenerateMatchReel implements ShouldQueue
 
     public int $tries = 2;
 
-    /** @var int[] */
     public array $backoff = [60, 120];
 
     public function __construct(
@@ -68,11 +67,11 @@ class GenerateMatchReel implements ShouldQueue
                 'status' => ReelStatus::Completed,
                 'processed_at' => now(),
             ]);
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             $this->markFailed($e->getMessage());
-
+        } finally {
             if (file_exists($outputFile)) {
-                @unlink($outputFile);
+                unlink($outputFile);
             }
         }
     }
@@ -101,9 +100,7 @@ class GenerateMatchReel implements ShouldQueue
 
         $stream = fopen($localPath, 'rb');
         Storage::disk('s3')->put($s3Path, $stream);
-        if (is_resource($stream)) {
-            fclose($stream);
-        }
+        fclose($stream);
 
         $match->update(['video_path' => $s3Path]);
 

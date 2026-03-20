@@ -11,6 +11,7 @@ use App\Models\FootballMatch;
 use App\Models\MatchReel;
 use App\Services\ReelService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class MatchReelController extends Controller
@@ -19,8 +20,8 @@ class MatchReelController extends Controller
     {
         Gate::authorize('update', $match);
 
-        if (! $match->youtube_url) {
-            return back()->with('error', 'El partido no tiene video de YouTube.');
+        if ($redirect = $this->requireYoutubeUrl($match)) {
+            return $redirect;
         }
 
         if ($match->reels()->where('source', ReelSource::Auto)->exists()) {
@@ -34,8 +35,8 @@ class MatchReelController extends Controller
 
     public function store(StoreManualReelRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
     {
-        if (! $match->youtube_url) {
-            return back()->with('error', 'El partido no tiene video de YouTube.');
+        if ($redirect = $this->requireYoutubeUrl($match)) {
+            return $redirect;
         }
 
         $reelService->createManualClip($match, $request->validated());
@@ -45,8 +46,8 @@ class MatchReelController extends Controller
 
     public function request(StoreReelRequestRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
     {
-        if (! $match->youtube_url) {
-            return back()->with('error', 'El partido no tiene video de YouTube.');
+        if ($redirect = $this->requireYoutubeUrl($match)) {
+            return $redirect;
         }
 
         $reelService->createMatchClip($match, $request->validated());
@@ -56,8 +57,8 @@ class MatchReelController extends Controller
 
     public function requestForPlayer(StoreReelRequestRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
     {
-        if (! $match->youtube_url) {
-            return back()->with('error', 'El partido no tiene video de YouTube.');
+        if ($redirect = $this->requireYoutubeUrl($match)) {
+            return $redirect;
         }
 
         $reelService->createPlayerClip($match, $request->user(), $request->validated());
@@ -98,9 +99,9 @@ class MatchReelController extends Controller
         return back();
     }
 
-    public function destroy(Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
+    public function destroy(Request $request, Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
     {
-        $user = request()->user();
+        $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
         $isOwner = $reel->requested_by === $user->id;
 
@@ -112,5 +113,14 @@ class MatchReelController extends Controller
         $reel->delete();
 
         return back()->with('success', 'Reel eliminado.');
+    }
+
+    private function requireYoutubeUrl(FootballMatch $match): ?RedirectResponse
+    {
+        if (! $match->youtube_url) {
+            return back()->with('error', 'El partido no tiene video de YouTube.');
+        }
+
+        return null;
     }
 }

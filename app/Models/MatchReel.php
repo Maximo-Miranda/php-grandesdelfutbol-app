@@ -103,6 +103,6 @@ class MatchReel extends Model implements HasMedia
 
     public function getMediaUrlAttribute(): ?string
     {
-        return $this->getFirstMediaUrl('reel') ?: null;
+        return $this->getFirstMediaUrl('reel');
     }
 }
