@@ -5,30 +5,38 @@ namespace App\Notifications;
 use App\Models\FootballMatch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class MatchReelsReadyNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    private string $matchTitle;
+
+    private string $summaryUrl;
+
     public function __construct(
         public FootballMatch $match,
-    ) {}
+    ) {
+        $this->onQueue('notifications');
+        $this->matchTitle = $match->title;
+        $this->summaryUrl = route('clubs.matches.summary', [$match->club, $match]);
+    }
 
     /** @return string[] */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['mail'];
     }
 
-    /** @return array<string, mixed> */
-    public function toArray(object $notifiable): array
+    public function toMail(object $notifiable): MailMessage
     {
-        return [
-            'type' => 'reels_ready',
-            'match_id' => $this->match->id,
-            'match_title' => $this->match->title,
-            'message' => "Los reels del partido \"{$this->match->title}\" están listos.",
-        ];
+        return (new MailMessage)
+            ->subject("Reels listos — {$this->matchTitle}")
+            ->greeting('¡Tus reels están listos!')
+            ->line("Los reels del partido \"{$this->matchTitle}\" se han generado correctamente.")
+            ->action('Ver reels', $this->summaryUrl)
+            ->salutation('Grandes del Fútbol');
     }
 }
