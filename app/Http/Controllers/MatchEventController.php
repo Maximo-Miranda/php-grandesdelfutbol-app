@@ -7,15 +7,20 @@ use App\Http\Requests\Match\UpdateMatchEventRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchEvent;
+use App\Services\MatchStatService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class MatchEventController extends Controller
 {
+    public function __construct(private MatchStatService $statService) {}
+
     public function store(StoreMatchEventRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
         $match->events()->create($request->validated());
+
+        $this->refreshStatsIfFinalized($match);
 
         return back();
     }
@@ -32,6 +37,8 @@ class MatchEventController extends Controller
 
         $event->update($validated);
 
+        $this->refreshStatsIfFinalized($match);
+
         return back();
     }
 
@@ -39,6 +46,8 @@ class MatchEventController extends Controller
     public function fullUpdate(UpdateMatchEventRequest $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
     {
         $event->update($request->validated());
+
+        $this->refreshStatsIfFinalized($match);
 
         return back();
     }
@@ -49,6 +58,15 @@ class MatchEventController extends Controller
 
         $event->delete();
 
+        $this->refreshStatsIfFinalized($match);
+
         return back()->with('success', 'Evento eliminado.');
+    }
+
+    private function refreshStatsIfFinalized(FootballMatch $match): void
+    {
+        if ($match->stats_finalized_at) {
+            $this->statService->finalizeStats($match);
+        }
     }
 }
