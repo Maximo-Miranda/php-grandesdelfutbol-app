@@ -23,10 +23,10 @@ class GenerateMatchReel implements ShouldQueue
 
     public int $timeout = 900;
 
-    public int $tries = 2;
+    public int $tries = 3;
 
     /** @var array<int, int> */
-    public array $backoff = [60, 120];
+    public array $backoff = [60, 120, 300];
 
     public function __construct(
         public MatchReel $reel,
@@ -61,10 +61,17 @@ class GenerateMatchReel implements ShouldQueue
             $sourceVideo = $this->ensureFullVideoDownloaded($bunnyStreamService, $match, $videoUpload->bunny_video_id, $tempDir);
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
-        } catch (Exception $e) {
-            $this->markFailed($e->getMessage());
-        } finally {
+        } catch (RuntimeException $e) {
             $this->cleanupFiles($outputFile, $sourceVideo, $match);
+
+            if ($this->isRetryableDownloadError($e)) {
+                throw $e;
+            }
+
+            $this->markFailed($e->getMessage());
+        } catch (Exception $e) {
+            $this->cleanupFiles($outputFile, $sourceVideo, $match);
+            $this->markFailed($e->getMessage());
         }
     }
 
@@ -115,8 +122,8 @@ class GenerateMatchReel implements ShouldQueue
         $result = Process::timeout(120)->run([
             'ffmpeg',
             '-y',
-            '-i', $sourceFile,
             '-ss', (string) $start,
+            '-i', $sourceFile,
             '-t', (string) $duration,
             '-c:v', 'libx264',
             '-preset', 'fast',
@@ -173,6 +180,11 @@ class GenerateMatchReel implements ShouldQueue
     public function failed(?Throwable $exception): void
     {
         $this->markFailed($exception?->getMessage() ?? 'El proceso fue interrumpido. Intenta de nuevo.');
+    }
+
+    private function isRetryableDownloadError(RuntimeException $e): bool
+    {
+        return str_contains($e->getMessage(), '404') || str_contains($e->getMessage(), '403');
     }
 
     protected function markFailed(string $message): void
