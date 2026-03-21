@@ -30,7 +30,7 @@ type PlayerStats = {
     saves: number;
 };
 
-type MatchWithVideo = Pick<FootballMatch, 'id' | 'ulid' | 'club_id' | 'title' | 'scheduled_at' | 'video_duration_seconds' | 'duration_minutes'> & { club?: Pick<Club, 'id' | 'ulid' | 'name'> };
+type MatchWithVideo = Pick<FootballMatch, 'id' | 'ulid' | 'club_id' | 'title' | 'scheduled_at' | 'duration_minutes' | 'video_upload'> & { club?: Pick<Club, 'id' | 'ulid' | 'name'> };
 
 type PaginatedReels = { data: MatchReel[]; next_page_url: string | null };
 
@@ -117,7 +117,7 @@ const playerClipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(n
 
 const playerVideoMaxSeconds = computed(() => {
     if (!selectedMatch.value) return undefined;
-    return selectedMatch.value.video_duration_seconds ?? undefined;
+    return selectedMatch.value.video_upload?.duration_seconds ?? undefined;
 });
 
 const createReelForm = useForm({

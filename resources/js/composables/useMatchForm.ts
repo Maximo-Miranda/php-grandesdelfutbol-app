@@ -14,7 +14,6 @@ export type MatchFormData = {
     max_substitutes: number;
     registration_opens_hours: number;
     notes: string;
-    youtube_url: string;
     team_a_name: string;
     team_b_name: string;
     team_a_color: string;
@@ -147,7 +146,6 @@ export function useMatchForm(options: UseMatchFormOptions) {
             ? (match.registration_opens_hours ?? 24)
             : calcRegistrationHours(initialMaxPlayers),
         notes: isEdit ? (match.notes ?? '') : '',
-        youtube_url: isEdit ? (match.youtube_url ?? '') : '',
         team_a_name: isEdit ? (match.team_a_name ?? 'Equipo A') : 'Equipo A',
         team_b_name: isEdit ? (match.team_b_name ?? 'Equipo B') : 'Equipo B',
         team_a_color: isEdit ? (match.team_a_color ?? '#1a1a1a') : '#1a1a1a',

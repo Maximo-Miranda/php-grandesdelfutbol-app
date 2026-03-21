@@ -20,7 +20,7 @@ class MatchReelController extends Controller
     public function generate(Club $club, FootballMatch $match): RedirectResponse
     {
         Gate::authorize('update', $match);
-        $this->ensureHasYoutubeUrl($match);
+        $this->ensureHasVideo($match);
 
         $this->reelService->generateReelsForMatch($match);
 
@@ -29,7 +29,7 @@ class MatchReelController extends Controller
 
     public function store(StoreManualReelRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $this->ensureHasYoutubeUrl($match);
+        $this->ensureHasVideo($match);
 
         $this->reelService->createManualClip($match, $request->validated());
 
@@ -38,7 +38,7 @@ class MatchReelController extends Controller
 
     public function request(StoreReelRequestRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $this->ensureHasYoutubeUrl($match);
+        $this->ensureHasVideo($match);
 
         $this->reelService->createMatchClip($match, $request->validated());
 
@@ -47,7 +47,7 @@ class MatchReelController extends Controller
 
     public function requestForPlayer(StoreReelRequestRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $this->ensureHasYoutubeUrl($match);
+        $this->ensureHasVideo($match);
 
         $this->reelService->createPlayerClip($match, $request->user(), $request->validated());
 
@@ -93,10 +93,12 @@ class MatchReelController extends Controller
         return back()->with('success', 'Reel eliminado.');
     }
 
-    private function ensureHasYoutubeUrl(FootballMatch $match): void
+    private function ensureHasVideo(FootballMatch $match): void
     {
-        if (! $match->youtube_url) {
-            abort(back()->with('error', 'El partido no tiene video de YouTube.'));
+        $videoUpload = $match->videoUpload;
+
+        if (! $videoUpload || $videoUpload->status !== \App\Enums\VideoUploadStatus::Ready) {
+            abort(back()->with('error', 'El partido no tiene un video listo.'));
         }
     }
 

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
 /**
@@ -76,14 +77,10 @@ use Illuminate\Support\Collection;
  *
  * @property bool $auto_started
  * @property array<array-key, mixed>|null $applied_stats
- * @property string|null $youtube_url
- * @property int $video_offset_seconds
- * @property int|null $video_duration_seconds
- * @property string|null $video_path
+ * @property-read \App\Models\MatchVideoUpload|null $videoUpload
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAutoStarted($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereYoutubeUrl($value)
  *
  * @mixin \Eloquent
  */
@@ -119,10 +116,6 @@ class FootballMatch extends Model
         'share_token',
         'registration_opens_hours',
         'notes',
-        'youtube_url',
-        'video_offset_seconds',
-        'video_duration_seconds',
-        'video_path',
         'started_at',
         'ended_at',
         'stats_finalized_at',
@@ -191,6 +184,11 @@ class FootballMatch extends Model
     public function reels(): HasMany
     {
         return $this->hasMany(MatchReel::class, 'match_id');
+    }
+
+    public function videoUpload(): HasOne
+    {
+        return $this->hasOne(MatchVideoUpload::class, 'football_match_id');
     }
 
     public function confirmedAttendeeUsers(): Collection

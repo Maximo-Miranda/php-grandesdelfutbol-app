@@ -162,7 +162,7 @@ class Club extends Model
 
     public function isAdminOrOwner(User $user): bool
     {
-        return $this->getMembership($user)?->isAtLeastAdmin() ?? false;
+        return $user->isSuperAdmin() || ($this->getMembership($user)?->isAtLeastAdmin() ?? false);
     }
 
     public function isOwner(User $user): bool

@@ -23,6 +23,7 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -1169,8 +1170,19 @@ function pad(n: number): string {
                 </Dialog>
             </div>
 
+            <!-- Admin: Video upload for completed -->
+            <div v-if="isAdmin && match.status === 'completed'" class="mt-6">
+                <VideoUploader
+                    :club-ulid="club.ulid"
+                    :match-ulid="match.ulid"
+                    :existing-upload="match.video_upload"
+                    :embed-url="match.video_upload?.embed_url"
+                    @uploaded="() => router.reload()"
+                />
+            </div>
+
             <!-- Admin: Actions for completed -->
-            <div v-if="isAdmin && match.status === 'completed'" class="mt-6 space-y-2">
+            <div v-if="isAdmin && match.status === 'completed'" class="mt-4 space-y-2">
                 <div class="flex gap-2">
                     <Link :href="`${base}/summary`" class="flex-1">
                         <Button variant="outline" class="w-full">Ver resumen</Button>

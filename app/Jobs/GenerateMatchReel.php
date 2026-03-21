@@ -3,15 +3,19 @@
 namespace App\Jobs;
 
 use App\Enums\ReelStatus;
+use App\Enums\VideoUploadStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
-use App\Services\ReelService;
+use App\Services\BunnyStreamService;
+use Exception;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 class GenerateMatchReel implements ShouldQueue
 {
@@ -21,6 +25,7 @@ class GenerateMatchReel implements ShouldQueue
 
     public int $tries = 2;
 
+    /** @var array<int, int> */
     public array $backoff = [60, 120];
 
     public function __construct(
@@ -29,23 +34,22 @@ class GenerateMatchReel implements ShouldQueue
         $this->onQueue('reels');
     }
 
-    public function handle(): void
+    public function handle(BunnyStreamService $bunnyStreamService): void
     {
         if ($this->batch()?->cancelled()) {
             return;
         }
 
         $match = $this->reel->match;
+        $videoUpload = $match?->videoUpload;
 
-        if (! $match?->youtube_url) {
-            $this->markFailed('No YouTube URL for match.');
+        if (! $videoUpload || $videoUpload->status !== VideoUploadStatus::Ready) {
+            $this->markFailed('No hay video listo para este partido.');
 
             return;
         }
 
         $this->reel->update(['status' => ReelStatus::Processing]);
-
-        app(ReelService::class)->fetchVideoDuration($match);
 
         $tempDir = storage_path('app/temp/reels');
         File::ensureDirectoryExists($tempDir);
@@ -54,52 +58,53 @@ class GenerateMatchReel implements ShouldQueue
         $sourceVideo = null;
 
         try {
-            $sourceVideo = $this->ensureFullVideoDownloaded($match, $tempDir);
+            $sourceVideo = $this->ensureFullVideoDownloaded($bunnyStreamService, $match, $videoUpload->bunny_video_id, $tempDir);
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->markFailed($e->getMessage());
         } finally {
             $this->cleanupFiles($outputFile, $sourceVideo, $match);
         }
     }
 
-    protected function ensureFullVideoDownloaded(FootballMatch $match, string $tempDir): string
+    protected function ensureFullVideoDownloaded(BunnyStreamService $bunnyStreamService, FootballMatch $match, string $bunnyVideoId, string $tempDir): string
     {
-        $s3Path = "match-videos/{$match->ulid}.mp4";
         $localPath = $tempDir."/full-{$match->ulid}.mp4";
 
-        if ($match->video_path && Storage::disk('s3')->exists($match->video_path)) {
-            $this->downloadFromS3($match->video_path, $localPath);
+        if (file_exists($localPath)) {
+            return $localPath;
+        }
+
+        $s3Path = "match-videos/{$match->ulid}.mp4";
+
+        if (Storage::disk('s3')->exists($s3Path)) {
+            $this->downloadFromS3($s3Path, $localPath);
 
             return $localPath;
         }
 
-        if (! file_exists($localPath)) {
-            $this->downloadFullVideo($match->youtube_url, $localPath);
-        }
+        $bunnyStreamService->downloadVideo($bunnyVideoId, $localPath);
 
         $this->uploadToS3($s3Path, $localPath);
-        $match->update(['video_path' => $s3Path]);
 
         return $localPath;
     }
 
-    protected function downloadFullVideo(string $youtubeUrl, string $outputFile): void
+    protected function downloadFromS3(string $s3Path, string $localPath): void
     {
-        $result = Process::timeout(600)->run([
-            'yt-dlp',
-            '-f', 'bestvideo[height<=720]+bestaudio',
-            '--merge-output-format', 'mp4',
-            '--rate-limit', '5M',
-            '--no-cookies',
-            '-o', $outputFile,
-            $youtubeUrl,
-        ]);
+        $stream = Storage::disk('s3')->readStream($s3Path);
+        $local = fopen($localPath, 'wb');
+        stream_copy_to_stream($stream, $local);
+        fclose($local);
+        fclose($stream);
+    }
 
-        if (! $result->successful()) {
-            throw new \RuntimeException('yt-dlp failed: '.$result->errorOutput());
-        }
+    protected function uploadToS3(string $s3Path, string $localPath): void
+    {
+        $stream = fopen($localPath, 'rb');
+        Storage::disk('s3')->put($s3Path, $stream);
+        fclose($stream);
     }
 
     protected function cutSegment(string $sourceFile, string $outputFile): void
@@ -122,14 +127,14 @@ class GenerateMatchReel implements ShouldQueue
         ]);
 
         if (! $result->successful()) {
-            throw new \RuntimeException('ffmpeg cut failed: '.$result->errorOutput());
+            throw new RuntimeException('ffmpeg cut failed: '.$result->errorOutput());
         }
     }
 
     protected function storeOutputAndComplete(string $outputFile): void
     {
         if (! file_exists($outputFile)) {
-            throw new \RuntimeException('ffmpeg did not produce an output file.');
+            throw new RuntimeException('ffmpeg did not produce an output file.');
         }
 
         $this->reel->addMedia($outputFile)
@@ -139,26 +144,6 @@ class GenerateMatchReel implements ShouldQueue
             'status' => ReelStatus::Completed,
             'processed_at' => now(),
         ]);
-    }
-
-    protected function downloadFromS3(string $s3Path, string $localPath): void
-    {
-        if (file_exists($localPath)) {
-            return;
-        }
-
-        $stream = Storage::disk('s3')->readStream($s3Path);
-        $local = fopen($localPath, 'wb');
-        stream_copy_to_stream($stream, $local);
-        fclose($local);
-        fclose($stream);
-    }
-
-    protected function uploadToS3(string $s3Path, string $localPath): void
-    {
-        $stream = fopen($localPath, 'rb');
-        Storage::disk('s3')->put($s3Path, $stream);
-        fclose($stream);
     }
 
     protected function cleanupFiles(string $outputFile, ?string $sourceVideo, ?FootballMatch $match): void
@@ -185,7 +170,7 @@ class GenerateMatchReel implements ShouldQueue
     }
 
     /** Called by Laravel when the job exhausts all retries or is killed by timeout. */
-    public function failed(?\Throwable $exception): void
+    public function failed(?Throwable $exception): void
     {
         $this->markFailed($exception?->getMessage() ?? 'El proceso fue interrumpido. Intenta de nuevo.');
     }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MatchEventType;
 use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
+use App\Enums\VideoUploadStatus;
 use App\Jobs\GenerateMatchReel;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
@@ -12,13 +13,14 @@ use App\Models\Player;
 use App\Models\User;
 use App\Notifications\MatchReelsReadyNotification;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Process;
 
 class ReelService
 {
     public function generateReelsForMatch(FootballMatch $match, bool $force = false): void
     {
-        if (! $match->youtube_url) {
+        $videoUpload = $match->videoUpload;
+
+        if (! $videoUpload || $videoUpload->status !== VideoUploadStatus::Ready) {
             return;
         }
 
@@ -42,7 +44,7 @@ class ReelService
             $clipWindow = $this->calculateClipWindow(
                 $event->minute,
                 $event->second,
-                $match->video_offset_seconds ?? 0,
+                $videoUpload->video_offset_seconds ?? 0,
             );
 
             $existingReel = $match->reels()
@@ -162,32 +164,16 @@ class ReelService
 
     public function fetchVideoDuration(FootballMatch $match): void
     {
-        if (! $match->youtube_url || $match->video_duration_seconds) {
-            return;
-        }
-
-        try {
-            $result = Process::timeout(30)->run([
-                'yt-dlp',
-                '--print', 'duration',
-                '--no-download',
-                $match->youtube_url,
-            ]);
-
-            $duration = $result->successful() ? (int) trim($result->output()) : 0;
-
-            if ($duration > 0) {
-                $match->update(['video_duration_seconds' => $duration]);
-            }
-        } catch (\Throwable) {
-            // Non-critical — slider will fallback to match duration
-        }
+        // Duration is now stored in the video upload record, populated by Bunny webhook.
+        // No-op: kept for interface compatibility.
     }
 
     /** @return array{start: int, end: int} */
     private function clipWindowForMatch(FootballMatch $match, int $minute, int $second): array
     {
-        return $this->calculateClipWindow($minute, $second, $match->video_offset_seconds ?? 0);
+        $offset = $match->videoUpload?->video_offset_seconds ?? 0;
+
+        return $this->calculateClipWindow($minute, $second, $offset);
     }
 
     /** @param array<string, mixed> $attributes */

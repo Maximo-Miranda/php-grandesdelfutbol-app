@@ -2,49 +2,41 @@
 
 namespace App\Console\Commands;
 
-use App\Models\FootballMatch;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 class CleanupMatchVideos extends Command
 {
-    protected $signature = 'app:cleanup-match-videos {--days=30 : Días desde que terminó el partido}';
+    protected $signature = 'app:cleanup-match-videos {--days=30 : Dias desde que se almaceno el video}';
 
-    protected $description = 'Elimina videos completos de S3 para partidos antiguos. Los clips generados se mantienen.';
+    protected $description = 'Elimina videos completos cacheados en S3 despues de N dias. Los reels generados se mantienen.';
 
     public function handle(): int
     {
         $days = (int) $this->option('days');
+        $disk = Storage::disk('s3');
+        $files = $disk->files('match-videos');
 
-        $matches = FootballMatch::query()
-            ->whereNotNull('video_path')
-            ->where('ended_at', '<', now()->subDays($days))
-            ->get();
-
-        if ($matches->isEmpty()) {
-            $this->info('No hay videos para limpiar.');
+        if (empty($files)) {
+            $this->info('No hay videos cacheados para limpiar.');
 
             return self::SUCCESS;
         }
 
-        $disk = Storage::disk('s3');
         $deleted = 0;
         $freedBytes = 0;
+        $cutoff = now()->subDays($days)->timestamp;
 
-        foreach ($matches as $match) {
-            if (! $disk->exists($match->video_path)) {
-                $match->update(['video_path' => null]);
+        foreach ($files as $file) {
+            $lastModified = $disk->lastModified($file);
+
+            if ($lastModified < $cutoff) {
+                $freedBytes += $disk->size($file);
+                $disk->delete($file);
                 $deleted++;
 
-                continue;
+                $this->line("  Eliminado: {$file}");
             }
-
-            $freedBytes += $disk->size($match->video_path);
-            $disk->delete($match->video_path);
-            $match->update(['video_path' => null]);
-            $deleted++;
-
-            $this->line("  Eliminado: {$match->video_path} ({$match->title})");
         }
 
         $freedMB = round($freedBytes / 1024 / 1024);

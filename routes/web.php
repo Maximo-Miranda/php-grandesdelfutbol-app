@@ -16,6 +16,7 @@ use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchEventController;
 use App\Http\Controllers\MatchLifecycleController;
 use App\Http\Controllers\MatchReelController;
+use App\Http\Controllers\MatchVideoUploadController;
 use App\Http\Controllers\PlayerCardController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerProfileController;
@@ -89,6 +90,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/complete', [MatchLifecycleController::class, 'complete'])->name('matches.complete');
         Route::post('matches/{match}/cancel', [MatchLifecycleController::class, 'cancel'])->name('matches.cancel');
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
+
+        Route::post('matches/{match}/video-upload', [MatchVideoUploadController::class, 'store'])->name('matches.videoUpload.store');
+        Route::post('matches/{match}/video-upload/mark-encoding', [MatchVideoUploadController::class, 'markEncoding'])->name('matches.videoUpload.markEncoding');
+        Route::get('matches/{match}/video-upload/check', [MatchVideoUploadController::class, 'check'])->name('matches.videoUpload.check');
+        Route::get('matches/{match}/video-upload', [MatchVideoUploadController::class, 'show'])->name('matches.videoUpload.show');
+        Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
 
         Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->name('matches.reels.generate');
         Route::post('matches/{match}/reels', [MatchReelController::class, 'store'])->name('matches.reels.store');

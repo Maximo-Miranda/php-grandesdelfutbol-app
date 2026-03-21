@@ -9,4 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('telescope:prune --hours=48')->daily();
+Schedule::command('video-uploads:cleanup --hours=48')->daily();
 Schedule::command('app:cleanup-match-videos --days=30')->weekly();

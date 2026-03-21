@@ -3,6 +3,23 @@ import type { Club } from './club';
 import type { Player } from './player';
 import type { Field } from './venue';
 
+export type MatchVideoUpload = {
+    id: number;
+    ulid: string;
+    bunny_video_id: string;
+    status: 'uploading' | 'encoding' | 'ready' | 'failed';
+    original_filename: string | null;
+    original_size_bytes: number | null;
+    duration_seconds: number | null;
+    video_offset_seconds: number;
+    error_message: string | null;
+    uploaded_at: string | null;
+    encoded_at: string | null;
+    stream_url?: string | null;
+    embed_url?: string | null;
+    thumbnail_url?: string | null;
+};
+
 export type FootballMatch = {
     id: number;
     ulid: string;
@@ -18,9 +35,7 @@ export type FootballMatch = {
     share_token: string | null;
     registration_opens_hours: number;
     notes: string | null;
-    youtube_url: string | null;
-    video_offset_seconds: number;
-    video_duration_seconds: number | null;
+    video_upload?: MatchVideoUpload | null;
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;

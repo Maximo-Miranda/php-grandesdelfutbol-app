@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Bell, Clock, MapPin, Pencil, Save, Trophy, Video, WandSparkles } from 'lucide-vue-next';
+import { Bell, Clock, MapPin, Pencil, Save, Trophy, WandSparkles } from 'lucide-vue-next';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
+import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +14,17 @@ import { timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, Venue } from '@/types';
 
-type Props = { club: Club; match: FootballMatch; venues: Venue[] };
+type VideoUploadData = {
+    ulid: string;
+    bunny_video_id: string;
+    status: 'uploading' | 'encoding' | 'ready' | 'failed';
+    original_filename: string | null;
+    duration_seconds: number | null;
+    video_offset_seconds: number;
+    error_message: string | null;
+};
+
+type Props = { club: Club; match: FootballMatch; venues: Venue[]; videoUpload?: VideoUploadData | null; embedUrl?: string | null; streamUrl?: string | null };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -265,22 +276,16 @@ function submit() {
                     <InputError :message="form.errors.title" />
                 </div>
 
-                <!-- Video YouTube -->
+                <!-- Video Upload -->
                 <div class="grid gap-1.5">
-                    <Label for="youtube_url">Video de YouTube</Label>
-                    <p class="text-xs text-muted-foreground">Pega el enlace del video del partido grabado.</p>
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Video class="size-4 text-muted-foreground" />
-                        </div>
-                        <Input
-                            id="youtube_url"
-                            v-model="form.youtube_url"
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            class="pl-9"
-                        />
-                    </div>
-                    <InputError :message="form.errors.youtube_url" />
+                    <Label>Video del partido</Label>
+                    <p class="text-xs text-muted-foreground">Sube el video completo del partido para generar reels.</p>
+                    <VideoUploader
+                        :club-ulid="club.ulid"
+                        :match-ulid="match.ulid"
+                        :existing-upload="videoUpload"
+                        :embed-url="embedUrl"
+                    />
                 </div>
 
                 <!-- Actions -->

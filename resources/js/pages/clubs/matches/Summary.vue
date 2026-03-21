@@ -7,7 +7,6 @@ import {
     Check,
     CircleDot,
     Clock,
-    Copy,
     CornerDownRight,
     Crosshair,
     Download,
@@ -46,6 +45,7 @@ import EventTypeGrid from '@/components/match/EventTypeGrid.vue';
 import LiveScoreboard from '@/components/match/LiveScoreboard.vue';
 import MinuteSecondInput from '@/components/match/MinuteSecondInput.vue';
 import PlayerSelector from '@/components/match/PlayerSelector.vue';
+import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -193,44 +193,33 @@ function deleteMatch() {
     });
 }
 
-function extractYoutubeId(url: string): string | null {
-    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
-    return match?.[1] ?? null;
-}
+// --- Video Upload state ---
+const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
+const videoEmbedUrl = computed(() => {
+    const url = props.match.video_upload?.embed_url;
+    if (!url) return null;
+    return `${url}?autoplay=false&preload=false`;
+});
+const deletingVideo = ref(false);
+const showDeleteVideoDialog = ref(false);
 
-const youtubeId = computed(() => props.match.youtube_url ? extractYoutubeId(props.match.youtube_url) : null);
-
-// --- YouTube URL inline edit (admin) ---
-const youtubeInput = ref(props.match.youtube_url ?? '');
-const savingYoutube = ref(false);
-
-function saveYoutubeUrl() {
-    savingYoutube.value = true;
-    router.put(`${base}/${props.match.ulid}`, {
-        title: props.match.title,
-        scheduled_at: props.match.scheduled_at,
-        duration_minutes: props.match.duration_minutes,
-        arrival_minutes: props.match.arrival_minutes,
-        max_players: props.match.max_players,
-        max_substitutes: props.match.max_substitutes,
-        registration_opens_hours: props.match.registration_opens_hours,
-        youtube_url: youtubeInput.value || null,
-    }, {
-        preserveScroll: true,
-        onFinish: () => { savingYoutube.value = false; },
+function confirmDeleteVideo() {
+    deletingVideo.value = true;
+    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+    fetch(`${base}/${props.match.ulid}/video-upload`, {
+        method: 'DELETE',
+        headers: { 'X-XSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        credentials: 'same-origin',
+    }).then(() => {
+        showDeleteVideoDialog.value = false;
+        router.reload();
+    }).finally(() => {
+        deletingVideo.value = false;
     });
 }
 
 function formatStatsDate(dateStr: string): string {
     return formatDate(dateStr, { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-const copiedYoutube = ref(false);
-function copyYoutubeUrl() {
-    if (!props.match.youtube_url) return;
-    navigator.clipboard.writeText(props.match.youtube_url);
-    copiedYoutube.value = true;
-    setTimeout(() => { copiedYoutube.value = false; }, 2000);
 }
 
 // ===== TABS =====
@@ -720,7 +709,7 @@ const showManualClipForm = ref(false);
 const deletingReelUlid = ref<string | null>(null);
 const clipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(null);
 
-const videoMaxSeconds = computed(() => props.match.video_duration_seconds ?? undefined);
+const videoMaxSeconds = computed(() => props.match.video_upload?.duration_seconds ?? undefined);
 
 const manualClipForm = useForm({
     title: '',
@@ -967,64 +956,57 @@ async function shareReel(reel: MatchReel) {
                 </div>
             </div>
 
-            <!-- ===== YOUTUBE VIDEO ===== -->
-            <a
-                v-if="youtubeId && !isFullscreen"
-                :href="match.youtube_url!"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="group relative mt-4 block overflow-hidden rounded-xl"
-            >
-                <img
-                    :src="`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`"
-                    :alt="match.title"
-                    class="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            <!-- ===== VIDEO DEL PARTIDO ===== -->
+            <div v-if="hasVideoReady && videoEmbedUrl && !isFullscreen" class="mt-4">
+                <div class="aspect-video w-full overflow-hidden rounded-xl border border-border">
+                    <iframe
+                        :src="videoEmbedUrl"
+                        class="h-full w-full"
+                        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                    />
+                </div>
+                <div v-if="isAdmin" class="mt-2 flex justify-end">
+                    <Dialog v-model:open="showDeleteVideoDialog">
+                        <DialogTrigger as-child>
+                            <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
+                                <Trash2 class="size-3.5" />
+                                Eliminar video
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Eliminar video del partido</DialogTitle>
+                                <DialogDescription>
+                                    Se eliminara el video de este partido. Los reels generados se mantendran pero no se podran generar nuevos hasta subir otro video.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter class="gap-2 sm:gap-0">
+                                <DialogClose as-child>
+                                    <Button variant="outline">Cancelar</Button>
+                                </DialogClose>
+                                <Button variant="destructive" class="gap-2" :disabled="deletingVideo" @click="confirmDeleteVideo">
+                                    <Trash2 class="size-4" />
+                                    {{ deletingVideo ? 'Eliminando...' : 'Eliminar video' }}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </div>
+            <div v-else-if="isAdmin && !hasVideoReady && !isFullscreen" class="mt-4">
+                <VideoUploader
+                    :club-ulid="club.ulid"
+                    :match-ulid="match.ulid"
+                    :existing-upload="match.video_upload"
+                    @uploaded="() => router.reload()"
                 />
-                <div class="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
-                    <div class="flex size-16 items-center justify-center rounded-full bg-red-600 shadow-lg transition-transform group-hover:scale-110">
-                        <Play class="ml-1 size-7 fill-white text-white" />
-                    </div>
-                </div>
-                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-8">
-                    <p class="text-sm font-semibold text-white">Ver video del partido</p>
-                </div>
-            </a>
-
-            <!-- YouTube URL inline edit (admin) -->
-            <div v-if="isAdmin && !isFullscreen" class="mt-3 space-y-2">
-                <div class="flex items-center gap-2">
-                    <div class="relative flex-1">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Video class="size-4 text-muted-foreground" />
-                        </div>
-                        <Input
-                            v-model="youtubeInput"
-                            :placeholder="youtubeId ? 'Cambiar enlace de YouTube...' : 'Pegar enlace de YouTube del partido...'"
-                            class="pl-9 text-sm"
-                            @keydown.enter.prevent="saveYoutubeUrl"
-                        />
-                    </div>
-                    <Button
-                        v-if="match.youtube_url"
-                        size="icon"
-                        variant="outline"
-                        class="shrink-0"
-                        title="Copiar enlace"
-                        @click="copyYoutubeUrl"
-                    >
-                        <Copy class="size-3.5" />
-                    </Button>
-                </div>
-                <Button
-                    v-if="youtubeInput !== (match.youtube_url ?? '')"
-                    size="sm"
-                    :disabled="savingYoutube"
-                    class="w-full gap-1.5"
-                    @click="saveYoutubeUrl"
-                >
-                    <Film class="size-3.5" />
-                    {{ savingYoutube ? 'Guardando...' : 'Guardar y generar reels' }}
-                </Button>
+            </div>
+            <div v-else-if="!hasVideoReady && !isFullscreen" class="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
+                <Video class="mx-auto mb-1 size-6 text-muted-foreground" />
+                <p class="text-xs text-muted-foreground">
+                    {{ match.video_upload?.status === 'encoding' ? 'Video procesandose...' : 'Sin video del partido' }}
+                </p>
             </div>
 
             <!-- ===== MATCH INFO (compact) ===== -->
@@ -1821,7 +1803,7 @@ async function shareReel(reel: MatchReel) {
             <div v-if="isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
                 <!-- Generate / regenerate auto reels -->
                 <Button
-                    v-if="match.youtube_url"
+                    v-if="hasVideoReady"
                     variant="outline"
                     size="sm"
                     class="w-full gap-1.5"
@@ -1833,7 +1815,7 @@ async function shareReel(reel: MatchReel) {
                 </Button>
 
                 <!-- Create reel (admin — with title + player) -->
-                <Dialog v-if="match.youtube_url" v-model:open="showManualClipForm">
+                <Dialog v-if="hasVideoReady" v-model:open="showManualClipForm">
                     <DialogTrigger as-child>
                         <button
                             class="flex w-full items-center gap-3 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-left transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 active:scale-[0.98]"

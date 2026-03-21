@@ -6,16 +6,12 @@ use App\Enums\MatchStatus;
 use App\Enums\PlayerPosition;
 use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
-use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\FootballMatch;
-use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\MatchService;
-use App\Services\ReelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -92,7 +88,7 @@ class MatchController extends Controller
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload');
 
         if ($match->status === MatchStatus::InProgress && $isAdmin) {
             return Inertia::render('clubs/matches/Live', $this->liveProps($club, $match));
@@ -134,22 +130,21 @@ class MatchController extends Controller
     {
         Gate::authorize('update', $match);
 
+        $videoUpload = $match->videoUpload;
+
         return Inertia::render('clubs/matches/Edit', [
             'club' => $club,
             'match' => $match,
             'venues' => $club->venues()->with('fields')->where('is_active', true)->get(),
+            'videoUpload' => $videoUpload,
+            'embedUrl' => $videoUpload?->embed_url,
+            'streamUrl' => $videoUpload?->stream_url,
         ]);
     }
 
     public function update(UpdateMatchRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $oldYoutubeUrl = $match->youtube_url;
-
         $match->update($request->validated());
-
-        if ($match->wasChanged('youtube_url') && $match->youtube_url !== null) {
-            $this->handleYoutubeUrlChange($club, $match, $oldYoutubeUrl);
-        }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
             ->with('success', 'Partido actualizado.');
@@ -178,7 +173,7 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload');
 
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
@@ -222,28 +217,5 @@ class MatchController extends Controller
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
         ];
-    }
-
-    private function handleYoutubeUrlChange(Club $club, FootballMatch $match, ?string $oldYoutubeUrl): void
-    {
-        if ($oldYoutubeUrl === null) {
-            $notification = new MatchVideoUploadedNotification($match);
-
-            $members = $club->approvedMemberUsersWithPush();
-            if ($members->isNotEmpty()) {
-                Notification::send($members, $notification);
-            }
-
-            PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
-        } else {
-            $match->update([
-                'video_path' => null,
-                'video_duration_seconds' => null,
-            ]);
-        }
-
-        if ($match->status === MatchStatus::Completed) {
-            app(ReelService::class)->generateReelsForMatch($match, force: $oldYoutubeUrl !== null);
-        }
     }
 }

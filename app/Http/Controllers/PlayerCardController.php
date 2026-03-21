@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\MatchStatus;
 use App\Enums\ReelStatus;
+use App\Enums\VideoUploadStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
@@ -43,9 +44,9 @@ class PlayerCardController extends Controller
         $matchesWithVideo = FootballMatch::query()
             ->whereIn('club_id', $clubIds)
             ->where('status', MatchStatus::Completed)
-            ->whereNotNull('youtube_url')
-            ->select('id', 'ulid', 'club_id', 'title', 'scheduled_at', 'video_duration_seconds', 'duration_minutes')
-            ->with('club:id,ulid,name')
+            ->whereHas('videoUpload', fn ($q) => $q->where('status', VideoUploadStatus::Ready))
+            ->select('id', 'ulid', 'club_id', 'title', 'scheduled_at', 'duration_minutes')
+            ->with(['club:id,ulid,name', 'videoUpload:id,football_match_id,duration_seconds,video_offset_seconds,status'])
             ->orderByDesc('scheduled_at')
             ->get();
 
