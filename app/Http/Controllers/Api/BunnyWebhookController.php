@@ -32,8 +32,8 @@ class BunnyWebhookController extends Controller
 
         $status = (int) $request->input('Status');
 
-        // Bunny Stream status codes: 3 = Finished, 5 = Failed
-        if ($status === 3) {
+        // Bunny Stream webhook status: 3 = Finished encoding, 4 = All resolutions ready, 5 = Failed
+        if ($status === 4) {
             $this->handleEncodingSuccess($videoUpload);
         } elseif ($status === 5) {
             $this->handleEncodingFailure($videoUpload);
@@ -44,6 +44,10 @@ class BunnyWebhookController extends Controller
 
     private function handleEncodingSuccess(MatchVideoUpload $videoUpload): void
     {
+        if ($videoUpload->status === VideoUploadStatus::Ready) {
+            return;
+        }
+
         try {
             $videoData = $this->bunnyService->getVideo($videoUpload->bunny_video_id);
             $duration = (int) ($videoData['length'] ?? 0);

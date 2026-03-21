@@ -38,7 +38,7 @@ test('webhook dispatches notifications when video encoding completes', function 
 
     $this->postJson(route('webhooks.bunny'), [
         'VideoGuid' => 'test-bunny-video-id',
-        'Status' => 3,
+        'Status' => 4,
     ])->assertOk();
 
     expect($videoUpload->fresh()->status)->toBe(VideoUploadStatus::Ready);
@@ -73,12 +73,12 @@ test('webhook handles encoding failure', function () {
 test('webhook returns 404 for unknown video', function () {
     $this->postJson(route('webhooks.bunny'), [
         'VideoGuid' => 'nonexistent-video',
-        'Status' => 3,
+        'Status' => 4,
     ])->assertNotFound();
 });
 
 test('webhook returns 400 without VideoGuid', function () {
     $this->postJson(route('webhooks.bunny'), [
-        'Status' => 3,
+        'Status' => 4,
     ])->assertStatus(400);
 });
