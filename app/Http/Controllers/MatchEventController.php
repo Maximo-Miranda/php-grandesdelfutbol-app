@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Match\StoreMatchEventRequest;
+use App\Http\Requests\Match\UpdateMatchEventRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchEvent;
@@ -19,6 +20,7 @@ class MatchEventController extends Controller
         return back();
     }
 
+    /** Lightweight PATCH — player_id / highlighted only (used by EventTimeline inline assign). */
     public function update(Request $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
     {
         Gate::authorize('update', $match);
@@ -29,6 +31,14 @@ class MatchEventController extends Controller
         ]);
 
         $event->update($validated);
+
+        return back();
+    }
+
+    /** Full PUT — all fields (used by edit Dialog). */
+    public function fullUpdate(UpdateMatchEventRequest $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
+    {
+        $event->update($request->validated());
 
         return back();
     }

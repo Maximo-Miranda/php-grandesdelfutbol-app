@@ -19,6 +19,7 @@ import {
     Shield,
     Shuffle,
     Timer,
+    Trash2,
     X,
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -28,6 +29,13 @@ import LiveScoreboard from '@/components/match/LiveScoreboard.vue';
 import MinuteSecondInput from '@/components/match/MinuteSecondInput.vue';
 import PlayerSelector from '@/components/match/PlayerSelector.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
 import { formatEventTime } from '@/lib/utils';
@@ -129,11 +137,12 @@ const second = ref(0);
 const manualMode = ref(false);
 const submitting = ref(false);
 const lastRecorded = ref<{ player: string; event: string; minute: number; second: number } | null>(null);
-const confirmingDeleteId = ref<string | null>(null);
+const deletingEventUlid = ref<string | null>(null);
+const deletingEventLabel = ref('');
+const showDeleteEventDialog = ref(false);
 const recentPlayerIds = ref<number[]>([]);
 const isFullscreen = ref(false);
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
-let deleteTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // --- Clock ---
 const clockDisplay = ref('00:00');
@@ -203,7 +212,6 @@ onMounted(() => {
 onUnmounted(() => {
     if (clockTimer.value) clearInterval(clockTimer.value);
     if (confirmTimeout) clearTimeout(confirmTimeout);
-    if (deleteTimeout) clearTimeout(deleteTimeout);
     document.removeEventListener('fullscreenchange', onFullscreenChange);
 });
 
@@ -416,15 +424,23 @@ function addRecentPlayer(playerId: number) {
 }
 
 function confirmRemoveEvent(eventUlid: string) {
-    if (confirmingDeleteId.value === eventUlid) {
-        if (deleteTimeout) clearTimeout(deleteTimeout);
-        confirmingDeleteId.value = null;
-        router.delete(`${base}/${props.match.ulid}/events/${eventUlid}`, { preserveScroll: true });
-    } else {
-        confirmingDeleteId.value = eventUlid;
-        if (deleteTimeout) clearTimeout(deleteTimeout);
-        deleteTimeout = setTimeout(() => { confirmingDeleteId.value = null; }, 3000);
-    }
+    const event = props.match.events?.find(e => e.ulid === eventUlid);
+    const label = event ? (EVENT_LABELS[event.event_type] ?? event.event_type) : '';
+    const player = event?.player?.display_name;
+    deletingEventUlid.value = eventUlid;
+    deletingEventLabel.value = player ? `${label} — ${player}` : label;
+    showDeleteEventDialog.value = true;
+}
+
+function executeDeleteEvent() {
+    if (!deletingEventUlid.value) return;
+    router.delete(`${base}/${props.match.ulid}/events/${deletingEventUlid.value}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            showDeleteEventDialog.value = false;
+            deletingEventUlid.value = null;
+        },
+    });
 }
 
 function autoAssignTeams() {
@@ -682,12 +698,31 @@ watch(subOutPlayerId, (val) => {
                     :match="match"
                     :club-ulid="club.ulid"
                     :match-base="`${base}/${match.ulid}`"
-                    :confirming-delete-id="confirmingDeleteId"
                     show-delete
                     @delete="confirmRemoveEvent"
                 />
             </div>
         </div>
+
+        <!-- Delete event confirmation -->
+        <Dialog v-model:open="showDeleteEventDialog">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Eliminar evento</DialogTitle>
+                    <DialogDescription>
+                        {{ deletingEventLabel ? `Se eliminará "${deletingEventLabel}".` : 'Se eliminará este evento.' }}
+                        Esta acción no se puede deshacer.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="flex flex-col gap-2 pt-2">
+                    <Button variant="destructive" class="w-full gap-2" @click="executeDeleteEvent">
+                        <Trash2 class="size-4" />
+                        Eliminar evento
+                    </Button>
+                    <Button variant="ghost" class="w-full" @click="showDeleteEventDialog = false">Cancelar</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     </component>
 
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { toPng } from 'html-to-image';
-import { Check, Download, Eye, Film, Goal, Loader2, Plus, RefreshCw, Share2, Shield, Sparkles, Trash2, Trophy, UserCircle } from 'lucide-vue-next';
+import { Check, Download, Eye, Film, Goal, Loader2, Plus, RefreshCw, Share2, Shield, Sparkles, Trash2, Trophy, UserCircle, X } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import InputError from '@/components/InputError.vue';
@@ -54,7 +54,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 const activeTab = ref<'reels' | 'card'>('reels');
 
 // --- Reels ---
-const allReels = computed(() => props.reels?.data ?? []);
+const cachedMediaUrls = new Map<string, string>();
+
+const allReels = computed(() => {
+    const reels = props.reels?.data ?? [];
+    for (const reel of reels) {
+        if (reel.media_url && !cachedMediaUrls.has(reel.ulid)) {
+            cachedMediaUrls.set(reel.ulid, reel.media_url);
+        }
+    }
+    return reels;
+});
+
+function reelMediaUrl(reel: MatchReel): string | null {
+    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url;
+}
 const hasMoreReels = computed(() => !!props.reels?.next_page_url);
 const refreshing = ref(false);
 const loadingMore = ref(false);
@@ -103,7 +117,7 @@ const playerClipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(n
 
 const playerVideoMaxSeconds = computed(() => {
     if (!selectedMatch.value) return undefined;
-    return selectedMatch.value.video_duration_seconds ?? selectedMatch.value.duration_minutes * 60;
+    return selectedMatch.value.video_duration_seconds ?? undefined;
 });
 
 const createReelForm = useForm({
@@ -145,15 +159,18 @@ function formatTime(totalSeconds: number): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+const viewedReelUlids = new Set<string>();
+
 function trackView(reel: MatchReel) {
-    if (reel.match) {
-        const club = props.clubs.find(c => c.id === reel.match!.club_id);
-        if (club) {
-            router.post(`/clubs/${club.ulid}/matches/${reel.match.ulid}/reels/${reel.ulid}/view`, {}, {
-                preserveScroll: true,
-                preserveState: true,
-            });
-        }
+    if (viewedReelUlids.has(reel.ulid)) return;
+    viewedReelUlids.add(reel.ulid);
+
+    const club = props.clubs.find(c => c.id === reel.match?.club_id);
+    if (club) {
+        fetch(`/clubs/${club.ulid}/matches/${reel.match!.ulid}/reels/${reel.ulid}/view`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '' },
+        });
     }
 }
 
@@ -473,27 +490,47 @@ async function shareCard() {
                                 <div class="size-4 animate-spin rounded-full border-2 border-blue-500/30 border-t-blue-400"></div>
                                 <p class="text-xs text-blue-400">Generando tu reel...</p>
                             </div>
-                            <button
-                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 disabled:opacity-50"
-                                :disabled="refreshing"
-                                @click="refreshReels"
-                            >
-                                <RefreshCw class="size-3" :class="refreshing ? 'animate-spin' : ''" />
-                                Actualizar
-                            </button>
+                            <div class="mt-2 flex gap-2">
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 disabled:opacity-50"
+                                    :disabled="refreshing"
+                                    @click="refreshReels"
+                                >
+                                    <RefreshCw class="size-3" :class="refreshing ? 'animate-spin' : ''" />
+                                    Actualizar
+                                </button>
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                                    :disabled="deletingReelUlid === reel.ulid"
+                                    @click="deleteReel(reel)"
+                                >
+                                    <X class="size-3" />
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Pending -->
                         <div v-else-if="reel.status === 'pending'" class="border-t border-amber-500/20 bg-amber-500/5 px-3 py-3">
                             <p class="text-center text-xs text-amber-400">Tu reel está en cola y se procesará pronto.</p>
-                            <button
-                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
-                                :disabled="refreshing"
-                                @click="refreshReels"
-                            >
-                                <RefreshCw class="size-3" :class="refreshing ? 'animate-spin' : ''" />
-                                Actualizar
-                            </button>
+                            <div class="mt-2 flex gap-2">
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                    :disabled="refreshing"
+                                    @click="refreshReels"
+                                >
+                                    <RefreshCw class="size-3" :class="refreshing ? 'animate-spin' : ''" />
+                                    Actualizar
+                                </button>
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                                    :disabled="deletingReelUlid === reel.ulid"
+                                    @click="deleteReel(reel)"
+                                >
+                                    <X class="size-3" />
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Failed -->
@@ -513,7 +550,7 @@ async function shareCard() {
                         <template v-else-if="reel.status === 'completed'">
                             <div v-if="reel.media_url" class="border-t border-border bg-black">
                                 <video
-                                    :src="reel.media_url"
+                                    :src="reelMediaUrl(reel)!"
                                     controls
                                     preload="metadata"
                                     class="mx-auto max-h-80 w-full"

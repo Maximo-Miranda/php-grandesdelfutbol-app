@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Check, Trash2, UserPlus } from 'lucide-vue-next';
+import { Pencil, Star, Trash2, UserPlus } from 'lucide-vue-next';
 import { ref } from 'vue';
 import EventIcon from '@/components/match/EventIcon.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, getEventTeam as getEventTeamUtil } from '@/lib/match-events';
@@ -11,12 +11,12 @@ const props = defineProps<{
     match: FootballMatch;
     clubUlid: string;
     matchBase: string;
-    confirmingDeleteId?: string | null;
     showDelete?: boolean;
 }>();
 
 const emit = defineEmits<{
     delete: [eventUlid: string];
+    edit: [event: MatchEvent];
 }>();
 
 const assignableEventTypes = new Set([
@@ -70,6 +70,18 @@ function selectFirstFiltered(event: MatchEvent) {
     if (first) {
         assignPlayer(event.ulid, first.player_id);
     }
+}
+
+const togglingHighlightUlid = ref<string | null>(null);
+
+function toggleHighlight(event: MatchEvent) {
+    togglingHighlightUlid.value = event.ulid;
+    router.patch(`${props.matchBase}/events/${event.ulid}`, {
+        highlighted: !event.highlighted,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { togglingHighlightUlid.value = null; },
+    });
 }
 
 function assignPlayer(eventUlid: string, playerId: number) {
@@ -148,6 +160,28 @@ function assignPlayer(eventUlid: string, playerId: number) {
                         </div>
                     </div>
 
+                    <!-- Highlight toggle (star) -->
+                    <button
+                        v-if="showDelete && event.player_id"
+                        :disabled="togglingHighlightUlid === event.ulid"
+                        class="shrink-0 rounded-md p-1.5 transition-colors disabled:opacity-50"
+                        :class="event.highlighted
+                            ? 'text-amber-400 hover:bg-amber-500/10'
+                            : 'text-muted-foreground/40 hover:bg-accent hover:text-amber-400'"
+                        @click="toggleHighlight(event)"
+                    >
+                        <Star class="size-3.5" :class="event.highlighted ? 'fill-amber-400' : ''" />
+                    </button>
+
+                    <!-- Edit button -->
+                    <button
+                        v-if="showDelete"
+                        class="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        @click="emit('edit', event)"
+                    >
+                        <Pencil class="size-3.5" />
+                    </button>
+
                     <!-- Assign/Change player button -->
                     <button
                         v-if="showDelete && canAssignPlayer(event)"
@@ -171,14 +205,10 @@ function assignPlayer(eventUlid: string, playerId: number) {
                     <!-- Delete button -->
                     <button
                         v-if="showDelete"
-                        class="shrink-0 rounded-md p-1.5 transition-colors"
-                        :class="confirmingDeleteId === event.ulid
-                            ? 'bg-destructive/20 text-destructive'
-                            : 'text-destructive/60 hover:bg-destructive/10 hover:text-destructive'"
+                        class="shrink-0 rounded-md p-1.5 text-destructive/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
                         @click="emit('delete', event.ulid)"
                     >
-                        <Trash2 v-if="confirmingDeleteId !== event.ulid" class="size-4" />
-                        <Check v-else class="size-4" />
+                        <Trash2 class="size-4" />
                     </button>
                 </div>
 

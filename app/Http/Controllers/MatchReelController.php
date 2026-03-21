@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
 use App\Http\Requests\Match\StoreManualReelRequest;
 use App\Http\Requests\Match\StoreReelRequestRequest;
@@ -16,78 +15,61 @@ use Illuminate\Support\Facades\Gate;
 
 class MatchReelController extends Controller
 {
-    public function generate(Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
+    public function __construct(private ReelService $reelService) {}
+
+    public function generate(Club $club, FootballMatch $match): RedirectResponse
     {
         Gate::authorize('update', $match);
+        $this->ensureHasYoutubeUrl($match);
 
-        if ($redirect = $this->requireYoutubeUrl($match)) {
-            return $redirect;
-        }
-
-        if ($match->reels()->where('source', ReelSource::Auto)->exists()) {
-            return back()->with('error', 'Los reels automáticos ya fueron generados. Elimina los existentes primero.');
-        }
-
-        $reelService->generateReelsForMatch($match);
+        $this->reelService->generateReelsForMatch($match);
 
         return back()->with('success', 'Generación de reels iniciada.');
     }
 
-    public function store(StoreManualReelRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
+    public function store(StoreManualReelRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        if ($redirect = $this->requireYoutubeUrl($match)) {
-            return $redirect;
-        }
+        $this->ensureHasYoutubeUrl($match);
 
-        $reelService->createManualClip($match, $request->validated());
+        $this->reelService->createManualClip($match, $request->validated());
 
         return back()->with('success', 'Clip manual creado.');
     }
 
-    public function request(StoreReelRequestRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
+    public function request(StoreReelRequestRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        if ($redirect = $this->requireYoutubeUrl($match)) {
-            return $redirect;
-        }
+        $this->ensureHasYoutubeUrl($match);
 
-        $reelService->createMatchClip($match, $request->validated());
+        $this->reelService->createMatchClip($match, $request->validated());
 
         return back()->with('success', 'Reel creado.');
     }
 
-    public function requestForPlayer(StoreReelRequestRequest $request, Club $club, FootballMatch $match, ReelService $reelService): RedirectResponse
+    public function requestForPlayer(StoreReelRequestRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        if ($redirect = $this->requireYoutubeUrl($match)) {
-            return $redirect;
-        }
+        $this->ensureHasYoutubeUrl($match);
 
-        $reelService->createPlayerClip($match, $request->user(), $request->validated());
+        $this->reelService->createPlayerClip($match, $request->user(), $request->validated());
 
         return back()->with('success', 'Reel creado.');
     }
 
-    public function approve(Club $club, FootballMatch $match, MatchReel $reel, ReelService $reelService): RedirectResponse
+    public function approve(Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
     {
         Gate::authorize('update', $match);
+        $this->ensureReelIsRequested($reel);
 
-        if ($reel->status !== ReelStatus::Requested) {
-            return back()->with('error', 'Este reel no está en estado de solicitud.');
-        }
-
-        $reelService->approveClipRequest($reel);
+        $this->reelService->approveClipRequest($reel);
 
         return back()->with('success', 'Solicitud aprobada.');
     }
 
-    public function reject(Club $club, FootballMatch $match, MatchReel $reel, ReelService $reelService): RedirectResponse
+    public function reject(Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
     {
         Gate::authorize('update', $match);
+        $this->ensureReelIsRequested($reel);
 
-        if ($reel->status !== ReelStatus::Requested) {
-            return back()->with('error', 'Este reel no está en estado de solicitud.');
-        }
-
-        $reelService->rejectClipRequest($reel);
+        $this->reelService->rejectClipRequest($reel);
 
         return back()->with('success', 'Solicitud rechazada.');
     }
@@ -102,12 +84,8 @@ class MatchReelController extends Controller
     public function destroy(Request $request, Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
     {
         $user = $request->user();
-        $isAdmin = $club->isAdminOrOwner($user);
-        $isOwner = $reel->requested_by === $user->id;
 
-        if (! $isAdmin && ! $isOwner) {
-            abort(403);
-        }
+        abort_unless($club->isAdminOrOwner($user) || $reel->requested_by === $user->id, 403);
 
         $reel->clearMediaCollection('reel');
         $reel->delete();
@@ -115,12 +93,17 @@ class MatchReelController extends Controller
         return back()->with('success', 'Reel eliminado.');
     }
 
-    private function requireYoutubeUrl(FootballMatch $match): ?RedirectResponse
+    private function ensureHasYoutubeUrl(FootballMatch $match): void
     {
         if (! $match->youtube_url) {
-            return back()->with('error', 'El partido no tiene video de YouTube.');
+            abort(back()->with('error', 'El partido no tiene video de YouTube.'));
         }
+    }
 
-        return null;
+    private function ensureReelIsRequested(MatchReel $reel): void
+    {
+        if ($reel->status !== ReelStatus::Requested) {
+            abort(back()->with('error', 'Este reel no está en estado de solicitud.'));
+        }
     }
 }

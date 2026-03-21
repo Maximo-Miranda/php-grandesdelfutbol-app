@@ -9,21 +9,20 @@ trait ValidatesReelTime
 {
     public function withValidator(Validator $validator): void
     {
-        $validator->after(function (Validator $validator) {
+        $validator->after(function (Validator $validator): void {
             /** @var FootballMatch|null $match */
             $match = $this->route('match');
 
-            if (! $match) {
+            if (! $match?->video_duration_seconds) {
                 return;
             }
 
-            $maxSeconds = $match->video_duration_seconds ?? $match->duration_minutes * 60;
             $requestedSeconds = ((int) $this->input('minute')) * 60 + (int) $this->input('second');
 
-            if ($requestedSeconds > $maxSeconds) {
+            if ($requestedSeconds > $match->video_duration_seconds) {
                 $validator->errors()->add(
                     'minute',
-                    sprintf('El tiempo no puede exceder la duración del video (%d:%02d).', intdiv($maxSeconds, 60), $maxSeconds % 60),
+                    sprintf('El tiempo no puede exceder la duración del video (%d:%02d).', intdiv($match->video_duration_seconds, 60), $match->video_duration_seconds % 60),
                 );
             }
         });

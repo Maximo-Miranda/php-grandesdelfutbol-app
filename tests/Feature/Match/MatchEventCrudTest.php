@@ -196,6 +196,60 @@ test('admin can assign player to existing event', function () {
     expect($event->player_id)->toBe($player->id);
 });
 
+test('admin can fully edit an event via PUT', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+    $event = MatchEvent::factory()->create([
+        'match_id' => $match->id,
+        'event_type' => 'foul',
+        'team' => 'a',
+        'minute' => 10,
+        'second' => 30,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('clubs.matches.events.fullUpdate', [$club, $match, $event]), [
+            'event_type' => 'yellow_card',
+            'player_id' => $player->id,
+            'team' => 'a',
+            'minute' => 15,
+            'second' => 45,
+        ])
+        ->assertRedirect();
+
+    $event->refresh();
+    expect($event->event_type->value)->toBe('yellow_card')
+        ->and($event->player_id)->toBe($player->id)
+        ->and($event->minute)->toBe(15)
+        ->and($event->second)->toBe(45);
+});
+
+test('full update validates event scope rules', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $event = MatchEvent::factory()->create([
+        'match_id' => $match->id,
+        'event_type' => 'goal',
+        'team' => 'a',
+        'minute' => 10,
+        'second' => 0,
+    ]);
+
+    // Change to team event without team → should fail
+    $this->actingAs($user)
+        ->put(route('clubs.matches.events.fullUpdate', [$club, $match, $event]), [
+            'event_type' => 'shot_on_target',
+            'minute' => 10,
+            'second' => 0,
+        ])
+        ->assertSessionHasErrors('team');
+});
+
 test('team event requires team', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -81,7 +81,7 @@ class MatchController extends Controller
             ->with('success', 'Partido creado.');
     }
 
-    public function show(Club $club, FootballMatch $match): Response|RedirectResponse
+    public function show(Request $request, Club $club, FootballMatch $match): Response|RedirectResponse
     {
         if (Gate::denies('view', $match) && $match->share_token) {
             return redirect()->route('match.public', $match->share_token);
@@ -89,31 +89,18 @@ class MatchController extends Controller
 
         Gate::authorize('view', $match);
 
-        $user = request()->user();
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
-
+        $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
+        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
+
         if ($match->status === MatchStatus::InProgress && $isAdmin) {
-            return Inertia::render('clubs/matches/Live', [
-                'club' => $club,
-                'match' => $match,
-                'players' => $club->players()->active()->with('user.playerProfile')->get(),
-            ]);
+            return Inertia::render('clubs/matches/Live', $this->liveProps($club, $match));
         }
 
         if ($match->status === MatchStatus::Completed) {
             return Inertia::render('clubs/matches/Summary', [
-                'club' => $club,
-                'match' => $match,
-                'isAdmin' => $isAdmin,
-                'players' => $isAdmin
-                    ? $club->players()->active()->with('user.playerProfile')->get()
-                    : [],
-                'positions' => $isAdmin
-                    ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
-                    : [],
-                'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
+                ...$this->summaryProps($club, $match, $user, $isAdmin),
                 'reels' => fn () => $match->reels()
                     ->whereIn('source', ['auto', 'manual'])
                     ->with('player', 'event', 'media')
@@ -122,8 +109,6 @@ class MatchController extends Controller
             ]);
         }
 
-        $myPlayer = $club->players()->where('user_id', $user->id)->first();
-
         $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
         return Inertia::render('clubs/matches/Show', [
@@ -131,7 +116,7 @@ class MatchController extends Controller
             'match' => $match,
             'players' => $club->players()->active()->with('user.playerProfile')->get(),
             'isAdmin' => $isAdmin,
-            'myPlayer' => $myPlayer,
+            'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
             'unregisteredPlayers' => $isAdmin
                 ? Inertia::scroll(
                     fn () => $club->players()
@@ -158,23 +143,12 @@ class MatchController extends Controller
 
     public function update(UpdateMatchRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $hadVideo = $match->youtube_url !== null;
+        $oldYoutubeUrl = $match->youtube_url;
 
         $match->update($request->validated());
 
-        if (! $hadVideo && $match->youtube_url !== null) {
-            $notification = new MatchVideoUploadedNotification($match);
-
-            $members = $club->approvedMemberUsersWithPush();
-            if ($members->isNotEmpty()) {
-                Notification::send($members, $notification);
-            }
-
-            PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
-
-            if ($match->status === MatchStatus::Completed) {
-                app(ReelService::class)->generateReelsForMatch($match);
-            }
+        if ($match->wasChanged('youtube_url') && $match->youtube_url !== null) {
+            $this->handleYoutubeUrlChange($club, $match, $oldYoutubeUrl);
         }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
@@ -197,23 +171,46 @@ class MatchController extends Controller
 
         $match->load('field', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
-        return Inertia::render('clubs/matches/Live', [
-            'club' => $club,
-            'match' => $match,
-            'players' => $club->players()->active()->with('user.playerProfile')->get(),
-        ]);
+        return Inertia::render('clubs/matches/Live', $this->liveProps($club, $match));
     }
 
-    public function summary(Club $club, FootballMatch $match): Response
+    public function summary(Request $request, Club $club, FootballMatch $match): Response
     {
         Gate::authorize('view', $match);
 
         $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer');
 
-        $user = request()->user();
+        $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
         return Inertia::render('clubs/matches/Summary', [
+            ...$this->summaryProps($club, $match, $user, $isAdmin),
+            'reels' => Inertia::scroll(
+                fn () => $match->reels()
+                    ->with('player', 'event', 'requester', 'media')
+                    ->orderBy('start_second')
+                    ->simplePaginate(6, pageName: 'reels'),
+            ),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function liveProps(Club $club, FootballMatch $match): array
+    {
+        return [
+            'club' => $club,
+            'match' => $match,
+            'players' => $club->players()->active()->with('user.playerProfile')->get(),
+        ];
+    }
+
+    /**
+     * @param  \App\Models\User  $user
+     * @return array<string, mixed>
+     */
+    private function summaryProps(Club $club, FootballMatch $match, $user, bool $isAdmin): array
+    {
+        return [
             'club' => $club,
             'match' => $match,
             'isAdmin' => $isAdmin,
@@ -224,12 +221,29 @@ class MatchController extends Controller
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
-            'reels' => Inertia::scroll(
-                fn () => $match->reels()
-                    ->with('player', 'event', 'requester', 'media')
-                    ->orderBy('start_second')
-                    ->simplePaginate(6, pageName: 'reels'),
-            ),
-        ]);
+        ];
+    }
+
+    private function handleYoutubeUrlChange(Club $club, FootballMatch $match, ?string $oldYoutubeUrl): void
+    {
+        if ($oldYoutubeUrl === null) {
+            $notification = new MatchVideoUploadedNotification($match);
+
+            $members = $club->approvedMemberUsersWithPush();
+            if ($members->isNotEmpty()) {
+                Notification::send($members, $notification);
+            }
+
+            PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
+        } else {
+            $match->update([
+                'video_path' => null,
+                'video_duration_seconds' => null,
+            ]);
+        }
+
+        if ($match->status === MatchStatus::Completed) {
+            app(ReelService::class)->generateReelsForMatch($match, force: $oldYoutubeUrl !== null);
+        }
     }
 }

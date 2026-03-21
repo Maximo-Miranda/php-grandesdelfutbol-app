@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class StoreMatchEventRequest extends FormRequest
+class UpdateMatchEventRequest extends FormRequest
 {
     use ValidatesMatchEventScope;
 
@@ -26,8 +26,9 @@ class StoreMatchEventRequest extends FormRequest
             'related_player_id' => ['nullable', 'exists:players,id'],
             'team' => ['nullable', 'string', 'in:a,b'],
             'minute' => ['required', 'integer', 'min:0', 'max:200'],
-            'second' => ['sometimes', 'integer', 'min:0', 'max:59'],
+            'second' => ['required', 'integer', 'min:0', 'max:59'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'highlighted' => ['sometimes', 'boolean'],
         ];
     }
 }

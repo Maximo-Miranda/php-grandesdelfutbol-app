@@ -307,11 +307,13 @@ const minute = ref(0);
 const second = ref(0);
 const submitting = ref(false);
 const lastRecorded = ref<{ player: string; event: string; minute: number; second: number } | null>(null);
-const confirmingDeleteId = ref<string | null>(null);
+const deletingEventUlid = ref<string | null>(null);
+const deletingEventLabel = ref('');
+const showDeleteEventDialog = ref(false);
 const recentPlayerIds = ref<number[]>([]);
 const isFullscreen = ref(false);
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
-let deleteTimeout: ReturnType<typeof setTimeout> | null = null;
+
 
 // --- Computed: team players ---
 const teamAPlayers = computed(() => props.match.attendances?.filter(a => a.team === 'a') ?? []);
@@ -351,7 +353,6 @@ onMounted(() => {
 
 onUnmounted(() => {
     if (confirmTimeout) clearTimeout(confirmTimeout);
-    if (deleteTimeout) clearTimeout(deleteTimeout);
     document.removeEventListener('fullscreenchange', onFullscreenChange);
 });
 
@@ -524,15 +525,69 @@ function addRecentPlayer(playerId: number) {
 }
 
 function confirmRemoveEvent(eventUlid: string) {
-    if (confirmingDeleteId.value === eventUlid) {
-        if (deleteTimeout) clearTimeout(deleteTimeout);
-        confirmingDeleteId.value = null;
-        router.delete(`${base}/${props.match.ulid}/events/${eventUlid}`, { preserveScroll: true });
-    } else {
-        confirmingDeleteId.value = eventUlid;
-        if (deleteTimeout) clearTimeout(deleteTimeout);
-        deleteTimeout = setTimeout(() => { confirmingDeleteId.value = null; }, 3000);
-    }
+    const event = props.match.events?.find(e => e.ulid === eventUlid);
+    const label = event ? (EVENT_LABELS[event.event_type] ?? event.event_type) : '';
+    const player = event?.player?.display_name;
+    deletingEventUlid.value = eventUlid;
+    deletingEventLabel.value = player ? `${label} — ${player}` : label;
+    showDeleteEventDialog.value = true;
+}
+
+function executeDeleteEvent() {
+    if (!deletingEventUlid.value) return;
+    router.delete(`${base}/${props.match.ulid}/events/${deletingEventUlid.value}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            showDeleteEventDialog.value = false;
+            deletingEventUlid.value = null;
+        },
+    });
+}
+
+// ===== EDIT EVENT DIALOG =====
+const editingEvent = ref<MatchEvent | null>(null);
+const editForm = useForm({
+    event_type: '',
+    minute: 0,
+    second: 0,
+    player_id: null as number | null,
+    related_player_id: null as number | null,
+    team: null as string | null,
+    notes: '',
+    highlighted: false,
+});
+
+function openEditEvent(event: MatchEvent) {
+    editingEvent.value = event;
+    editForm.event_type = event.event_type;
+    editForm.minute = event.minute;
+    editForm.second = event.second;
+    editForm.player_id = event.player_id;
+    editForm.related_player_id = event.related_player_id;
+    editForm.team = event.team;
+    editForm.notes = event.notes ?? '';
+    editForm.highlighted = event.highlighted;
+}
+
+const editEventScope = computed(() => eventScopes[editForm.event_type] ?? 'player');
+
+const editTeamPlayers = computed(() => {
+    if (!editForm.team) return [];
+    return props.match.attendances?.filter(a => a.team === editForm.team) ?? [];
+});
+
+function submitEditEvent() {
+    if (!editingEvent.value) return;
+    editForm.transform((data) => ({
+        ...data,
+        player_id: data.player_id || null,
+        related_player_id: data.related_player_id || null,
+        team: data.team || null,
+        notes: data.notes || null,
+    })).put(`${base}/${props.match.ulid}/events/${editingEvent.value.ulid}`, {
+        preserveScroll: true,
+        onSuccess: () => { editingEvent.value = null; },
+    });
 }
 
 function cancelPendingEvent() {
@@ -665,7 +720,7 @@ const showManualClipForm = ref(false);
 const deletingReelUlid = ref<string | null>(null);
 const clipTimeInput = ref<InstanceType<typeof MinuteSecondInput> | null>(null);
 
-const videoMaxSeconds = computed(() => props.match.video_duration_seconds ?? props.match.duration_minutes * 60);
+const videoMaxSeconds = computed(() => props.match.video_duration_seconds ?? undefined);
 
 const manualClipForm = useForm({
     title: '',
@@ -675,7 +730,22 @@ const manualClipForm = useForm({
     request_notes: '',
 });
 
-const allReels = computed(() => props.reels?.data ?? []);
+const cachedMediaUrls = new Map<string, string>();
+
+const allReels = computed(() => {
+    const reels = props.reels?.data ?? [];
+    for (const reel of reels) {
+        if (reel.media_url && !cachedMediaUrls.has(reel.ulid)) {
+            cachedMediaUrls.set(reel.ulid, reel.media_url);
+        }
+    }
+    return reels;
+});
+
+function reelMediaUrl(reel: MatchReel): string | null {
+    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url;
+}
+
 const completedReels = computed(() => allReels.value.filter(r => r.status === 'completed' && r.source !== 'request'));
 const displayReels = computed(() => allReels.value.filter(r => r.source !== 'request'));
 
@@ -695,10 +765,15 @@ function submitManualClip() {
     });
 }
 
+const viewedReelUlids = new Set<string>();
+
 function trackReelView(reel: MatchReel) {
-    router.post(`${base}/${props.match.ulid}/reels/${reel.ulid}/view`, {}, {
-        preserveScroll: true,
-        preserveState: true,
+    if (viewedReelUlids.has(reel.ulid)) return;
+    viewedReelUlids.add(reel.ulid);
+
+    fetch(`${base}/${props.match.ulid}/reels/${reel.ulid}/view`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '' },
     });
 }
 
@@ -720,6 +795,17 @@ function onDeleteReelClick(reel: MatchReel) {
     } else {
         confirmDeleteReelUlid.value = reel.ulid;
     }
+}
+
+const generatingReels = ref(false);
+const hasProcessingReels = computed(() => allReels.value.some(r => r.status === 'processing'));
+
+function generateAutoReels() {
+    generatingReels.value = true;
+    router.post(`${base}/${props.match.ulid}/reels/generate`, {}, {
+        preserveScroll: true,
+        onFinish: () => { generatingReels.value = false; },
+    });
 }
 
 function deleteReel(reel: MatchReel) {
@@ -1419,9 +1505,9 @@ async function shareReel(reel: MatchReel) {
                             :match="match"
                             :club-ulid="club.ulid"
                             :match-base="`${base}/${match.ulid}`"
-                            :confirming-delete-id="confirmingDeleteId"
                             show-delete
                             @delete="confirmRemoveEvent"
+                            @edit="openEditEvent"
                         />
                     </div>
 
@@ -1436,13 +1522,139 @@ async function shareReel(reel: MatchReel) {
                             :match="match"
                             :club-ulid="club.ulid"
                             :match-base="`${base}/${match.ulid}`"
-                            :confirming-delete-id="confirmingDeleteId"
                             show-delete
                             @delete="confirmRemoveEvent"
+                            @edit="openEditEvent"
                         />
                     </div>
                 </div>
             </div>
+
+            <!-- ========================================== -->
+            <!-- DIALOG: EDIT EVENT                         -->
+            <!-- ========================================== -->
+            <Dialog :open="!!editingEvent" @update:open="(v: boolean) => { if (!v) editingEvent = null; }">
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editar evento</DialogTitle>
+                        <DialogDescription>Modifica los datos del evento.</DialogDescription>
+                    </DialogHeader>
+                    <form class="space-y-4" @submit.prevent="submitEditEvent">
+                        <!-- Event type -->
+                        <div class="grid gap-1.5">
+                            <Label class="text-xs">Tipo de evento</Label>
+                            <Select v-model="editForm.event_type">
+                                <SelectTrigger class="h-9 text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="et in allEventTypes" :key="et.value" :value="et.value">
+                                        {{ et.label.replace('\n', ' ') }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError :message="editForm.errors.event_type" />
+                        </div>
+
+                        <!-- Minute / Second -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-1.5">
+                                <Label class="text-xs">Minuto</Label>
+                                <Input v-model.number="editForm.minute" type="number" min="0" max="200" class="h-9 text-sm" />
+                                <InputError :message="editForm.errors.minute" />
+                            </div>
+                            <div class="grid gap-1.5">
+                                <Label class="text-xs">Segundo</Label>
+                                <Input v-model.number="editForm.second" type="number" min="0" max="59" class="h-9 text-sm" />
+                                <InputError :message="editForm.errors.second" />
+                            </div>
+                        </div>
+
+                        <!-- Team (player/team scoped) -->
+                        <div v-if="editEventScope !== 'neutral'" class="grid gap-1.5">
+                            <Label class="text-xs">Equipo</Label>
+                            <Select v-model="editForm.team">
+                                <SelectTrigger class="h-9 text-sm">
+                                    <SelectValue placeholder="Sin equipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="a">{{ match.team_a_name }}</SelectItem>
+                                    <SelectItem value="b">{{ match.team_b_name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError :message="editForm.errors.team" />
+                        </div>
+
+                        <!-- Player (player scoped) -->
+                        <div v-if="editEventScope === 'player' && editForm.team" class="grid gap-1.5">
+                            <Label class="text-xs">Jugador</Label>
+                            <Select :model-value="editForm.player_id ? String(editForm.player_id) : 'none'" @update:model-value="(v: string) => editForm.player_id = v === 'none' ? null : Number(v)">
+                                <SelectTrigger class="h-9 text-sm">
+                                    <SelectValue placeholder="Sin jugador" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Sin jugador</SelectItem>
+                                    <SelectItem v-for="att in editTeamPlayers" :key="att.player_id" :value="String(att.player_id)">
+                                        {{ att.player?.display_name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Related player (substitution) -->
+                        <div v-if="editForm.event_type === 'substitution' && editForm.team" class="grid gap-1.5">
+                            <Label class="text-xs">Jugador que ingresa</Label>
+                            <Select :model-value="editForm.related_player_id ? String(editForm.related_player_id) : 'none'" @update:model-value="(v: string) => editForm.related_player_id = v === 'none' ? null : Number(v)">
+                                <SelectTrigger class="h-9 text-sm">
+                                    <SelectValue placeholder="Sin jugador" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Sin jugador</SelectItem>
+                                    <SelectItem v-for="att in editTeamPlayers" :key="att.player_id" :value="String(att.player_id)">
+                                        {{ att.player?.display_name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="grid gap-1.5">
+                            <Label class="text-xs">Notas (opcional)</Label>
+                            <Textarea v-model="editForm.notes" placeholder="Descripcion del evento..." class="text-sm" rows="2" />
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2">
+                            <Button type="submit" class="w-full gap-2" :disabled="editForm.processing">
+                                <Check class="size-4" />
+                                Guardar cambios
+                            </Button>
+                            <Button type="button" variant="ghost" class="w-full" @click="editingEvent = null">Cancelar</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <!-- ========================================== -->
+            <!-- DIALOG: DELETE EVENT CONFIRMATION          -->
+            <!-- ========================================== -->
+            <Dialog v-model:open="showDeleteEventDialog">
+                <DialogContent class="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Eliminar evento</DialogTitle>
+                        <DialogDescription>
+                            {{ deletingEventLabel ? `Se eliminará "${deletingEventLabel}".` : 'Se eliminará este evento.' }}
+                            Esta acción no se puede deshacer.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div class="flex flex-col gap-2 pt-2">
+                        <Button variant="destructive" class="w-full gap-2" @click="executeDeleteEvent">
+                            <Trash2 class="size-4" />
+                            Eliminar evento
+                        </Button>
+                        <Button variant="ghost" class="w-full" @click="showDeleteEventDialog = false">Cancelar</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <!-- ========================================== -->
             <!-- TAB: JUGADORES (admin only)                -->
@@ -1607,6 +1819,19 @@ async function shareReel(reel: MatchReel) {
             <!-- TAB: REELS (admin only)                    -->
             <!-- ========================================== -->
             <div v-if="isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
+                <!-- Generate / regenerate auto reels -->
+                <Button
+                    v-if="match.youtube_url"
+                    variant="outline"
+                    size="sm"
+                    class="w-full gap-1.5"
+                    :disabled="generatingReels || hasProcessingReels"
+                    @click="generateAutoReels"
+                >
+                    <Film class="size-3.5" />
+                    {{ generatingReels ? 'Generando...' : displayReels.length ? 'Regenerar reels automáticos' : 'Generar reels automáticos' }}
+                </Button>
+
                 <!-- Create reel (admin — with title + player) -->
                 <Dialog v-if="match.youtube_url" v-model:open="showManualClipForm">
                     <DialogTrigger as-child>
@@ -1724,27 +1949,47 @@ async function shareReel(reel: MatchReel) {
                                 <div class="size-4 animate-spin rounded-full border-2 border-blue-500/30 border-t-blue-400"></div>
                                 <p class="text-xs text-blue-400">Generando reel...</p>
                             </div>
-                            <button
-                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 disabled:opacity-50"
-                                :disabled="refreshingReels"
-                                @click="refreshReels"
-                            >
-                                <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
-                                Actualizar
-                            </button>
+                            <div class="mt-2 flex gap-2">
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 disabled:opacity-50"
+                                    :disabled="refreshingReels"
+                                    @click="refreshReels"
+                                >
+                                    <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
+                                    Actualizar
+                                </button>
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                                    :disabled="deletingReelUlid === reel.ulid"
+                                    @click="deleteReel(reel)"
+                                >
+                                    <X class="size-3" />
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Pending -->
                         <div v-else-if="reel.status === 'pending'" class="border-t border-amber-500/20 bg-amber-500/5 px-3 py-3">
                             <p class="text-center text-xs text-amber-400">Reel en cola, se procesará pronto.</p>
-                            <button
-                                class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
-                                :disabled="refreshingReels"
-                                @click="refreshReels"
-                            >
-                                <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
-                                Actualizar
-                            </button>
+                            <div class="mt-2 flex gap-2">
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                    :disabled="refreshingReels"
+                                    @click="refreshReels"
+                                >
+                                    <RefreshCw class="size-3" :class="refreshingReels ? 'animate-spin' : ''" />
+                                    Actualizar
+                                </button>
+                                <button
+                                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                                    :disabled="deletingReelUlid === reel.ulid"
+                                    @click="deleteReel(reel)"
+                                >
+                                    <X class="size-3" />
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Failed -->
@@ -1764,7 +2009,7 @@ async function shareReel(reel: MatchReel) {
                         <template v-else-if="reel.status === 'completed'">
                             <div v-if="reel.media_url" class="border-t border-border bg-black">
                                 <video
-                                    :src="reel.media_url"
+                                    :src="reelMediaUrl(reel)!"
                                     controls
                                     preload="metadata"
                                     class="mx-auto max-h-80 w-full"
@@ -1830,7 +2075,7 @@ async function shareReel(reel: MatchReel) {
                     </div>
                     <div v-if="reel.media_url" class="border-t border-border bg-black">
                         <video
-                            :src="reel.media_url"
+                            :src="reelMediaUrl(reel)!"
                             controls
                             preload="metadata"
                             class="mx-auto max-h-80 w-full"
@@ -1838,7 +2083,7 @@ async function shareReel(reel: MatchReel) {
                     </div>
                     <div v-if="reel.media_url" class="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-2.5">
                         <a
-                            :href="reel.media_url"
+                            :href="reelMediaUrl(reel)!"
                             download
                             class="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         >

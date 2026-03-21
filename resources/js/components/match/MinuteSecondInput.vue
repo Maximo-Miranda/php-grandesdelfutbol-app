@@ -54,17 +54,21 @@ function stopRepeat() {
 
 onUnmounted(stopRepeat);
 
+// --- Clamp seconds to 0-59 on manual input ---
+watch(second, (val) => {
+    const clamped = Math.max(0, Math.min(59, val));
+    if (val !== clamped) second.value = clamped;
+});
+
 // --- Hint visibility ---
 const showHint = ref(false);
 let hintTimeout: ReturnType<typeof setTimeout> | null = null;
 
 watch(() => props.manualMode, (isManual) => {
     if (hintTimeout) { clearTimeout(hintTimeout); hintTimeout = null; }
+    showHint.value = isManual;
     if (isManual) {
-        showHint.value = true;
         hintTimeout = setTimeout(() => { showHint.value = false; }, 5000);
-    } else {
-        showHint.value = false;
     }
 });
 </script>

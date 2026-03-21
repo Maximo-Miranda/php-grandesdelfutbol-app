@@ -16,13 +16,15 @@ use Illuminate\Support\Facades\Process;
 
 class ReelService
 {
-    public function generateReelsForMatch(FootballMatch $match): void
+    public function generateReelsForMatch(FootballMatch $match, bool $force = false): void
     {
         if (! $match->youtube_url) {
             return;
         }
 
-        $this->fetchVideoDuration($match);
+        if ($force) {
+            $this->deleteAutoReels($match);
+        }
 
         $events = $match->events()
             ->where(function ($q) {
@@ -32,24 +34,31 @@ class ReelService
             ->whereNotNull('player_id')
             ->get();
 
+        $this->removeOrphanedAutoReels($match, $events->pluck('id')->all());
+
         $jobs = [];
 
         foreach ($events as $event) {
-            if ($match->reels()->where('event_id', $event->id)->exists()) {
-                continue;
-            }
-
             $clipWindow = $this->calculateClipWindow(
                 $event->minute,
                 $event->second,
                 $match->video_offset_seconds ?? 0,
             );
 
-            $reel = MatchReel::create([
-                'match_id' => $match->id,
+            $existingReel = $match->reels()
+                ->where('event_id', $event->id)
+                ->where('source', ReelSource::Auto)
+                ->first();
+
+            if ($this->shouldSkipExistingReel($existingReel, $clipWindow)) {
+                continue;
+            }
+
+            $this->clearAndDeleteReel($existingReel);
+
+            $reel = $this->createReel($match, [
                 'event_id' => $event->id,
                 'player_id' => $event->player_id,
-                'status' => ReelStatus::Pending,
                 'source' => ReelSource::Auto,
                 'title' => sprintf(
                     '%s — %s (%d:%02d)',
@@ -58,115 +67,66 @@ class ReelService
                     $event->minute,
                     $event->second,
                 ),
-                'start_second' => $clipWindow['start'],
-                'end_second' => $clipWindow['end'],
-                'duration' => $clipWindow['end'] - $clipWindow['start'],
-            ]);
+            ], $clipWindow);
 
             $jobs[] = new GenerateMatchReel($reel);
         }
 
-        if ($jobs !== []) {
-            Bus::batch($jobs)
-                ->name("reels-match-{$match->id}")
-                ->onQueue('reels')
-                ->then(function () use ($match) {
-                    $match->club?->owner?->notify(new MatchReelsReadyNotification($match));
-                })
-                ->allowFailures()
-                ->dispatch();
+        if ($jobs === []) {
+            return;
         }
+
+        Bus::batch($jobs)
+            ->name("reels-match-{$match->id}")
+            ->onQueue('reels')
+            ->then(fn () => $match->club?->owner?->notify(new MatchReelsReadyNotification($match)))
+            ->allowFailures()
+            ->dispatch();
     }
 
     /** @param array{title?: string|null, minute: int, second: int, player_id?: int|null, request_notes?: string|null} $data */
     public function createManualClip(FootballMatch $match, array $data): MatchReel
     {
-        $clipWindow = $this->calculateClipWindow(
-            $data['minute'],
-            $data['second'],
-            $match->video_offset_seconds ?? 0,
-        );
-
+        $clipWindow = $this->clipWindowForMatch($match, $data['minute'], $data['second']);
         $player = Player::find($data['player_id'] ?? null);
 
         $playerSuffix = $player ? " — {$player->display_name}" : '';
         $title = $data['title'] ?? sprintf('Reel %d:%02d%s', $data['minute'], $data['second'], $playerSuffix);
 
-        $reel = MatchReel::create([
-            'match_id' => $match->id,
+        return $this->createAndDispatchReel($match, [
             'player_id' => $player?->id,
             'requested_by' => $player?->user_id,
-            'status' => ReelStatus::Pending,
             'source' => ReelSource::Manual,
             'title' => $title,
-            'start_second' => $clipWindow['start'],
-            'end_second' => $clipWindow['end'],
-            'duration' => $clipWindow['end'] - $clipWindow['start'],
             'request_notes' => $data['request_notes'] ?? null,
-        ]);
-
-        GenerateMatchReel::dispatch($reel);
-
-        return $reel;
+        ], $clipWindow);
     }
 
     /** @param array{minute: int, second: int, request_notes?: string|null} $data */
     public function createMatchClip(FootballMatch $match, array $data): MatchReel
     {
-        $clipWindow = $this->calculateClipWindow(
-            $data['minute'],
-            $data['second'],
-            $match->video_offset_seconds ?? 0,
-        );
+        $clipWindow = $this->clipWindowForMatch($match, $data['minute'], $data['second']);
 
-        $reel = MatchReel::create([
-            'match_id' => $match->id,
-            'status' => ReelStatus::Pending,
+        return $this->createAndDispatchReel($match, [
             'source' => ReelSource::Request,
             'title' => sprintf('Reel %d:%02d', $data['minute'], $data['second']),
-            'start_second' => $clipWindow['start'],
-            'end_second' => $clipWindow['end'],
-            'duration' => $clipWindow['end'] - $clipWindow['start'],
             'request_notes' => $data['request_notes'] ?? null,
-        ]);
-
-        GenerateMatchReel::dispatch($reel);
-
-        return $reel;
+        ], $clipWindow);
     }
 
     /** @param array{minute: int, second: int, request_notes?: string|null} $data */
     public function createPlayerClip(FootballMatch $match, User $user, array $data): MatchReel
     {
         $player = $match->club?->players()->where('user_id', $user->id)->first();
+        $clipWindow = $this->clipWindowForMatch($match, $data['minute'], $data['second']);
 
-        $clipWindow = $this->calculateClipWindow(
-            $data['minute'],
-            $data['second'],
-            $match->video_offset_seconds ?? 0,
-        );
-
-        $reel = MatchReel::create([
-            'match_id' => $match->id,
+        return $this->createAndDispatchReel($match, [
             'player_id' => $player?->id,
             'requested_by' => $user->id,
-            'status' => ReelStatus::Pending,
             'source' => ReelSource::Request,
-            'title' => sprintf(
-                'Reel - %s (%d:%02d)',
-                $user->name,
-                $data['minute'],
-                $data['second'],
-            ),
-            'start_second' => $clipWindow['start'],
-            'end_second' => $clipWindow['end'],
-            'duration' => $clipWindow['end'] - $clipWindow['start'],
+            'title' => sprintf('Reel - %s (%d:%02d)', $user->name, $data['minute'], $data['second']),
             'request_notes' => $data['request_notes'] ?? null,
-        ]);
-
-        GenerateMatchReel::dispatch($reel);
-
-        return $reel;
+        ], $clipWindow);
     }
 
     public function approveClipRequest(MatchReel $reel): void
@@ -186,13 +146,18 @@ class ReelService
     {
         $eventTotalSeconds = ($eventMinute * 60) + $eventSecond + $videoOffset;
 
-        $start = max(0, $eventTotalSeconds - 15);
-        $end = $eventTotalSeconds + 10;
-
         return [
-            'start' => $start,
-            'end' => $end,
+            'start' => max(0, $eventTotalSeconds - 15),
+            'end' => $eventTotalSeconds + 10,
         ];
+    }
+
+    public function deleteAutoReels(FootballMatch $match): void
+    {
+        $match->reels()
+            ->where('source', ReelSource::Auto)
+            ->where('status', '!=', ReelStatus::Processing)
+            ->each(fn (MatchReel $reel) => $this->clearAndDeleteReel($reel));
     }
 
     public function fetchVideoDuration(FootballMatch $match): void
@@ -209,15 +174,78 @@ class ReelService
                 $match->youtube_url,
             ]);
 
-            if ($result->successful()) {
-                $duration = (int) trim($result->output());
+            $duration = $result->successful() ? (int) trim($result->output()) : 0;
 
-                if ($duration > 0) {
-                    $match->update(['video_duration_seconds' => $duration]);
-                }
+            if ($duration > 0) {
+                $match->update(['video_duration_seconds' => $duration]);
             }
         } catch (\Throwable) {
             // Non-critical — slider will fallback to match duration
         }
+    }
+
+    /** @return array{start: int, end: int} */
+    private function clipWindowForMatch(FootballMatch $match, int $minute, int $second): array
+    {
+        return $this->calculateClipWindow($minute, $second, $match->video_offset_seconds ?? 0);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function createReel(FootballMatch $match, array $attributes, array $clipWindow): MatchReel
+    {
+        return MatchReel::create([
+            'match_id' => $match->id,
+            'status' => ReelStatus::Pending,
+            'start_second' => $clipWindow['start'],
+            'end_second' => $clipWindow['end'],
+            'duration' => $clipWindow['end'] - $clipWindow['start'],
+            ...$attributes,
+        ]);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function createAndDispatchReel(FootballMatch $match, array $attributes, array $clipWindow): MatchReel
+    {
+        $reel = $this->createReel($match, $attributes, $clipWindow);
+
+        GenerateMatchReel::dispatch($reel);
+
+        return $reel;
+    }
+
+    /** @param array<int> $qualifyingEventIds */
+    private function removeOrphanedAutoReels(FootballMatch $match, array $qualifyingEventIds): void
+    {
+        $match->reels()
+            ->where('source', ReelSource::Auto)
+            ->where('status', '!=', ReelStatus::Processing)
+            ->where(function ($q) use ($qualifyingEventIds) {
+                $q->whereNull('event_id')
+                    ->orWhereNotIn('event_id', $qualifyingEventIds);
+            })
+            ->each(fn (MatchReel $reel) => $this->clearAndDeleteReel($reel));
+    }
+
+    /** @param array{start: int, end: int} $clipWindow */
+    private function shouldSkipExistingReel(?MatchReel $reel, array $clipWindow): bool
+    {
+        if (! $reel) {
+            return false;
+        }
+
+        $timesMatch = $reel->start_second === $clipWindow['start']
+            && $reel->end_second === $clipWindow['end'];
+
+        return $timesMatch && $reel->status !== ReelStatus::Failed;
+    }
+
+    private function clearAndDeleteReel(?MatchReel $reel): void
+    {
+        if (! $reel) {
+            return;
+        }
+
+        $reel->clearMediaCollection('reel');
+        $reel->delete();
     }
 }

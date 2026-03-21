@@ -82,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('matches/{match}/events', [MatchEventController::class, 'store'])->name('matches.events.store');
         Route::patch('matches/{match}/events/{event}', [MatchEventController::class, 'update'])->name('matches.events.update');
+        Route::put('matches/{match}/events/{event}', [MatchEventController::class, 'fullUpdate'])->name('matches.events.fullUpdate');
         Route::delete('matches/{match}/events/{event}', [MatchEventController::class, 'destroy'])->name('matches.events.destroy');
 
         Route::post('matches/{match}/start', [MatchLifecycleController::class, 'start'])->name('matches.start');
