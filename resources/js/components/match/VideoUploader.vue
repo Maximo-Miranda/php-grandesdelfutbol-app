@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import Uppy from '@uppy/core';
 import AwsS3 from '@uppy/aws-s3';
+import Uppy from '@uppy/core';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
