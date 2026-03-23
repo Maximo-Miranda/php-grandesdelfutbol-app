@@ -23,6 +23,9 @@ type VideoUploadData = {
     duration_seconds: number | null;
     video_offset_seconds: number;
     error_message: string | null;
+    youtube_video_id?: string | null;
+    youtube_embed_url?: string | null;
+    youtube_url?: string | null;
 };
 
 type Props = {
@@ -454,14 +457,27 @@ onBeforeUnmount(() => {
                 <span class="text-xs text-muted-foreground">{{ uploadedFilename }}</span>
             </div>
 
-            <!-- Embedded player -->
-            <div v-if="embedUrl" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
+            <!-- YouTube embed (preferred) -->
+            <div v-if="props.existingUpload?.youtube_embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
+                <iframe
+                    :src="props.existingUpload.youtube_embed_url"
+                    class="h-full w-full"
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                />
+            </div>
+            <!-- Bunny embed (fallback during YouTube processing) -->
+            <div v-else-if="embedUrl" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
                 <iframe
                     :src="`${embedUrl}?autoplay=false&preload=false`"
                     class="h-full w-full"
                     allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen
                 />
+                <div class="mt-1 flex items-center gap-1.5 text-xs text-amber-400">
+                    <Loader2 class="size-3 animate-spin" />
+                    Procesando para YouTube...
+                </div>
             </div>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">

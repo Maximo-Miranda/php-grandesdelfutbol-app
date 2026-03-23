@@ -92,10 +92,10 @@ RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && { \
         echo '[www]'; \
         echo 'pm = dynamic'; \
-        echo 'pm.max_children = 20'; \
-        echo 'pm.start_servers = 4'; \
+        echo 'pm.max_children = 10'; \
+        echo 'pm.start_servers = 3'; \
         echo 'pm.min_spare_servers = 2'; \
-        echo 'pm.max_spare_servers = 6'; \
+        echo 'pm.max_spare_servers = 5'; \
         echo 'pm.max_requests = 1000'; \
     } > /usr/local/etc/php-fpm.d/zz-production.conf
 

@@ -37,4 +37,17 @@ return [
 
     'cdn_hostname' => env('BUNNY_CDN_HOSTNAME', ''),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Download Speed Limit
+    |--------------------------------------------------------------------------
+    |
+    | Maximum download speed in bytes/second for video downloads.
+    | Default: 12 MB/s (~96 Mbps) to leave bandwidth for web traffic.
+    | Set to 0 to disable throttling.
+    |
+    */
+
+    'download_speed_limit' => (int) env('BUNNY_DOWNLOAD_SPEED_LIMIT', 12 * 1024 * 1024),
+
 ];

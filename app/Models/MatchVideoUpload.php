@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
 use App\Enums\VideoUploadStatus;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,10 +21,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $duration_seconds
  * @property int $video_offset_seconds
  * @property string|null $error_message
- * @property \Carbon\CarbonImmutable|null $uploaded_at
- * @property \Carbon\CarbonImmutable|null $encoded_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $uploaded_at
+ * @property CarbonImmutable|null $encoded_at
+ * @property string|null $youtube_video_id
+ * @property CarbonImmutable|null $youtube_uploaded_at
+ * @property string|null $s3_path
+ * @property string|null $best_resolution
+ * @property CarbonImmutable|null $bunny_deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  */
 class MatchVideoUpload extends Model
 {
@@ -33,6 +39,8 @@ class MatchVideoUpload extends Model
         'stream_url',
         'thumbnail_url',
         'embed_url',
+        'youtube_url',
+        'youtube_embed_url',
     ];
 
     protected $fillable = [
@@ -47,6 +55,11 @@ class MatchVideoUpload extends Model
         'error_message',
         'uploaded_at',
         'encoded_at',
+        'youtube_video_id',
+        'youtube_uploaded_at',
+        's3_path',
+        'best_resolution',
+        'bunny_deleted_at',
     ];
 
     protected function casts(): array
@@ -58,6 +71,8 @@ class MatchVideoUpload extends Model
             'video_offset_seconds' => 'integer',
             'uploaded_at' => 'immutable_datetime',
             'encoded_at' => 'immutable_datetime',
+            'youtube_uploaded_at' => 'immutable_datetime',
+            'bunny_deleted_at' => 'immutable_datetime',
         ];
     }
 
@@ -73,7 +88,7 @@ class MatchVideoUpload extends Model
 
     public function getStreamUrlAttribute(): ?string
     {
-        if ($this->status !== VideoUploadStatus::Ready) {
+        if ($this->status !== VideoUploadStatus::Ready || $this->bunny_deleted_at) {
             return null;
         }
 
@@ -87,6 +102,32 @@ class MatchVideoUpload extends Model
 
     public function getEmbedUrlAttribute(): ?string
     {
+        if ($this->youtube_video_id) {
+            return $this->youtube_embed_url;
+        }
+
+        if ($this->bunny_deleted_at) {
+            return null;
+        }
+
         return 'https://iframe.mediadelivery.net/embed/'.config('bunny.stream_library_id')."/{$this->bunny_video_id}";
+    }
+
+    public function getYoutubeUrlAttribute(): ?string
+    {
+        if (! $this->youtube_video_id) {
+            return null;
+        }
+
+        return "https://www.youtube.com/watch?v={$this->youtube_video_id}";
+    }
+
+    public function getYoutubeEmbedUrlAttribute(): ?string
+    {
+        if (! $this->youtube_video_id) {
+            return null;
+        }
+
+        return "https://www.youtube.com/embed/{$this->youtube_video_id}";
     }
 }

@@ -96,6 +96,7 @@ readonly class SetClubContext
             'logout',
             'verification.*',
             'password.*',
+            'youtube.*',
         );
     }
 }

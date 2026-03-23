@@ -31,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiters();
 
         Gate::before(fn ($user) => $user->isSuperAdmin() ? true : null);
+
+        Gate::define('superAdmin', fn ($user) => $user->isSuperAdmin());
     }
 
     /**

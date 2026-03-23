@@ -36,6 +36,9 @@ import {
     Users,
     Video,
     X,
+    Copy,
+    ExternalLink,
+    Loader2,
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
@@ -195,13 +198,28 @@ function deleteMatch() {
 
 // --- Video Upload state ---
 const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
+const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
 const videoEmbedUrl = computed(() => {
+    // Prefer YouTube embed when available
+    if (props.match.video_upload?.youtube_embed_url) {
+        return props.match.video_upload.youtube_embed_url;
+    }
     const url = props.match.video_upload?.embed_url;
     if (!url) return null;
     return `${url}?autoplay=false&preload=false`;
 });
 const deletingVideo = ref(false);
 const showDeleteVideoDialog = ref(false);
+const copiedLink = ref(false);
+
+function copyYoutubeLink() {
+    if (!youtubeUrl.value) return;
+    navigator.clipboard.writeText(youtubeUrl.value).then(() => {
+        copiedLink.value = true;
+        setTimeout(() => { copiedLink.value = false; }, 2000);
+    });
+}
 
 function confirmDeleteVideo() {
     deletingVideo.value = true;
@@ -966,8 +984,26 @@ async function shareReel(reel: MatchReel) {
                         allowfullscreen
                     />
                 </div>
-                <div v-if="isAdmin" class="mt-2 flex justify-end">
-                    <Dialog v-model:open="showDeleteVideoDialog">
+                <!-- YouTube processing indicator -->
+                <div v-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400">
+                    <Loader2 class="size-3 animate-spin" />
+                    Procesando para YouTube...
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                    <!-- Copy YouTube link -->
+                    <div v-if="youtubeUrl" class="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" class="gap-1.5" @click="copyYoutubeLink">
+                            <Copy class="size-3.5" />
+                            {{ copiedLink ? 'Copiado!' : 'Copiar link' }}
+                        </Button>
+                        <a :href="youtubeUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                            <ExternalLink class="size-3" />
+                            YouTube
+                        </a>
+                    </div>
+                    <div v-else></div>
+                    <!-- Delete video (admin) -->
+                    <Dialog v-if="isAdmin" v-model:open="showDeleteVideoDialog">
                         <DialogTrigger as-child>
                             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
                                 <Trash2 class="size-3.5" />

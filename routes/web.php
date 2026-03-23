@@ -24,6 +24,7 @@ use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\YouTubeAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -112,6 +113,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('player-profile', [PlayerProfileController::class, 'edit'])->name('player-profile.edit');
     Route::patch('player-profile', [PlayerProfileController::class, 'update'])->name('player-profile.update');
+
+    Route::get('admin/youtube/authorize', [YouTubeAuthController::class, 'redirect'])->name('youtube.authorize');
+    Route::get('admin/youtube/callback', [YouTubeAuthController::class, 'callback'])->name('youtube.callback');
 });
 
 require __DIR__.'/settings.php';
