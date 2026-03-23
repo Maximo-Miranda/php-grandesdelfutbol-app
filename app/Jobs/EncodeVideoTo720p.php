@@ -120,7 +120,7 @@ class EncodeVideoTo720p implements ShouldQueue
 
     private function encode(string $inputFile, string $outputFile): void
     {
-        $command = [
+        $result = Process::timeout(7200)->run([
             'ffmpeg', '-y',
             '-i', $inputFile,
             '-c:v', 'libx264',
@@ -131,9 +131,7 @@ class EncodeVideoTo720p implements ShouldQueue
             '-b:a', '128k',
             '-movflags', '+faststart',
             $outputFile,
-        ];
-
-        $result = Process::timeout(7200)->run($command);
+        ]);
 
         if (! $result->successful()) {
             throw new RuntimeException('FFmpeg encoding failed: '.$result->errorOutput());
