@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Concerns\BelongsToClub;
 use App\Concerns\HasPublicUlid;
+use Carbon\CarbonImmutable;
+use Database\Factories\VenueFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,10 +21,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $map_link
  * @property string|null $notes
  * @property bool $is_active
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\Club $club
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Field> $fields
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Club $club
+ * @property-read Collection<int, Field> $fields
  * @property-read int|null $fields_count
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Venue active()
@@ -45,7 +48,7 @@ class Venue extends Model
 {
     use BelongsToClub, HasPublicUlid;
 
-    /** @use HasFactory<\Database\Factories\VenueFactory> */
+    /** @use HasFactory<VenueFactory> */
     use HasFactory;
 
     protected $fillable = [

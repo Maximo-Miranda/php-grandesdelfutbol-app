@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Concerns\HasPublicUlid;
 use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
+use Carbon\CarbonImmutable;
+use Database\Factories\MatchReelFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,20 +28,20 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $duration
  * @property string|null $error_message
  * @property string|null $request_notes
- * @property \Carbon\CarbonImmutable|null $processed_at
+ * @property CarbonImmutable|null $processed_at
  * @property int $view_count
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\FootballMatch $match
- * @property-read \App\Models\MatchEvent|null $event
- * @property-read \App\Models\Player|null $player
- * @property-read \App\Models\User|null $requester
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read FootballMatch $match
+ * @property-read MatchEvent|null $event
+ * @property-read Player|null $player
+ * @property-read User|null $requester
  *
  * @method static \Database\Factories\MatchReelFactory factory($count = null, $state = [])
  */
 class MatchReel extends Model implements HasMedia
 {
-    /** @use HasFactory<\Database\Factories\MatchReelFactory> */
+    /** @use HasFactory<MatchReelFactory> */
     use HasFactory, HasPublicUlid, InteractsWithMedia;
 
     protected $appends = ['media_url'];

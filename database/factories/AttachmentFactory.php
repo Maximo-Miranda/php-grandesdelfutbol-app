@@ -3,11 +3,12 @@
 namespace Database\Factories;
 
 use App\Enums\AttachmentCollection;
+use App\Models\Attachment;
 use App\Models\Club;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Attachment>
+ * @extends Factory<Attachment>
  */
 class AttachmentFactory extends Factory
 {

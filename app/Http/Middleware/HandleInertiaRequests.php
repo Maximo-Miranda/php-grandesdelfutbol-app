@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Club;
 use App\Services\ClubContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -46,7 +47,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'userClubs' => fn () => $user
-                ? \App\Models\Club::query()->forUser($user)->get(['id', 'ulid', 'name'])
+                ? Club::query()->forUser($user)->get(['id', 'ulid', 'name'])
                 : [],
             'currentClub' => fn () => app(ClubContext::class)->get(),
             'currentMemberRole' => fn () => $user && app(ClubContext::class)->get()

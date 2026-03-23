@@ -6,6 +6,8 @@ use App\Concerns\HasPublicUlid;
 use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
+use Carbon\CarbonImmutable;
+use Database\Factories\MatchAttendanceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,11 +20,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property AttendanceStatus $status
  * @property AttendanceRole $role
  * @property AttendanceTeam|null $team
- * @property \Carbon\CarbonImmutable|null $confirmed_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\FootballMatch $match
- * @property-read \App\Models\Player $player
+ * @property CarbonImmutable|null $confirmed_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read FootballMatch $match
+ * @property-read Player $player
  *
  * @method static \Database\Factories\MatchAttendanceFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchAttendance newModelQuery()
@@ -42,7 +44,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class MatchAttendance extends Model
 {
-    /** @use HasFactory<\Database\Factories\MatchAttendanceFactory> */
+    /** @use HasFactory<MatchAttendanceFactory> */
     use HasFactory, HasPublicUlid;
 
     protected $fillable = [

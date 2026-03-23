@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\AttachmentCollection;
+use Carbon\CarbonImmutable;
+use Database\Factories\AttachmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -18,8 +20,8 @@ use Illuminate\Support\Facades\Storage;
  * @property string $original_name
  * @property string $mime_type
  * @property int $size
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  * @property-read Model|\Eloquent $attachable
  * @property-read string $url
  *
@@ -43,7 +45,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class Attachment extends Model
 {
-    /** @use HasFactory<\Database\Factories\AttachmentFactory> */
+    /** @use HasFactory<AttachmentFactory> */
     use HasFactory;
 
     protected $fillable = [

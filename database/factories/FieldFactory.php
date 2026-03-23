@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Field;
 use App\Models\Venue;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Field>
+ * @extends Factory<Field>
  */
 class FieldFactory extends Factory
 {

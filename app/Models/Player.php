@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Concerns\BelongsToClub;
 use App\Concerns\HasPublicUlid;
 use App\Enums\PlayerPosition;
+use Carbon\CarbonImmutable;
+use Database\Factories\PlayerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,13 +31,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $penalties_scored
  * @property int $penalties_missed
  * @property bool $is_active
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\Club $club
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Club $club
  * @property-read string $display_name
  * @property-read string|null $photo_url
  * @property-read string|null $position_label
- * @property-read \App\Models\User|null $user
+ * @property-read User|null $user
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Player active()
  * @method static \Database\Factories\PlayerFactory factory($count = null, $state = [])
@@ -64,7 +66,7 @@ class Player extends Model
 {
     use BelongsToClub, HasPublicUlid;
 
-    /** @use HasFactory<\Database\Factories\PlayerFactory> */
+    /** @use HasFactory<PlayerFactory> */
     use HasFactory;
 
     protected $fillable = [

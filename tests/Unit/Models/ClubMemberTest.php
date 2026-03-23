@@ -5,6 +5,7 @@ use App\Enums\ClubMemberStatus;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 
 test('club member belongs to a club', function () {
     $member = ClubMember::factory()->create();
@@ -33,7 +34,7 @@ test('club member casts status to enum', function () {
 test('club member casts approved_at to datetime', function () {
     $member = ClubMember::factory()->create(['approved_at' => now()]);
 
-    expect($member->approved_at)->toBeInstanceOf(\Carbon\CarbonImmutable::class);
+    expect($member->approved_at)->toBeInstanceOf(CarbonImmutable::class);
 });
 
 test('factory owner state sets role to owner', function () {

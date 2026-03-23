@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Player;
 
 use App\Enums\PlayerPosition;
+use App\Models\Player;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,7 @@ class StorePlayerRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create', [\App\Models\Player::class, $this->route('club')]);
+        return $this->user()->can('create', [Player::class, $this->route('club')]);
     }
 
     /** @return array<string, array<mixed>> */

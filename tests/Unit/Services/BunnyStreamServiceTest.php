@@ -76,7 +76,7 @@ test('downloadVideo throws on failure', function () {
     $tempFile = tempnam(sys_get_temp_dir(), 'bunny-test-');
 
     expect(fn () => $service->downloadVideo('nonexistent-video', $tempFile))
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(RuntimeException::class);
 
     @unlink($tempFile);
 });

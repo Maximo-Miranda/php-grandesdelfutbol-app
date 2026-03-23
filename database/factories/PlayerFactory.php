@@ -4,12 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\PlayerPosition;
 use App\Models\Club;
+use App\Models\Player;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Player>
+ * @extends Factory<Player>
  */
 class PlayerFactory extends Factory
 {

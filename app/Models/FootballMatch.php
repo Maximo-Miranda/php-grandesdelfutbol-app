@@ -6,6 +6,8 @@ use App\Concerns\BelongsToClub;
 use App\Concerns\HasPublicUlid;
 use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
+use Carbon\CarbonImmutable;
+use Database\Factories\FootballMatchFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +21,7 @@ use Illuminate\Support\Collection;
  * @property int $club_id
  * @property int|null $field_id
  * @property string $title
- * @property \Carbon\CarbonImmutable $scheduled_at
+ * @property CarbonImmutable $scheduled_at
  * @property int $duration_minutes
  * @property int $arrival_minutes
  * @property int $max_players
@@ -28,23 +30,23 @@ use Illuminate\Support\Collection;
  * @property string|null $share_token
  * @property int $registration_opens_hours
  * @property string|null $notes
- * @property \Carbon\CarbonImmutable|null $started_at
- * @property \Carbon\CarbonImmutable|null $ended_at
- * @property \Carbon\CarbonImmutable|null $stats_finalized_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $started_at
+ * @property CarbonImmutable|null $ended_at
+ * @property CarbonImmutable|null $stats_finalized_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  * @property string $team_a_name
  * @property string $team_b_name
  * @property string $team_a_color
  * @property string $team_b_color
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MatchAttendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, MatchAttendance> $attendances
  * @property-read int|null $attendances_count
- * @property-read \App\Models\Club $club
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MatchEvent> $events
+ * @property-read Club $club
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, MatchEvent> $events
  * @property-read int|null $events_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MatchReel> $reels
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, MatchReel> $reels
  * @property-read int|null $reels_count
- * @property-read \App\Models\Field|null $field
+ * @property-read Field|null $field
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch completed()
  * @method static \Database\Factories\FootballMatchFactory factory($count = null, $state = [])
@@ -77,7 +79,7 @@ use Illuminate\Support\Collection;
  *
  * @property bool $auto_started
  * @property array<array-key, mixed>|null $applied_stats
- * @property-read \App\Models\MatchVideoUpload|null $videoUpload
+ * @property-read MatchVideoUpload|null $videoUpload
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAutoStarted($value)
@@ -88,7 +90,7 @@ class FootballMatch extends Model
 {
     use BelongsToClub, HasPublicUlid;
 
-    /** @use HasFactory<\Database\Factories\FootballMatchFactory> */
+    /** @use HasFactory<FootballMatchFactory> */
     use HasFactory;
 
     /** @var string[] */

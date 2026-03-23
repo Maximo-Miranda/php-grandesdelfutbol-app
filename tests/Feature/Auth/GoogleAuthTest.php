@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Gender;
 use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\PlayerProfile;
@@ -197,7 +198,7 @@ test('callback creates player profile with people api data', function () {
     $user = User::query()->where('email', 'profile@example.com')->first();
     $profile = $user->playerProfile;
 
-    expect($profile->gender)->toBe(\App\Enums\Gender::Male);
+    expect($profile->gender)->toBe(Gender::Male);
     expect($profile->date_of_birth->format('Y-m-d'))->toBe('1990-05-15');
     expect($profile->phone)->toBe('+1234567890');
 });

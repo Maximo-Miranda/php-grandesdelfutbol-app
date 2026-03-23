@@ -6,12 +6,13 @@ use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
 use App\Models\FootballMatch;
+use App\Models\MatchAttendance;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MatchAttendance>
+ * @extends Factory<MatchAttendance>
  */
 class MatchAttendanceFactory extends Factory
 {
