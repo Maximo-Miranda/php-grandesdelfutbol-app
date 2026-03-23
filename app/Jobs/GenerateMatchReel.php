@@ -119,23 +119,42 @@ class GenerateMatchReel implements ShouldQueue
         $start = $this->reel->start_second;
         $duration = $this->reel->end_second - $this->reel->start_second;
 
-        $result = Process::timeout(120)->run([
-            'ffmpeg',
-            '-y',
+        $command = [
+            'ffmpeg', '-y',
             '-ss', (string) $start,
             '-i', $sourceFile,
+            ...$this->watermarkArgs(),
             '-t', (string) $duration,
-            '-c:v', 'libx264',
-            '-preset', 'fast',
-            '-crf', '23',
+            '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
             '-c:a', 'aac',
             '-movflags', '+faststart',
             $outputFile,
-        ]);
+        ];
+
+        $result = Process::timeout(120)->run($command);
 
         if (! $result->successful()) {
             throw new RuntimeException('ffmpeg cut failed: '.$result->errorOutput());
         }
+    }
+
+    /** @return list<string> */
+    protected function watermarkArgs(): array
+    {
+        $path = config('reels.watermark_path');
+
+        if (! config('reels.watermark_enabled') || ! $path || ! file_exists($path)) {
+            return [];
+        }
+
+        $opacity = config('reels.watermark_opacity', 0.9);
+        $padding = config('reels.watermark_padding', 20);
+
+        return [
+            '-i', $path,
+            '-filter_complex',
+            "[1:v]format=rgba,colorchannelmixer=aa={$opacity}[wm];[0:v][wm]overlay=W-w-{$padding}:{$padding}",
+        ];
     }
 
     protected function storeOutputAndComplete(string $outputFile): void
