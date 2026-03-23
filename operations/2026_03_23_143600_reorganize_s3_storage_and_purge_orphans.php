@@ -93,9 +93,6 @@ return new class extends OneTimeOperation
         $moved = 0;
 
         foreach ($files as $file) {
-            $filename = basename($file);
-
-            // Find the matching video upload by path
             $videoUpload = MatchVideoUpload::where('s3_path', $file)->first();
 
             if (! $videoUpload?->match) {
