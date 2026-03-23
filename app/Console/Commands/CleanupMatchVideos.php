@@ -15,7 +15,10 @@ class CleanupMatchVideos extends Command
     {
         $days = (int) $this->option('days');
         $disk = Storage::disk('s3');
-        $files = $disk->files('match-videos');
+        $files = array_merge(
+            $disk->allFiles('videos/matches'),
+            $disk->allFiles('match-videos'), // Legacy path
+        );
 
         if (empty($files)) {
             $this->info('No hay videos cacheados para limpiar.');

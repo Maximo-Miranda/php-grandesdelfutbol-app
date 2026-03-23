@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\FootballMatch;
+use App\Services\MatchService;
 use Illuminate\Support\Facades\Log;
 use TimoKoerber\LaravelOneTimeOperations\OneTimeOperation;
 
@@ -18,7 +19,7 @@ return new class extends OneTimeOperation
 
     public function process(): void
     {
-        $service = app(\App\Services\MatchService::class);
+        $service = app(MatchService::class);
 
         $matches = FootballMatch::query()
             ->whereHas('attendances', fn ($q) => $q->where('status', 'confirmed'))

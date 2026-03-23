@@ -6,12 +6,13 @@ use App\Enums\ReelSource;
 use App\Enums\ReelStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchEvent;
+use App\Models\MatchReel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MatchReel>
+ * @extends Factory<MatchReel>
  */
 class MatchReelFactory extends Factory
 {

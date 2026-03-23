@@ -2,10 +2,19 @@
 
 use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
+use App\Models\ClubInvitation;
 use App\Models\FootballMatch;
+use App\Models\User;
+use App\Notifications\ClubInvitationNotification;
 use App\Notifications\MatchRegistrationOpenNotification;
 use App\Notifications\MatchStatsFinalizedNotification;
 use App\Notifications\MatchVideoUploadedNotification;
+use App\Notifications\MemberApprovedNotification;
+use App\Notifications\MemberLeftNotification;
+use App\Notifications\MemberRemovedNotification;
+use App\Notifications\NewMemberRequestNotification;
+use App\Services\NtfyService;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use NotificationChannels\WebPush\WebPushChannel;
 
@@ -51,7 +60,7 @@ test('match stats finalized notification has correct ntfy payload', function () 
 test('match notifications use web push channel', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
 
     $notifications = [
         new MatchRegistrationOpenNotification($match),
@@ -73,7 +82,7 @@ test('ntfy service publishes to club topic', function () {
 
     $club = Club::factory()->create();
 
-    $service = app(\App\Services\NtfyService::class);
+    $service = app(NtfyService::class);
     $service->publish($club, ['message' => 'Test']);
 
     Http::assertSent(function ($request) use ($club) {
@@ -91,10 +100,10 @@ test('ntfy service throws exception on http error', function () {
 
     $club = Club::factory()->create();
 
-    $service = app(\App\Services\NtfyService::class);
+    $service = app(NtfyService::class);
 
     expect(fn () => $service->publish($club, ['message' => 'test']))
-        ->toThrow(\Illuminate\Http\Client\RequestException::class);
+        ->toThrow(RequestException::class);
 });
 
 test('publish club ntfy job publishes to ntfy service', function () {
@@ -104,7 +113,7 @@ test('publish club ntfy job publishes to ntfy service', function () {
     $payload = ['message' => 'Test notification', 'title' => 'Test'];
 
     $job = new PublishClubNtfy($club, $payload);
-    $job->handle(app(\App\Services\NtfyService::class));
+    $job->handle(app(NtfyService::class));
 
     Http::assertSent(function ($request) use ($club) {
         return $request['topic'] === "gdf-{$club->ulid}"
@@ -132,15 +141,15 @@ test('all three match notifications use notifications queue', function () {
 
 test('original notifications only use mail channel', function () {
     $club = Club::factory()->create();
-    $user = \App\Models\User::factory()->create();
-    $invitation = \App\Models\ClubInvitation::factory()->create(['club_id' => $club->id]);
+    $user = User::factory()->create();
+    $invitation = ClubInvitation::factory()->create(['club_id' => $club->id]);
 
     $notifications = [
-        new \App\Notifications\ClubInvitationNotification($invitation),
-        new \App\Notifications\MemberApprovedNotification($club),
-        new \App\Notifications\MemberRemovedNotification($club),
-        new \App\Notifications\NewMemberRequestNotification($club, $user),
-        new \App\Notifications\MemberLeftNotification($club, $user),
+        new ClubInvitationNotification($invitation),
+        new MemberApprovedNotification($club),
+        new MemberRemovedNotification($club),
+        new NewMemberRequestNotification($club, $user),
+        new MemberLeftNotification($club, $user),
     ];
 
     foreach ($notifications as $notification) {

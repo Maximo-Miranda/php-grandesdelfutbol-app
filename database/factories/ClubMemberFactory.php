@@ -5,12 +5,13 @@ namespace Database\Factories;
 use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
 use App\Models\Club;
+use App\Models\ClubMember;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ClubMember>
+ * @extends Factory<ClubMember>
  */
 class ClubMemberFactory extends Factory
 {

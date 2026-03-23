@@ -12,6 +12,7 @@ use App\Models\MatchReel;
 use App\Models\MatchVideoUpload;
 use App\Models\Player;
 use App\Models\User;
+use App\Services\ReelService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Queue;
 
@@ -362,7 +363,7 @@ test('regeneration skips reels with unchanged times', function () {
 
     $manualReel = MatchReel::factory()->manual()->create(['match_id' => $match->id]);
 
-    app(\App\Services\ReelService::class)->generateReelsForMatch($match);
+    app(ReelService::class)->generateReelsForMatch($match);
 
     expect($unchangedReel->fresh())->not->toBeNull()
         ->and($manualReel->fresh())->not->toBeNull()
@@ -392,7 +393,7 @@ test('regeneration recreates reels with changed times', function () {
         'end_second' => 125,
     ]);
 
-    app(\App\Services\ReelService::class)->generateReelsForMatch($match);
+    app(ReelService::class)->generateReelsForMatch($match);
 
     expect($staleReel->fresh())->toBeNull()
         ->and(MatchReel::where('source', 'auto')->count())->toBe(1);
@@ -421,7 +422,7 @@ test('regeneration removes orphaned auto reels for un-highlighted events', funct
         'source' => ReelSource::Auto,
     ]);
 
-    app(\App\Services\ReelService::class)->generateReelsForMatch($match);
+    app(ReelService::class)->generateReelsForMatch($match);
 
     expect($orphanReel->fresh())->toBeNull();
 });
@@ -447,7 +448,7 @@ test('regeneration retries failed reels', function () {
         'end_second' => 640,
     ]);
 
-    app(\App\Services\ReelService::class)->generateReelsForMatch($match);
+    app(ReelService::class)->generateReelsForMatch($match);
 
     expect($failedReel->fresh())->toBeNull()
         ->and(MatchReel::where('source', 'auto')->where('status', ReelStatus::Pending)->count())->toBe(1);

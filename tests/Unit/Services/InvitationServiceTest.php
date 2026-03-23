@@ -121,4 +121,4 @@ test('acceptInvitation throws when user email does not match invitation email', 
     $service = app(InvitationService::class);
 
     $service->acceptInvitation($invitation, $user);
-})->throws(\InvalidArgumentException::class, 'does not match invitation email');
+})->throws(InvalidArgumentException::class, 'does not match invitation email');

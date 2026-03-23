@@ -72,23 +72,104 @@ class BunnyStreamService
         ];
     }
 
-    /** Download the video MP4 to a local file (for reel generation). Uses curl to avoid memory issues with large files. */
-    public function downloadVideo(string $videoId, string $outputPath): void
+    /** Check if encoding is fully complete via the API (encodeProgress === 100). */
+    public function isFullyEncoded(string $videoId): bool
     {
-        $url = "https://{$this->cdnHostname}/{$videoId}/play_720p.mp4";
+        $video = $this->getVideo($videoId);
 
+        return ($video['encodeProgress'] ?? 0) === 100;
+    }
+
+    /**
+     * Get available resolutions for a video, ordered from highest to lowest.
+     *
+     * @return list<string>
+     */
+    public function getAvailableResolutions(string $videoId): array
+    {
+        $video = $this->getVideo($videoId);
+        $resolutions = $video['availableResolutions'] ?? '';
+
+        if (! is_string($resolutions) || $resolutions === '') {
+            return [];
+        }
+
+        $parsed = array_map('trim', explode(',', $resolutions));
+
+        usort($parsed, fn (string $a, string $b) => (int) $b <=> (int) $a);
+
+        return $parsed;
+    }
+
+    /**
+     * Download the highest available resolution from Bunny.
+     *
+     * @return string The resolution that was downloaded (e.g. '1080p')
+     */
+    public function downloadHighestQuality(string $videoId, string $outputPath): string
+    {
+        $resolutions = $this->getAvailableResolutions($videoId);
+
+        if ($resolutions === []) {
+            throw new \RuntimeException('No hay resoluciones disponibles para descargar.');
+        }
+
+        foreach ($resolutions as $resolution) {
+            $url = "https://{$this->cdnHostname}/{$videoId}/play_{$resolution}.mp4";
+
+            try {
+                $this->downloadFromCdn($url, $outputPath);
+
+                return $resolution;
+            } catch (\RuntimeException $e) {
+                if (str_contains($e->getMessage(), '404')) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        throw new \RuntimeException('No se pudo descargar ninguna resolución disponible.');
+    }
+
+    /** Download a specific resolution MP4 to a local file. Uses curl with bandwidth throttle. */
+    public function downloadVideo(string $videoId, string $outputPath, ?string $resolution = '720p'): void
+    {
+        $url = "https://{$this->cdnHostname}/{$videoId}/play_{$resolution}.mp4";
+
+        $this->downloadFromCdn($url, $outputPath);
+    }
+
+    /** HLS streaming URL for the video player. */
+    public function getStreamUrl(string $videoId): string
+    {
+        return "https://{$this->cdnHostname}/{$videoId}/playlist.m3u8";
+    }
+
+    /** Download a file from the CDN with bandwidth throttling. */
+    private function downloadFromCdn(string $url, string $outputPath): void
+    {
         $fp = fopen($outputPath, 'wb');
         $ch = curl_init($url);
 
-        curl_setopt_array($ch, [
+        $speedLimit = (int) config('bunny.download_speed_limit', 0);
+
+        $options = [
             CURLOPT_FILE => $fp,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT => 600,
+            CURLOPT_TIMEOUT => 1800,
             CURLOPT_REFERER => 'https://grandesdelfutbol.com',
-        ]);
+        ];
+
+        if ($speedLimit > 0) {
+            $options[CURLOPT_MAX_RECV_SPEED_LARGE] = $speedLimit;
+        }
+
+        curl_setopt_array($ch, $options);
 
         $success = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
         fclose($fp);
 
         if (! $success || $httpCode !== 200) {
@@ -96,12 +177,6 @@ class BunnyStreamService
 
             throw new \RuntimeException("Error al descargar video de Bunny: {$httpCode}");
         }
-    }
-
-    /** HLS streaming URL for the video player. */
-    public function getStreamUrl(string $videoId): string
-    {
-        return "https://{$this->cdnHostname}/{$videoId}/playlist.m3u8";
     }
 
     private function videoUrl(?string $videoId = null): string

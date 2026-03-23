@@ -17,6 +17,7 @@ class StoreMatchVideoUploadRequest extends FormRequest
         return [
             'filename' => ['required', 'string', 'max:500'],
             'filesize' => ['required', 'integer', 'max:26843545600'],
+            's3_key' => ['required', 'string', 'max:1000'],
         ];
     }
 

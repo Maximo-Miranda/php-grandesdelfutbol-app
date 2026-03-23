@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\MatchReel;
+use App\Models\PlayerProfile;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\MediaLibrary\Support\PathGenerator\PathGenerator;
 
@@ -9,7 +11,13 @@ class MediaPathGenerator implements PathGenerator
 {
     public function getPath(Media $media): string
     {
-        return $media->uuid.'/';
+        $prefix = match ($media->model_type) {
+            MatchReel::class => 'media/reels/',
+            PlayerProfile::class => 'media/players/',
+            default => 'media/other/',
+        };
+
+        return $prefix.$media->uuid.'/';
     }
 
     public function getPathForConversions(Media $media): string

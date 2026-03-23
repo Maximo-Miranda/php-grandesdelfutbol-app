@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Concerns\HasPublicUlid;
 use App\Enums\AttendanceTeam;
 use App\Enums\MatchEventType;
+use Carbon\CarbonImmutable;
+use Database\Factories\MatchEventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,11 +23,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $second
  * @property string|null $notes
  * @property bool $highlighted
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\FootballMatch $match
- * @property-read \App\Models\Player|null $player
- * @property-read \App\Models\Player|null $relatedPlayer
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read FootballMatch $match
+ * @property-read Player|null $player
+ * @property-read Player|null $relatedPlayer
  *
  * @method static \Database\Factories\MatchEventFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MatchEvent newModelQuery()
@@ -44,7 +46,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class MatchEvent extends Model
 {
-    /** @use HasFactory<\Database\Factories\MatchEventFactory> */
+    /** @use HasFactory<MatchEventFactory> */
     use HasFactory, HasPublicUlid;
 
     protected $fillable = [

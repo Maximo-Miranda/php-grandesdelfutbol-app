@@ -8,6 +8,7 @@ use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Models\User;
 use App\Services\MatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -200,7 +201,7 @@ class MatchController extends Controller
     }
 
     /**
-     * @param  \App\Models\User  $user
+     * @param  User  $user
      * @return array<string, mixed>
      */
     private function summaryProps(Club $club, FootballMatch $match, $user, bool $isAdmin): array

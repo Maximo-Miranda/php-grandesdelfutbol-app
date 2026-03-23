@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReelStatus;
+use App\Enums\VideoUploadStatus;
 use App\Http\Requests\Match\StoreManualReelRequest;
 use App\Http\Requests\Match\StoreReelRequestRequest;
 use App\Models\Club;
@@ -97,7 +98,7 @@ class MatchReelController extends Controller
     {
         $videoUpload = $match->videoUpload;
 
-        if (! $videoUpload || $videoUpload->status !== \App\Enums\VideoUploadStatus::Ready) {
+        if (! $videoUpload || $videoUpload->status !== VideoUploadStatus::Ready) {
             abort(back()->with('error', 'El partido no tiene un video listo.'));
         }
     }

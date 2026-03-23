@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\S3MultipartController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubJoinController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\YouTubeAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -47,6 +49,14 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::prefix('s3/multipart')->group(function () {
+        Route::post('/', [S3MultipartController::class, 'create'])->name('s3.multipart.create');
+        Route::get('{uploadId}', [S3MultipartController::class, 'listParts'])->name('s3.multipart.listParts');
+        Route::get('{uploadId}/{partNumber}', [S3MultipartController::class, 'signPart'])->name('s3.multipart.signPart');
+        Route::post('{uploadId}/complete', [S3MultipartController::class, 'complete'])->name('s3.multipart.complete');
+        Route::delete('{uploadId}', [S3MultipartController::class, 'abort'])->name('s3.multipart.abort');
+    });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('player-card', PlayerCardController::class)->name('player-card');
@@ -92,8 +102,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
 
         Route::post('matches/{match}/video-upload', [MatchVideoUploadController::class, 'store'])->name('matches.videoUpload.store');
-        Route::post('matches/{match}/video-upload/mark-encoding', [MatchVideoUploadController::class, 'markEncoding'])->name('matches.videoUpload.markEncoding');
-        Route::get('matches/{match}/video-upload/check', [MatchVideoUploadController::class, 'check'])->name('matches.videoUpload.check');
         Route::get('matches/{match}/video-upload', [MatchVideoUploadController::class, 'show'])->name('matches.videoUpload.show');
         Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
 
@@ -112,6 +120,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('player-profile', [PlayerProfileController::class, 'edit'])->name('player-profile.edit');
     Route::patch('player-profile', [PlayerProfileController::class, 'update'])->name('player-profile.update');
+
+    Route::get('admin/youtube/authorize', [YouTubeAuthController::class, 'redirect'])->name('youtube.authorize');
+    Route::get('admin/youtube/callback', [YouTubeAuthController::class, 'callback'])->name('youtube.callback');
 });
 
 require __DIR__.'/settings.php';

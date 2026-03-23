@@ -109,6 +109,18 @@ const homeUrl = computed(() => {
                 </span>
             </div>
 
+            <!-- YouTube Video -->
+            <div v-if="match.video_upload?.youtube_embed_url" class="mt-4">
+                <div class="aspect-video w-full overflow-hidden rounded-xl border border-border">
+                    <iframe
+                        :src="match.video_upload.youtube_embed_url"
+                        class="h-full w-full"
+                        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                    />
+                </div>
+            </div>
+
             <!-- Timeline -->
             <div v-if="sortedEvents.length" class="mt-6">
                 <h3 class="mb-4 text-xs font-extrabold tracking-widest text-muted-foreground uppercase">

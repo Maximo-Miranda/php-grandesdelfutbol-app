@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Concerns\HasPublicUlid;
 use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
+use Carbon\CarbonImmutable;
+use Database\Factories\ClubMemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,11 +18,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $user_id
  * @property ClubMemberRole $role
  * @property ClubMemberStatus $status
- * @property \Carbon\CarbonImmutable|null $approved_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\Club $club
- * @property-read \App\Models\User $user
+ * @property CarbonImmutable|null $approved_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Club $club
+ * @property-read User $user
  *
  * @method static \Database\Factories\ClubMemberFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ClubMember newModelQuery()
@@ -39,7 +41,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ClubMember extends Model
 {
-    /** @use HasFactory<\Database\Factories\ClubMemberFactory> */
+    /** @use HasFactory<ClubMemberFactory> */
     use HasFactory, HasPublicUlid;
 
     protected $fillable = [

@@ -4,12 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\MatchEventType;
 use App\Models\FootballMatch;
+use App\Models\MatchEvent;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MatchEvent>
+ * @extends Factory<MatchEvent>
  */
 class MatchEventFactory extends Factory
 {

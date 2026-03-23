@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\VideoUploadStatus;
+use App\Jobs\ProcessEncodedVideo;
 use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\ClubMember;
@@ -11,10 +12,12 @@ use App\Notifications\MatchVideoUploadedNotification;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 
 test('webhook dispatches notifications when video encoding completes', function () {
     Notification::fake();
     Bus::fake([PublishClubNtfy::class]);
+    Queue::fake([ProcessEncodedVideo::class]);
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -33,12 +36,13 @@ test('webhook dispatches notifications when video encoding completes', function 
     $memberWithPush->updatePushSubscription('https://push.example.com/1', 'key1', 'auth1');
 
     Http::fake([
-        'video.bunnycdn.com/*' => Http::response(['length' => 3600]),
+        'video.bunnycdn.com/*' => Http::response(['length' => 3600, 'encodeProgress' => 100]),
     ]);
 
+    // Status 3 = Finished (all encoding complete)
     $this->postJson(route('webhooks.bunny'), [
         'VideoGuid' => 'test-bunny-video-id',
-        'Status' => 4,
+        'Status' => 3,
     ])->assertOk();
 
     expect($videoUpload->fresh()->status)->toBe(VideoUploadStatus::Ready);
@@ -46,6 +50,7 @@ test('webhook dispatches notifications when video encoding completes', function 
 
     Notification::assertSentTo($memberWithPush, MatchVideoUploadedNotification::class);
     Bus::assertDispatched(PublishClubNtfy::class);
+    Queue::assertPushed(ProcessEncodedVideo::class);
 });
 
 test('webhook handles encoding failure', function () {

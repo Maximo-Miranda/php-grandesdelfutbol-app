@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\InvitationStatus;
+use Carbon\CarbonImmutable;
+use Database\Factories\ClubInvitationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,11 +16,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $token
  * @property InvitationStatus $status
  * @property int $invited_by
- * @property \Carbon\CarbonImmutable $expires_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\Club $club
- * @property-read \App\Models\User $inviter
+ * @property CarbonImmutable $expires_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Club $club
+ * @property-read User $inviter
  *
  * @method static \Database\Factories\ClubInvitationFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ClubInvitation newModelQuery()
@@ -40,7 +42,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ClubInvitation extends Model
 {
-    /** @use HasFactory<\Database\Factories\ClubInvitationFactory> */
+    /** @use HasFactory<ClubInvitationFactory> */
     use HasFactory;
 
     protected $fillable = [

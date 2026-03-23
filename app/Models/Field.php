@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
 use App\Enums\FieldType;
+use Carbon\CarbonImmutable;
+use Database\Factories\FieldFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,9 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property FieldType $field_type
  * @property string|null $surface_type
  * @property bool $is_active
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\Venue $venue
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Venue $venue
  *
  * @method static \Database\Factories\FieldFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Field newModelQuery()
@@ -37,7 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Field extends Model
 {
-    /** @use HasFactory<\Database\Factories\FieldFactory> */
+    /** @use HasFactory<FieldFactory> */
     use HasFactory, HasPublicUlid;
 
     protected $fillable = [

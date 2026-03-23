@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\ClubContext;
+use Aws\S3\S3Client;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Date;
@@ -20,6 +21,27 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ClubContext::class);
+
+        $this->app->singleton(S3Client::class, function () {
+            /** @var array<string, mixed> $disk */
+            $disk = config('filesystems.disks.s3');
+
+            $config = [
+                'region' => $disk['region'],
+                'version' => 'latest',
+                'credentials' => [
+                    'key' => $disk['key'],
+                    'secret' => $disk['secret'],
+                ],
+            ];
+
+            if (! empty($disk['endpoint'])) {
+                $config['endpoint'] = $disk['endpoint'];
+                $config['use_path_style_endpoint'] = $disk['use_path_style_endpoint'] ?? false;
+            }
+
+            return new S3Client($config);
+        });
     }
 
     /**
@@ -31,6 +53,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiters();
 
         Gate::before(fn ($user) => $user->isSuperAdmin() ? true : null);
+
+        Gate::define('superAdmin', fn ($user) => $user->isSuperAdmin());
     }
 
     /**

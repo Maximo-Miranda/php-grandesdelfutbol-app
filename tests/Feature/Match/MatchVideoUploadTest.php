@@ -1,47 +1,39 @@
 <?php
 
 use App\Enums\VideoUploadStatus;
+use App\Jobs\ProcessUploadedVideo;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
 use App\Models\User;
-use App\Services\BunnyStreamService;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 
-test('admin can initiate video upload', function () {
+test('admin can register video upload after S3 upload', function () {
+    Queue::fake([ProcessUploadedVideo::class]);
+
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $mock = Mockery::mock(BunnyStreamService::class);
-    $mock->shouldReceive('createVideo')
-        ->once()
-        ->andReturn(['guid' => 'bunny-video-123']);
-    $mock->shouldReceive('getTusUploadUrl')
-        ->once()
-        ->andReturn([
-            'upload_url' => 'https://video.bunnycdn.com/tusupload',
-            'video_id' => 'bunny-video-123',
-            'auth_signature' => 'test-signature',
-            'auth_expire' => time() + 86400,
-            'library_id' => '123456',
-        ]);
-    app()->instance(BunnyStreamService::class, $mock);
-
     $this->actingAs($user)
         ->postJson(route('clubs.matches.videoUpload.store', [$club, $match]), [
             'filename' => 'match-video.mp4',
             'filesize' => 5000000000,
+            's3_key' => 'uploads/01ABC123/match-video.mp4',
         ])
         ->assertOk()
-        ->assertJsonStructure(['video_upload', 'upload_url', 'auth_signature', 'library_id', 'video_id']);
+        ->assertJsonStructure(['video_upload']);
 
     $this->assertDatabaseHas('match_video_uploads', [
         'football_match_id' => $match->id,
-        'bunny_video_id' => 'bunny-video-123',
-        'status' => VideoUploadStatus::Uploading->value,
+        'status' => VideoUploadStatus::Encoding->value,
+        's3_path' => 'uploads/01ABC123/match-video.mp4',
     ]);
+
+    Queue::assertPushed(ProcessUploadedVideo::class);
 });
 
 test('cannot upload to match that already has video', function () {
@@ -58,6 +50,7 @@ test('cannot upload to match that already has video', function () {
         ->postJson(route('clubs.matches.videoUpload.store', [$club, $match]), [
             'filename' => 'match-video.mp4',
             'filesize' => 5000000000,
+            's3_key' => 'uploads/test/file.mp4',
         ])
         ->assertStatus(422);
 });
@@ -72,6 +65,7 @@ test('non-admin cannot initiate video upload', function () {
         ->postJson(route('clubs.matches.videoUpload.store', [$club, $match]), [
             'filename' => 'match-video.mp4',
             'filesize' => 5000000000,
+            's3_key' => 'uploads/test/file.mp4',
         ])
         ->assertForbidden();
 });
@@ -105,6 +99,8 @@ test('show returns null when no video upload exists', function () {
 });
 
 test('admin can delete video upload', function () {
+    Storage::fake('s3');
+
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
@@ -112,17 +108,17 @@ test('admin can delete video upload', function () {
     $videoUpload = MatchVideoUpload::factory()->ready()->create([
         'football_match_id' => $match->id,
         'uploaded_by' => $user->id,
+        's3_path' => 'uploads/test/video.mp4',
     ]);
 
-    $mock = Mockery::mock(BunnyStreamService::class);
-    $mock->shouldReceive('deleteVideo')->once();
-    app()->instance(BunnyStreamService::class, $mock);
+    Storage::disk('s3')->put('uploads/test/video.mp4', 'fake');
 
     $this->actingAs($user)
         ->deleteJson(route('clubs.matches.videoUpload.destroy', [$club, $match]))
         ->assertOk();
 
     $this->assertDatabaseMissing('match_video_uploads', ['id' => $videoUpload->id]);
+    Storage::disk('s3')->assertMissing('uploads/test/video.mp4');
 });
 
 test('delete returns 404 when no video exists', function () {

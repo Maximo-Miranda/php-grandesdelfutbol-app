@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\VideoUploadStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessEncodedVideo;
 use App\Jobs\PublishClubNtfy;
 use App\Models\MatchVideoUpload;
 use App\Notifications\MatchVideoUploadedNotification;
@@ -32,8 +33,8 @@ class BunnyWebhookController extends Controller
 
         $status = (int) $request->input('Status');
 
-        // Bunny Stream webhook status: 3 = Finished encoding, 4 = All resolutions ready, 5 = Failed
-        if ($status === 4) {
+        // Bunny Stream webhook status: 3 = Finished (all encoding complete), 4 = Resolution finished (one resolution), 5 = Failed
+        if ($status === 3) {
             $this->handleEncodingSuccess($videoUpload);
         } elseif ($status === 5) {
             $this->handleEncodingFailure($videoUpload);
@@ -51,8 +52,17 @@ class BunnyWebhookController extends Controller
         try {
             $videoData = $this->bunnyService->getVideo($videoUpload->bunny_video_id);
             $duration = (int) ($videoData['length'] ?? 0);
+            $encodeProgress = (int) ($videoData['encodeProgress'] ?? 0);
         } catch (\Throwable) {
             $duration = 0;
+            $encodeProgress = 0;
+        }
+
+        // Race condition: webhook fires before API shows 100% — retry with delay
+        if ($encodeProgress < 100) {
+            ProcessEncodedVideo::dispatch($videoUpload)->delay(now()->addSeconds(30));
+
+            return;
         }
 
         $videoUpload->update([
@@ -74,6 +84,9 @@ class BunnyWebhookController extends Controller
         Notification::send($club->approvedMemberUsersWithPush(), $notification);
 
         PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
+
+        // Start the YouTube upload + reels pipeline
+        ProcessEncodedVideo::dispatch($videoUpload);
     }
 
     private function handleEncodingFailure(MatchVideoUpload $videoUpload): void

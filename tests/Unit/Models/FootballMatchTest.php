@@ -4,6 +4,7 @@ use App\Enums\MatchStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
+use Carbon\CarbonImmutable;
 
 test('match belongs to a club', function () {
     $match = FootballMatch::factory()->create();
@@ -38,5 +39,5 @@ test('completed scope returns only completed matches', function () {
 
 test('match casts datetime fields', function () {
     $match = FootballMatch::factory()->create(['scheduled_at' => now()]);
-    expect($match->scheduled_at)->toBeInstanceOf(\Carbon\CarbonImmutable::class);
+    expect($match->scheduled_at)->toBeInstanceOf(CarbonImmutable::class);
 });

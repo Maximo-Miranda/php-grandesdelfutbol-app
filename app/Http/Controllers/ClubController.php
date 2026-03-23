@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttachmentCollection;
+use App\Enums\AttendanceStatus;
 use App\Enums\ClubMemberStatus;
 use App\Enums\MatchStatus;
 use App\Http\Requests\Club\StoreClubRequest;
@@ -37,7 +38,7 @@ class ClubController extends Controller
             ->forUser($user)
             ->with('owner')
             ->withCount([
-                'members' => fn ($query) => $query->where('status', \App\Enums\ClubMemberStatus::Approved),
+                'members' => fn ($query) => $query->where('status', ClubMemberStatus::Approved),
                 'matches',
                 'matches as upcoming_matches_count' => fn ($query) => $query->upcoming(),
             ])
@@ -70,7 +71,7 @@ class ClubController extends Controller
             ->with('club', 'field')
             ->withCount([
                 'attendances',
-                'attendances as confirmed_count' => fn ($q) => $q->where('status', \App\Enums\AttendanceStatus::Confirmed),
+                'attendances as confirmed_count' => fn ($q) => $q->where('status', AttendanceStatus::Confirmed),
             ])
             ->orderBy('scheduled_at')
             ->first();

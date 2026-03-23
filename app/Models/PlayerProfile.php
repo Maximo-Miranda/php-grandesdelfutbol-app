@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\Gender;
+use Carbon\CarbonImmutable;
+use Database\Factories\PlayerProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,18 +18,18 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property int $user_id
  * @property string|null $nickname
  * @property Gender|null $gender
- * @property \Carbon\CarbonImmutable|null $date_of_birth
+ * @property CarbonImmutable|null $date_of_birth
  * @property string|null $id_type
  * @property string|null $id_number
  * @property string|null $nationality
  * @property string|null $bio
  * @property string|null $preferred_position
  * @property string|null $phone
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  * @property-read string|null $photo_url
  * @property-read string|null $photo_thumb_url
- * @property-read \App\Models\User $user
+ * @property-read User $user
  *
  * @method static \Database\Factories\PlayerProfileFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PlayerProfile newModelQuery()
@@ -50,7 +52,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class PlayerProfile extends Model implements HasMedia
 {
-    /** @use HasFactory<\Database\Factories\PlayerProfileFactory> */
+    /** @use HasFactory<PlayerProfileFactory> */
     use HasFactory, InteractsWithMedia;
 
     protected $with = ['media'];

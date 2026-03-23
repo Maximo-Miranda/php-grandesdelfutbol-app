@@ -18,6 +18,10 @@ export type MatchVideoUpload = {
     stream_url?: string | null;
     embed_url?: string | null;
     thumbnail_url?: string | null;
+    youtube_video_id?: string | null;
+    youtube_url?: string | null;
+    youtube_embed_url?: string | null;
+    bunny_deleted_at?: string | null;
 };
 
 export type FootballMatch = {

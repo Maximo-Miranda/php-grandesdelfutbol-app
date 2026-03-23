@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use App\Notifications\VerifyEmailCode;
+use Carbon\CarbonImmutable;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -18,28 +23,28 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property int $id
  * @property string $name
  * @property string $email
- * @property \Carbon\CarbonImmutable|null $email_verified_at
- * @property \Carbon\CarbonImmutable|null $terms_accepted_at
+ * @property CarbonImmutable|null $email_verified_at
+ * @property CarbonImmutable|null $terms_accepted_at
  * @property string|null $terms_accepted_ip
  * @property string|null $terms_accepted_user_agent
  * @property string $password
  * @property string|null $remember_token
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
- * @property \Carbon\CarbonImmutable|null $two_factor_confirmed_at
+ * @property CarbonImmutable|null $two_factor_confirmed_at
  * @property int|null $last_club_id
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubMember> $clubMemberships
+ * @property-read Collection<int, ClubMember> $clubMemberships
  * @property-read int|null $club_memberships_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Club> $clubs
+ * @property-read Collection<int, Club> $clubs
  * @property-read int|null $clubs_count
- * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
+ * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
- * @property-read \App\Models\PlayerProfile|null $playerProfile
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Player> $players
+ * @property-read PlayerProfile|null $playerProfile
+ * @property-read Collection<int, Player> $players
  * @property-read int|null $players_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SocialAccount> $socialAccounts
+ * @property-read Collection<int, SocialAccount> $socialAccounts
  * @property-read int|null $social_accounts_count
  *
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
@@ -63,7 +68,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, HasPushSubscriptions, Notifiable, TwoFactorAuthenticatable;
 
     /**
