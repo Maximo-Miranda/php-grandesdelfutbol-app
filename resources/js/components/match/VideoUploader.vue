@@ -478,7 +478,7 @@ onBeforeUnmount(() => {
                 <Loader2 class="size-5 animate-spin text-amber-400" />
                 <div class="flex-1">
                     <p class="text-sm font-medium text-amber-400">Procesando video...</p>
-                    <p class="text-xs text-muted-foreground">Estamos encodeando y subiendo tu video a YouTube. Esto puede tomar varios minutos.</p>
+                    <p class="text-xs text-muted-foreground">Estamos procesando tu video. Esto puede tomar varios minutos.</p>
                 </div>
                 <Button type="button" variant="ghost" size="sm" class="shrink-0 gap-1.5" :disabled="refreshing" @click="refreshStatus">
                     <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
             <!-- Processing indicator while YouTube upload is pending -->
             <div v-else class="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
                 <Loader2 class="size-4 animate-spin text-amber-400" />
-                <span class="text-xs text-amber-400">Subiendo a YouTube...</span>
+                <span class="text-xs text-amber-400">Preparando video...</span>
             </div>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">

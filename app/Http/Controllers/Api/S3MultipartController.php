@@ -20,22 +20,7 @@ class S3MultipartController extends Controller
         $disk = config('filesystems.disks.s3');
 
         $this->bucket = $disk['bucket'];
-
-        $config = [
-            'region' => $disk['region'],
-            'version' => 'latest',
-            'credentials' => [
-                'key' => $disk['key'],
-                'secret' => $disk['secret'],
-            ],
-        ];
-
-        if (! empty($disk['endpoint'])) {
-            $config['endpoint'] = $disk['endpoint'];
-            $config['use_path_style_endpoint'] = $disk['use_path_style_endpoint'] ?? false;
-        }
-
-        $this->client = new S3Client($config);
+        $this->client = app(S3Client::class);
     }
 
     /** Initiate a multipart upload. */

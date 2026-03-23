@@ -987,7 +987,7 @@ async function shareReel(reel: MatchReel) {
                 <!-- YouTube processing indicator -->
                 <div v-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400">
                     <Loader2 class="size-3 animate-spin" />
-                    Procesando para YouTube...
+                    Preparando video...
                 </div>
                 <div class="mt-2 flex items-center justify-between">
                     <!-- Copy YouTube link -->
@@ -1041,7 +1041,7 @@ async function shareReel(reel: MatchReel) {
             <div v-else-if="match.video_upload?.status === 'encoding' && !isFullscreen" class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
                 <div class="flex items-center justify-center gap-2">
                     <Loader2 class="size-4 animate-spin text-amber-400" />
-                    <p class="text-xs text-amber-400">Encodeando y subiendo a YouTube...</p>
+                    <p class="text-xs text-amber-400">Procesando video...</p>
                 </div>
                 <div class="mt-2 flex justify-center">
                     <Button variant="ghost" size="sm" class="gap-1.5 text-xs" @click="() => router.reload()">
