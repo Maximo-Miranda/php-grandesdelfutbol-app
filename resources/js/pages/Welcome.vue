@@ -28,7 +28,7 @@ function toggleDarkMode() {
 </script>
 
 <template>
-    <Head title="Organiza partidos de fútbol con tu grupo de amigos">
+    <Head>
         <meta head-key="description" name="description" content="Deja de coordinar por WhatsApp. Controla asistencia, arma equipos y sigue las estadísticas de cada jugador de tu grupo en cancha sintética." />
         <meta head-key="og:title" property="og:title" content="Grandes del Fútbol — Organiza el fútbol con tu grupo de amigos" />
         <meta head-key="og:description" property="og:description" content="Controla asistencia, arma equipos y sigue las estadísticas de cada jugador. Servicio de grabación y estadísticas desde $60.000 por partido." />
