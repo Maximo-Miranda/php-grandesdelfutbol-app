@@ -97,6 +97,7 @@ readonly class SetClubContext
             'verification.*',
             'password.*',
             'youtube.*',
+            's3.multipart.*',
         );
     }
 }

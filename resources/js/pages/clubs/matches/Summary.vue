@@ -1038,11 +1038,33 @@ async function shareReel(reel: MatchReel) {
                     @uploaded="() => router.reload()"
                 />
             </div>
+            <div v-else-if="match.video_upload?.status === 'encoding' && !isFullscreen" class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div class="flex items-center justify-center gap-2">
+                    <Loader2 class="size-4 animate-spin text-amber-400" />
+                    <p class="text-xs text-amber-400">Encodeando y subiendo a YouTube...</p>
+                </div>
+                <div class="mt-2 flex justify-center">
+                    <Button variant="ghost" size="sm" class="gap-1.5 text-xs" @click="() => router.reload()">
+                        <RefreshCw class="size-3" />
+                        Actualizar estado
+                    </Button>
+                </div>
+            </div>
+            <div v-else-if="match.video_upload?.status === 'failed' && !isFullscreen" class="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+                <div class="flex items-center justify-center gap-2">
+                    <AlertTriangle class="size-4 text-red-400" />
+                    <p class="text-xs text-red-400">{{ match.video_upload.error_message || 'Error al procesar el video' }}</p>
+                </div>
+                <div class="mt-2 flex justify-center">
+                    <Button variant="ghost" size="sm" class="gap-1.5 text-xs" @click="() => router.reload()">
+                        <RefreshCw class="size-3" />
+                        Verificar estado
+                    </Button>
+                </div>
+            </div>
             <div v-else-if="!hasVideoReady && !isFullscreen" class="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
                 <Video class="mx-auto mb-1 size-6 text-muted-foreground" />
-                <p class="text-xs text-muted-foreground">
-                    {{ match.video_upload?.status === 'encoding' ? 'Video procesandose...' : 'Sin video del partido' }}
-                </p>
+                <p class="text-xs text-muted-foreground">Sin video del partido</p>
             </div>
 
             <!-- ===== MATCH INFO (compact) ===== -->

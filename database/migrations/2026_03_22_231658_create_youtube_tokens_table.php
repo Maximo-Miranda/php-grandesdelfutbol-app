@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('youtube_tokens', function (Blueprint $table) {
             $table->id();
-            $table->json('token');
+            $table->text('token');
             $table->timestamps();
         });
     }

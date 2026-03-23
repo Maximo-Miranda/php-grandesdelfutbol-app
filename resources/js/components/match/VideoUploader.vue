@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import Uppy from '@uppy/core';
-import Tus from '@uppy/tus';
-import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, Trash2, Upload, X } from 'lucide-vue-next';
+import AwsS3 from '@uppy/aws-s3';
+import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,6 @@ import {
 
 type VideoUploadData = {
     ulid: string;
-    bunny_video_id: string;
     status: 'uploading' | 'encoding' | 'ready' | 'failed';
     original_filename: string | null;
     duration_seconds: number | null;
@@ -72,8 +71,7 @@ let uppy: Uppy | null = null;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let lastLoaded = 0;
 let lastTime = 0;
-
-const storageKey = computed(() => `video-upload-${props.matchUlid}`);
+let lastS3Key: string | null = null;
 
 const statusLabel = computed(() => {
     switch (status.value) {
@@ -104,6 +102,15 @@ function formatBytes(bytes: number): string {
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
     return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+function getCsrfToken(): string {
+    return decodeURIComponent(
+        document.cookie
+            .split('; ')
+            .find(row => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1] ?? '',
+    );
 }
 
 async function selectFile() {
@@ -143,45 +150,20 @@ async function startUpload(file: File) {
             }).catch(() => {});
         }
 
-        const response = await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-XSRF-TOKEN': getCsrfToken(),
-                'Accept': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                filename: file.name,
-                filesize: file.size,
-            }),
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Error al iniciar la subida.');
-        }
-
-        const data = await response.json();
-
-        const tusHeaders = {
-            AuthorizationSignature: data.auth_signature,
-            AuthorizationExpire: String(data.auth_expire),
-            VideoId: data.video_id,
-            LibraryId: data.library_id,
-        };
-
-        // Save TUS headers for resuming after page reload
-        localStorage.setItem(storageKey.value, JSON.stringify(tusHeaders));
-
-        initUppy(data.upload_url, file, tusHeaders);
+        initUppy(file);
     } catch (err: any) {
         status.value = 'failed';
         errorMessage.value = err.message || 'Error al iniciar la subida.';
     }
 }
 
-function initUppy(uploadUrl: string, file: File, tusHeaders: Record<string, string>) {
+function initUppy(file: File) {
+    const csrf = getCsrfToken();
+    const headers: Record<string, string> = {
+        'X-XSRF-TOKEN': csrf,
+        'Accept': 'application/json',
+    };
+
     uppy = new Uppy({
         restrictions: {
             maxFileSize: 25 * 1073741824,
@@ -191,16 +173,57 @@ function initUppy(uploadUrl: string, file: File, tusHeaders: Record<string, stri
         autoProceed: true,
     });
 
-    uppy.use(Tus, {
-        endpoint: uploadUrl,
-        chunkSize: 5 * 1048576,
-        retryDelays: [0, 1000, 3000, 5000, 10000, 20000],
-        storeFingerprintForResuming: true,
-        removeFingerprintOnSuccess: true,
-        headers: tusHeaders,
-        metadata: {
-            filetype: file.type || 'video/mp4',
-            title: file.name,
+    uppy.use(AwsS3, {
+        shouldUseMultipart: (file) => (file.size ?? 0) > 100 * 1024 * 1024,
+
+        async createMultipartUpload(file) {
+            const res = await fetch('/s3/multipart', {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    filename: file.name,
+                    content_type: file.type || 'video/mp4',
+                }),
+            });
+            const data = await res.json();
+            lastS3Key = data.key;
+            return data;
+        },
+
+        async signPart(file, { uploadId, key, partNumber }) {
+            const res = await fetch(
+                `/s3/multipart/${uploadId}/${partNumber}?key=${encodeURIComponent(key)}`,
+                { credentials: 'same-origin', headers },
+            );
+            return await res.json();
+        },
+
+        async listParts(file, { uploadId, key }) {
+            const res = await fetch(
+                `/s3/multipart/${uploadId}?key=${encodeURIComponent(key)}`,
+                { credentials: 'same-origin', headers },
+            );
+            return await res.json();
+        },
+
+        async completeMultipartUpload(file, { uploadId, key, parts }) {
+            const res = await fetch(`/s3/multipart/${uploadId}/complete`, {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ key, parts }),
+            });
+            return await res.json();
+        },
+
+        async abortMultipartUpload(file, { uploadId, key }) {
+            await fetch(`/s3/multipart/${uploadId}`, {
+                method: 'DELETE',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ key }),
+            });
         },
     });
 
@@ -221,22 +244,34 @@ function initUppy(uploadUrl: string, file: File, tusHeaders: Record<string, stri
     });
 
     uppy.on('upload-success', async () => {
-        status.value = 'encoding';
-        localStorage.removeItem(storageKey.value);
         stopNavigationGuard();
 
-        // Notify backend that TUS upload finished
-        try {
-            await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload/mark-encoding`, {
-                method: 'POST',
-                headers: { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
-                credentials: 'same-origin',
-            });
-        } catch {
-            // Non-critical — polling will still work
-        }
+        const s3Key = lastS3Key;
 
-        startPolling();
+        // Register the upload in backend and trigger processing pipeline
+        try {
+            const res = await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
+                method: 'POST',
+                headers: { ...{ 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' }, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    filename: file.name,
+                    filesize: file.size,
+                    s3_key: s3Key,
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Error al registrar el video.');
+            }
+
+            status.value = 'encoding';
+            startPolling();
+        } catch (err: any) {
+            status.value = 'failed';
+            errorMessage.value = err.message || 'Error al registrar el video.';
+        }
     });
 
     uppy.on('upload-error', (_file, error) => {
@@ -253,14 +288,14 @@ function initUppy(uploadUrl: string, file: File, tusHeaders: Record<string, stri
 
 function pauseUpload() {
     if (uppy) {
-        (uppy.getPlugin('Tus') as any)?.pauseAll();
+        uppy.pauseAll();
         status.value = 'paused';
     }
 }
 
 function unpauseUpload() {
     if (uppy) {
-        (uppy.getPlugin('Tus') as any)?.resumeAll();
+        uppy.resumeAll();
         status.value = 'uploading';
     }
 }
@@ -274,7 +309,6 @@ async function cancelUpload() {
     status.value = 'idle';
     progress.value = 0;
     speed.value = '';
-    localStorage.removeItem(storageKey.value);
 
     try {
         await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
@@ -305,6 +339,33 @@ async function deleteVideo() {
         uploadedFilename.value = '';
     } catch {
         errorMessage.value = 'Error al eliminar el video.';
+    }
+}
+
+const refreshing = ref(false);
+
+async function refreshStatus() {
+    refreshing.value = true;
+    try {
+        const response = await fetch(
+            `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`,
+            { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
+        );
+        const data = await response.json();
+
+        if (data.video_upload?.status === 'ready') {
+            status.value = 'ready';
+            stopPolling();
+            emit('uploaded');
+        } else if (data.video_upload?.status === 'failed') {
+            status.value = 'failed';
+            errorMessage.value = data.video_upload.error_message || 'El procesamiento falló.';
+            stopPolling();
+        }
+    } catch {
+        // Ignore
+    } finally {
+        refreshing.value = false;
     }
 }
 
@@ -340,15 +401,6 @@ function stopPolling() {
     }
 }
 
-function getCsrfToken(): string {
-    return decodeURIComponent(
-        document.cookie
-            .split('; ')
-            .find(row => row.startsWith('XSRF-TOKEN='))
-            ?.split('=')[1] ?? '',
-    );
-}
-
 function onBeforeUnloadHandler(e: BeforeUnloadEvent) {
     e.preventDefault();
 }
@@ -356,24 +408,6 @@ function onBeforeUnloadHandler(e: BeforeUnloadEvent) {
 onMounted(async () => {
     if (status.value === 'encoding') {
         startPolling();
-    }
-
-    // If DB says "uploading", check with backend if Bunny actually received it
-    if (props.existingUpload?.status === 'uploading') {
-        try {
-            const res = await fetch(
-                `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload/check`,
-                { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
-            );
-            const data = await res.json();
-            if (data.received) {
-                status.value = 'encoding';
-                startPolling();
-            }
-            // If not received, status stays 'idle' — user can upload again
-        } catch {
-            // Stay idle
-        }
     }
 });
 
@@ -442,10 +476,14 @@ onBeforeUnmount(() => {
         <div v-else-if="status === 'encoding'" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
             <div class="flex items-center gap-3">
                 <Loader2 class="size-5 animate-spin text-amber-400" />
-                <div>
+                <div class="flex-1">
                     <p class="text-sm font-medium text-amber-400">Procesando video...</p>
-                    <p class="text-xs text-muted-foreground">Tu video se esta preparando para reproduccion. Esto puede tomar unos minutos.</p>
+                    <p class="text-xs text-muted-foreground">Estamos encodeando y subiendo tu video a YouTube. Esto puede tomar varios minutos.</p>
                 </div>
+                <Button type="button" variant="ghost" size="sm" class="shrink-0 gap-1.5" :disabled="refreshing" @click="refreshStatus">
+                    <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
+                    Actualizar
+                </Button>
             </div>
         </div>
 
@@ -457,7 +495,7 @@ onBeforeUnmount(() => {
                 <span class="text-xs text-muted-foreground">{{ uploadedFilename }}</span>
             </div>
 
-            <!-- YouTube embed (preferred) -->
+            <!-- YouTube embed -->
             <div v-if="props.existingUpload?.youtube_embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
                 <iframe
                     :src="props.existingUpload.youtube_embed_url"
@@ -466,18 +504,10 @@ onBeforeUnmount(() => {
                     allowfullscreen
                 />
             </div>
-            <!-- Bunny embed (fallback during YouTube processing) -->
-            <div v-else-if="embedUrl" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
-                <iframe
-                    :src="`${embedUrl}?autoplay=false&preload=false`"
-                    class="h-full w-full"
-                    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                />
-                <div class="mt-1 flex items-center gap-1.5 text-xs text-amber-400">
-                    <Loader2 class="size-3 animate-spin" />
-                    Procesando para YouTube...
-                </div>
+            <!-- Processing indicator while YouTube upload is pending -->
+            <div v-else class="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                <Loader2 class="size-4 animate-spin text-amber-400" />
+                <span class="text-xs text-amber-400">Subiendo a YouTube...</span>
             </div>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">
@@ -496,9 +526,13 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div class="mt-3 flex gap-2">
+                <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="refreshing" @click="refreshStatus">
+                    <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
+                    Verificar estado
+                </Button>
                 <Button type="button" variant="outline" size="sm" class="gap-1.5" @click="cancelUpload(); selectFile();">
                     <Upload class="size-3.5" />
-                    Reintentar
+                    Subir otro video
                 </Button>
             </div>
         </div>

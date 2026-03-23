@@ -16,7 +16,7 @@ return new class extends Migration
             $table->ulid('ulid')->unique();
             $table->foreignId('football_match_id')->constrained('matches')->cascadeOnDelete();
             $table->foreignId('uploaded_by')->constrained('users')->cascadeOnDelete();
-            $table->string('bunny_video_id');
+            $table->string('bunny_video_id')->nullable();
             $table->string('status')->default('uploading');
             $table->string('original_filename')->nullable();
             $table->unsignedBigInteger('original_size_bytes')->nullable();

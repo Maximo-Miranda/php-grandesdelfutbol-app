@@ -2,13 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Models\Club;
+use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
-use App\Services\BunnyStreamService;
 use App\Services\YouTubeService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -16,7 +19,7 @@ class UploadMatchToYouTube implements ShouldQueue
 {
     use Batchable, Queueable;
 
-    public int $timeout = 1800;
+    public int $timeout = 3600;
 
     public int $tries = 3;
 
@@ -29,18 +32,18 @@ class UploadMatchToYouTube implements ShouldQueue
         $this->onQueue('video-processing');
     }
 
-    public function handle(BunnyStreamService $bunnyService, YouTubeService $youtubeService): void
+    public function handle(YouTubeService $youtubeService): void
     {
         if ($this->batch()?->cancelled()) {
             return;
         }
 
-        // Idempotency: skip if already uploaded
+        $this->videoUpload->refresh();
+
         if ($this->videoUpload->youtube_video_id) {
             return;
         }
 
-        // Skip if YouTube is not configured
         if (! $youtubeService->isConfigured()) {
             return;
         }
@@ -48,7 +51,13 @@ class UploadMatchToYouTube implements ShouldQueue
         $match = $this->videoUpload->match;
         $club = $match?->club;
 
-        if (! $match || ! $club) {
+        if (! $match || ! $club || ! $this->videoUpload->s3_path) {
+            return;
+        }
+
+        $lock = Cache::lock("youtube-upload-{$this->videoUpload->id}", 3600);
+
+        if (! $lock->get()) {
             return;
         }
 
@@ -58,28 +67,32 @@ class UploadMatchToYouTube implements ShouldQueue
         $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
 
         try {
-            // Download the highest quality version from Bunny
-            $resolution = $bunnyService->downloadHighestQuality(
-                $this->videoUpload->bunny_video_id,
-                $tempFile,
-            );
+            $stream = Storage::disk('s3')->readStream($this->videoUpload->s3_path);
 
-            // Build YouTube metadata
+            if (! $stream) {
+                throw new \RuntimeException('No se pudo leer el video de S3.');
+            }
+
+            $local = fopen($tempFile, 'wb');
+            stream_copy_to_stream($stream, $local);
+            fclose($local);
+            fclose($stream);
+
             $title = "{$match->title} - {$club->name}";
             $description = $this->buildDescription($match, $club);
             $tags = ['futbol', 'grandesdelfutbol', Str::slug($club->name)];
 
-            // Upload to YouTube
             $youtubeVideoId = $youtubeService->uploadVideo($tempFile, $title, $description, $tags);
 
-            // Save results
             $this->videoUpload->update([
                 'youtube_video_id' => $youtubeVideoId,
                 'youtube_uploaded_at' => now(),
-                'best_resolution' => $resolution,
             ]);
+
+            $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
         } finally {
-            // Always clean up the temp file
+            $lock->release();
+
             if (file_exists($tempFile)) {
                 unlink($tempFile);
             }
@@ -91,10 +104,29 @@ class UploadMatchToYouTube implements ShouldQueue
         report($exception);
     }
 
-    private function buildDescription(mixed $match, mixed $club): string
+    private function addToClubPlaylist(YouTubeService $youtubeService, Club $club, string $videoId): void
+    {
+        try {
+            if (! $club->youtube_playlist_id) {
+                $playlistId = $youtubeService->createPlaylist(
+                    $club->name,
+                    "Partidos de {$club->name} - Grandes del Futbol",
+                );
+
+                $club->update(['youtube_playlist_id' => $playlistId]);
+            }
+
+            $youtubeService->addToPlaylist($club->youtube_playlist_id, $videoId);
+        } catch (Throwable $e) {
+            // Non-critical: video is uploaded, playlist is optional
+            report($e);
+        }
+    }
+
+    private function buildDescription(FootballMatch $match, Club $club): string
     {
         $lines = [
-            "{$match->title}",
+            $match->title,
             "Club: {$club->name}",
         ];
 

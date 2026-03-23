@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $ulid
  * @property int $football_match_id
  * @property int $uploaded_by
- * @property string $bunny_video_id
+ * @property string|null $bunny_video_id
  * @property VideoUploadStatus $status
  * @property string|null $original_filename
  * @property int|null $original_size_bytes
@@ -36,8 +36,6 @@ class MatchVideoUpload extends Model
     use HasFactory, HasPublicUlid;
 
     protected $appends = [
-        'stream_url',
-        'thumbnail_url',
         'embed_url',
         'youtube_url',
         'youtube_embed_url',
@@ -86,48 +84,22 @@ class MatchVideoUpload extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    public function getStreamUrlAttribute(): ?string
-    {
-        if ($this->status !== VideoUploadStatus::Ready || $this->bunny_deleted_at) {
-            return null;
-        }
-
-        return 'https://'.config('bunny.cdn_hostname')."/{$this->bunny_video_id}/playlist.m3u8";
-    }
-
-    public function getThumbnailUrlAttribute(): ?string
-    {
-        return 'https://'.config('bunny.cdn_hostname')."/{$this->bunny_video_id}/thumbnail.jpg";
-    }
-
     public function getEmbedUrlAttribute(): ?string
     {
-        if ($this->youtube_video_id) {
-            return $this->youtube_embed_url;
-        }
-
-        if ($this->bunny_deleted_at) {
-            return null;
-        }
-
-        return 'https://iframe.mediadelivery.net/embed/'.config('bunny.stream_library_id')."/{$this->bunny_video_id}";
+        return $this->youtube_embed_url;
     }
 
     public function getYoutubeUrlAttribute(): ?string
     {
-        if (! $this->youtube_video_id) {
-            return null;
-        }
-
-        return "https://www.youtube.com/watch?v={$this->youtube_video_id}";
+        return $this->youtube_video_id
+            ? "https://www.youtube.com/watch?v={$this->youtube_video_id}"
+            : null;
     }
 
     public function getYoutubeEmbedUrlAttribute(): ?string
     {
-        if (! $this->youtube_video_id) {
-            return null;
-        }
-
-        return "https://www.youtube.com/embed/{$this->youtube_video_id}";
+        return $this->youtube_video_id
+            ? "https://www.youtube.com/embed/{$this->youtube_video_id}"
+            : null;
     }
 }

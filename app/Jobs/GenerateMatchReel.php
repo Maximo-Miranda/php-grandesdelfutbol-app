@@ -6,7 +6,6 @@ use App\Enums\ReelStatus;
 use App\Enums\VideoUploadStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
-use App\Services\BunnyStreamService;
 use Exception;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +33,7 @@ class GenerateMatchReel implements ShouldQueue
         $this->onQueue('reels');
     }
 
-    public function handle(BunnyStreamService $bunnyStreamService): void
+    public function handle(): void
     {
         if ($this->batch()?->cancelled()) {
             return;
@@ -49,6 +48,12 @@ class GenerateMatchReel implements ShouldQueue
             return;
         }
 
+        if (! $videoUpload->s3_path) {
+            $this->markFailed('No hay video en S3 para este partido.');
+
+            return;
+        }
+
         $this->reel->update(['status' => ReelStatus::Processing]);
 
         $tempDir = storage_path('app/temp/reels');
@@ -58,7 +63,7 @@ class GenerateMatchReel implements ShouldQueue
         $sourceVideo = null;
 
         try {
-            $sourceVideo = $this->ensureFullVideoDownloaded($bunnyStreamService, $match, $videoUpload->bunny_video_id, $tempDir);
+            $sourceVideo = $this->ensureFullVideoDownloaded($match, $videoUpload->s3_path, $tempDir);
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
         } catch (RuntimeException $e) {
@@ -75,7 +80,7 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    protected function ensureFullVideoDownloaded(BunnyStreamService $bunnyStreamService, FootballMatch $match, string $bunnyVideoId, string $tempDir): string
+    protected function ensureFullVideoDownloaded(FootballMatch $match, string $s3Path, string $tempDir): string
     {
         $localPath = $tempDir."/full-{$match->ulid}.mp4";
 
@@ -83,17 +88,7 @@ class GenerateMatchReel implements ShouldQueue
             return $localPath;
         }
 
-        $s3Path = "match-videos/{$match->ulid}.mp4";
-
-        if (Storage::disk('s3')->exists($s3Path)) {
-            $this->downloadFromS3($s3Path, $localPath);
-
-            return $localPath;
-        }
-
-        $bunnyStreamService->downloadVideo($bunnyVideoId, $localPath);
-
-        $this->uploadToS3($s3Path, $localPath);
+        $this->downloadFromS3($s3Path, $localPath);
 
         return $localPath;
     }
@@ -104,13 +99,6 @@ class GenerateMatchReel implements ShouldQueue
         $local = fopen($localPath, 'wb');
         stream_copy_to_stream($stream, $local);
         fclose($local);
-        fclose($stream);
-    }
-
-    protected function uploadToS3(string $s3Path, string $localPath): void
-    {
-        $stream = fopen($localPath, 'rb');
-        Storage::disk('s3')->put($s3Path, $stream);
         fclose($stream);
     }
 
@@ -178,20 +166,17 @@ class GenerateMatchReel implements ShouldQueue
             unlink($outputFile);
         }
 
-        if ($sourceVideo && $match) {
-            $this->cleanupLocalVideoIfDone($match, $sourceVideo);
+        if (! $sourceVideo || ! $match) {
+            return;
         }
-    }
 
-    protected function cleanupLocalVideoIfDone(FootballMatch $match, string $localPath): void
-    {
         $hasPendingReels = $match->reels()
             ->whereIn('status', [ReelStatus::Pending, ReelStatus::Processing])
             ->where('id', '!=', $this->reel->id)
             ->exists();
 
-        if (! $hasPendingReels && file_exists($localPath)) {
-            unlink($localPath);
+        if (! $hasPendingReels && file_exists($sourceVideo)) {
+            unlink($sourceVideo);
         }
     }
 

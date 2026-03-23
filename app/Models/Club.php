@@ -7,6 +7,8 @@ use App\Concerns\HasPublicUlid;
 use App\Enums\AttachmentCollection;
 use App\Enums\ClubMemberRole;
 use App\Enums\ClubMemberStatus;
+use Carbon\CarbonImmutable;
+use Database\Factories\ClubFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,21 +25,21 @@ use Illuminate\Support\Str;
  * @property string|null $invite_token
  * @property bool $is_invite_active
  * @property bool $requires_approval
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attachment> $attachments
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Collection<int, Attachment> $attachments
  * @property-read int|null $attachments_count
  * @property-read string|null $logo_url
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubInvitation> $invitations
+ * @property-read Collection<int, ClubInvitation> $invitations
  * @property-read int|null $invitations_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\FootballMatch> $matches
+ * @property-read Collection<int, FootballMatch> $matches
  * @property-read int|null $matches_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClubMember> $members
+ * @property-read Collection<int, ClubMember> $members
  * @property-read int|null $members_count
- * @property-read \App\Models\User $owner
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Player> $players
+ * @property-read User $owner
+ * @property-read Collection<int, Player> $players
  * @property-read int|null $players_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Venue> $venues
+ * @property-read Collection<int, Venue> $venues
  * @property-read int|null $venues_count
  *
  * @method static \Database\Factories\ClubFactory factory($count = null, $state = [])
@@ -59,7 +61,7 @@ use Illuminate\Support\Str;
  */
 class Club extends Model
 {
-    /** @use HasFactory<\Database\Factories\ClubFactory> */
+    /** @use HasFactory<ClubFactory> */
     use HasAttachments, HasFactory, HasPublicUlid;
 
     protected $fillable = [
@@ -70,6 +72,7 @@ class Club extends Model
         'invite_token',
         'is_invite_active',
         'requires_approval',
+        'youtube_playlist_id',
     ];
 
     public static function generateUniqueSlug(string $name): string
