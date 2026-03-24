@@ -4,16 +4,15 @@ namespace App\Console\Commands;
 
 use App\Enums\VideoUploadStatus;
 use App\Models\MatchVideoUpload;
-use App\Services\BunnyStreamService;
 use Illuminate\Console\Command;
 
 class CleanupStalledVideoUploads extends Command
 {
     protected $signature = 'video-uploads:cleanup {--hours=48 : Hours after which uploading status is considered stalled}';
 
-    protected $description = 'Elimina subidas de video estancadas en estado "uploading" y las limpia de Bunny Stream.';
+    protected $description = 'Elimina subidas de video estancadas en estado "uploading".';
 
-    public function handle(BunnyStreamService $bunnyService): int
+    public function handle(): int
     {
         $hours = (int) $this->option('hours');
 
@@ -29,12 +28,6 @@ class CleanupStalledVideoUploads extends Command
         }
 
         foreach ($stalled as $upload) {
-            try {
-                $bunnyService->deleteVideo($upload->bunny_video_id);
-            } catch (\Throwable) {
-                // Bunny cleanup is best-effort
-            }
-
             $upload->delete();
 
             $this->line("  Eliminada: {$upload->original_filename} (match #{$upload->football_match_id})");

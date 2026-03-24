@@ -48,6 +48,9 @@ RUN apk add --no-cache \
         libwebp \
         freetype \
     && apk add --no-cache --virtual .build-deps \
+        autoconf \
+        g++ \
+        make \
         postgresql-dev \
         libzip-dev \
         icu-dev \

@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $ulid
  * @property int $football_match_id
  * @property int $uploaded_by
- * @property string|null $bunny_video_id
  * @property VideoUploadStatus $status
  * @property string|null $original_filename
  * @property int|null $original_size_bytes
@@ -27,7 +26,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $youtube_uploaded_at
  * @property string|null $s3_path
  * @property string|null $best_resolution
- * @property CarbonImmutable|null $bunny_deleted_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -44,7 +42,6 @@ class MatchVideoUpload extends Model
     protected $fillable = [
         'football_match_id',
         'uploaded_by',
-        'bunny_video_id',
         'status',
         'original_filename',
         'original_size_bytes',
@@ -57,7 +54,6 @@ class MatchVideoUpload extends Model
         'youtube_uploaded_at',
         's3_path',
         'best_resolution',
-        'bunny_deleted_at',
     ];
 
     protected function casts(): array
@@ -70,7 +66,6 @@ class MatchVideoUpload extends Model
             'uploaded_at' => 'immutable_datetime',
             'encoded_at' => 'immutable_datetime',
             'youtube_uploaded_at' => 'immutable_datetime',
-            'bunny_deleted_at' => 'immutable_datetime',
         ];
     }
 

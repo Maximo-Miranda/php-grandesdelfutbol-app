@@ -164,7 +164,7 @@ class ReelService
 
     public function fetchVideoDuration(FootballMatch $match): void
     {
-        // Duration is now stored in the video upload record, populated by Bunny webhook.
+        // Duration is stored in the video upload record.
         // No-op: kept for interface compatibility.
     }
 

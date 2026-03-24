@@ -22,7 +22,6 @@ class MatchVideoUploadFactory extends Factory
             'ulid' => (string) Str::ulid(),
             'football_match_id' => FootballMatch::factory(),
             'uploaded_by' => User::factory(),
-            'bunny_video_id' => fake()->uuid(),
             'status' => VideoUploadStatus::Ready,
             'original_filename' => 'match-video.mp4',
             'original_size_bytes' => fake()->numberBetween(500_000_000, 15_000_000_000),
