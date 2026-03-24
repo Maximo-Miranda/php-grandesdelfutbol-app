@@ -9,7 +9,6 @@ use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -48,7 +47,7 @@ class ProcessUploadedVideo implements ShouldQueue
             ->name("video-pipeline-match-{$matchId}")
             ->onQueue('video-processing')
             ->allowFailures()
-            ->then(function () use ($videoUploadId, $matchId, $matchUlid, $originalS3Path) {
+            ->finally(function () use ($videoUploadId, $matchId, $matchUlid, $originalS3Path) {
                 $videoUpload = MatchVideoUpload::find($videoUploadId);
                 $match = FootballMatch::find($matchId);
 
@@ -56,7 +55,7 @@ class ProcessUploadedVideo implements ShouldQueue
                     return;
                 }
 
-                // Replace original with encoded 720p
+                // Replace original with encoded 720p if encoding succeeded
                 $encodedPath = "videos/matches/{$matchUlid}/720p.mp4";
 
                 if ($originalS3Path !== $encodedPath && Storage::disk('s3')->exists($encodedPath)) {
@@ -65,7 +64,7 @@ class ProcessUploadedVideo implements ShouldQueue
                 }
 
                 // Auto reels if match has finalized stats
-                if ($match->stats_finalized_at) {
+                if ($match->stats_finalized_at && $videoUpload->best_resolution) {
                     $hasQualifyingEvents = $match->events()
                         ->where(function ($q) {
                             $q->whereIn('event_type', ['goal', 'penalty_scored'])
@@ -79,28 +78,25 @@ class ProcessUploadedVideo implements ShouldQueue
                     }
                 }
 
-                // Wait for YouTube processing or mark ready
+                // Determine final status
                 $videoUpload->refresh();
 
                 if ($videoUpload->youtube_video_id) {
                     WaitForYouTubeProcessing::dispatch($videoUpload);
-                } else {
+                } elseif ($videoUpload->best_resolution) {
+                    // Encoding done but no YouTube — mark ready without YouTube
                     $videoUpload->update([
                         'status' => VideoUploadStatus::Ready,
                         'encoded_at' => now(),
                         'error_message' => null,
                     ]);
+                } else {
+                    // Nothing completed successfully
+                    $videoUpload->update([
+                        'status' => VideoUploadStatus::Failed,
+                        'error_message' => 'El procesamiento del video falló. Puedes reintentar.',
+                    ]);
                 }
-            })
-            ->catch(function (Throwable $e) use ($videoUploadId, $matchId) {
-                Log::warning("Video pipeline had failures for match {$matchId}", [
-                    'error' => $e->getMessage(),
-                ]);
-
-                MatchVideoUpload::where('id', $videoUploadId)->update([
-                    'status' => VideoUploadStatus::Failed->value,
-                    'error_message' => 'Error al procesar video: '.$e->getMessage(),
-                ]);
             })
             ->dispatch();
     }
