@@ -31,17 +31,15 @@ test('match registration open notification has correct ntfy payload', function (
         ->and($payload['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}");
 });
 
-test('match video uploaded notification has correct ntfy payload', function () {
+test('match video uploaded notification has correct mail content', function () {
     $club = Club::factory()->create();
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
 
     $notification = new MatchVideoUploadedNotification($match);
-    $payload = $notification->toNtfyPayload();
+    $mail = $notification->toMail(User::factory()->create());
 
-    expect($payload['title'])->toBe('Resumen del partido')
-        ->and($payload['priority'])->toBe(3)
-        ->and($payload['message'])->toContain($match->title)
-        ->and($payload['click'])->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
+    expect($mail->subject)->toContain($match->title)
+        ->and($mail->actionUrl)->toContain("/clubs/{$club->ulid}/matches/{$match->ulid}/summary");
 });
 
 test('match stats finalized notification has correct ntfy payload', function () {
@@ -70,7 +68,7 @@ test('match notifications use web push channel', function () {
 
     foreach ($notifications as $notification) {
         $via = $notification->via($user);
-        expect($via)->toBe([WebPushChannel::class]);
+        expect($via)->toContain(WebPushChannel::class);
     }
 });
 

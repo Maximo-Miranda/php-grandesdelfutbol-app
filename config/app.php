@@ -54,7 +54,7 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    'super_admin_email' => env('SUPER_ADMIN_EMAIL'),
+    'super_admin_emails' => array_filter(array_map('trim', explode(',', env('SUPER_ADMIN_EMAILS', env('SUPER_ADMIN_EMAIL', ''))))),
 
     /*
     |--------------------------------------------------------------------------

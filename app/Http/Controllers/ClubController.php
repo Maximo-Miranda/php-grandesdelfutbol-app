@@ -76,9 +76,18 @@ class ClubController extends Controller
             ->orderBy('scheduled_at')
             ->first();
 
+        $lastMatch = FootballMatch::query()
+            ->whereIn('club_id', $clubIds)
+            ->where('status', MatchStatus::Completed)
+            ->with('club', 'field', 'videoUpload')
+            ->withCount('attendances')
+            ->orderByDesc('scheduled_at')
+            ->first();
+
         return Inertia::render('clubs/Index', [
             'clubs' => $clubs,
             'nextMatch' => $nextMatch,
+            'lastMatch' => $lastMatch,
             'pendingInvitations' => ClubInvitation::query()
                 ->where('email', $user->email)
                 ->valid()
@@ -121,6 +130,13 @@ class ClubController extends Controller
             ->orderBy('scheduled_at')
             ->first();
 
+        $lastMatch = $club->matches()
+            ->where('status', MatchStatus::Completed)
+            ->with('field', 'videoUpload')
+            ->withCount('attendances')
+            ->orderByDesc('scheduled_at')
+            ->first();
+
         $today = Carbon::now();
         $currentDay = $today->day;
         $birthdays = $club->members()
@@ -139,6 +155,7 @@ class ClubController extends Controller
         return Inertia::render('clubs/Show', [
             'club' => $club,
             'nextMatch' => $nextMatch,
+            'lastMatch' => $lastMatch,
             'birthdays' => $birthdays,
         ]);
     }

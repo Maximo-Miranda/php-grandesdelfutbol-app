@@ -3,9 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\FootballMatch;
-use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
@@ -34,7 +34,17 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
     /** @return array<int, string> */
     public function via(object $notifiable): array
     {
-        return [WebPushChannel::class];
+        return ['mail', WebPushChannel::class];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject("Video disponible — {$this->matchTitle}")
+            ->greeting('Video del partido listo')
+            ->line("El video de **{$this->matchTitle}** ya esta disponible para ver.")
+            ->action('Ver resumen del partido', $this->summaryUrl)
+            ->salutation('Grandes del Futbol');
     }
 
     public function toWebPush(object $notifiable, object $notification): WebPushMessage
@@ -46,16 +56,5 @@ class MatchVideoUploadedNotification extends Notification implements ShouldQueue
             ->badge('/badge-96x96.png')
             ->tag("match-video-{$this->match->id}")
             ->data(['url' => $this->summaryUrl]);
-    }
-
-    /** @return array<string, mixed> */
-    public function toNtfyPayload(): array
-    {
-        return NtfyMessage::create("{$this->matchTitle} — Video disponible")
-            ->title('Resumen del partido')
-            ->tags('clapper')
-            ->priority(3)
-            ->click($this->summaryUrl)
-            ->toArray();
     }
 }

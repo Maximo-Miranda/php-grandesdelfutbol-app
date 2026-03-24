@@ -343,6 +343,31 @@ async function deleteVideo() {
 }
 
 const refreshing = ref(false);
+const retrying = ref(false);
+
+async function retryYouTube() {
+    retrying.value = true;
+    try {
+        const res = await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload/retry-youtube`, {
+            method: 'POST',
+            headers: { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+
+        if (res.ok) {
+            status.value = 'encoding';
+            errorMessage.value = '';
+            startPolling();
+        } else {
+            const data = await res.json();
+            errorMessage.value = data.error || 'Error al reintentar.';
+        }
+    } catch {
+        errorMessage.value = 'Error al reintentar la subida.';
+    } finally {
+        retrying.value = false;
+    }
+}
 
 async function refreshStatus() {
     refreshing.value = true;
@@ -525,7 +550,11 @@ onBeforeUnmount(() => {
                     <p class="text-xs text-muted-foreground">{{ errorMessage }}</p>
                 </div>
             </div>
-            <div class="mt-3 flex gap-2">
+            <div class="mt-3 flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
+                    <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
+                    Reintentar
+                </Button>
                 <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="refreshing" @click="refreshStatus">
                     <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
                     Verificar estado

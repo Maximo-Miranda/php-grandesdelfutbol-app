@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\VideoUploadStatus;
 use App\Http\Requests\Match\StoreMatchVideoUploadRequest;
 use App\Jobs\ProcessUploadedVideo;
+use App\Jobs\UploadMatchToYouTube;
+use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +46,31 @@ class MatchVideoUploadController extends Controller
         return response()->json([
             'video_upload' => $match->videoUpload,
         ]);
+    }
+
+    /** Retry YouTube upload for a video that already has S3 720p but failed YouTube. */
+    public function retryYouTube(Club $club, FootballMatch $match): JsonResponse
+    {
+        Gate::authorize('update', $match);
+
+        $videoUpload = $match->videoUpload;
+
+        if (! $videoUpload || ! $videoUpload->s3_path) {
+            return response()->json(['error' => 'No hay video disponible para subir.'], 422);
+        }
+
+        // Clear previous YouTube attempt
+        $videoUpload->update([
+            'youtube_video_id' => null,
+            'youtube_uploaded_at' => null,
+            'status' => VideoUploadStatus::Encoding,
+            'error_message' => null,
+        ]);
+
+        UploadMatchToYouTube::dispatch($videoUpload)
+            ->chain([new WaitForYouTubeProcessing($videoUpload)]);
+
+        return response()->json(['message' => 'Reintentando subida a YouTube.']);
     }
 
     public function destroy(Club $club, FootballMatch $match): JsonResponse

@@ -56,7 +56,8 @@ class WaitForYouTubeProcessing implements ShouldQueue
 
         if (in_array($status, ['failed', 'terminated'])) {
             $this->videoUpload->update([
-                'error_message' => "YouTube processing {$status}.",
+                'status' => VideoUploadStatus::Failed,
+                'error_message' => 'El procesamiento del video en YouTube falló. Puedes reintentar la subida.',
             ]);
 
             return;
@@ -79,10 +80,6 @@ class WaitForYouTubeProcessing implements ShouldQueue
             return;
         }
 
-        $notification = new MatchVideoUploadedNotification($match);
-
-        Notification::send($club->approvedMemberUsersWithPush(), $notification);
-
-        PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
+        Notification::send($club->approvedMemberUsersWithPush(), new MatchVideoUploadedNotification($match));
     }
 }

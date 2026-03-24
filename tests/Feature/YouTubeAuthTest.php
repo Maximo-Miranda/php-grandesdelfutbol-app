@@ -15,7 +15,7 @@ it('blocks non-super-admin from youtube authorize', function () {
 });
 
 it('redirects super admin to google oauth', function () {
-    config(['app.super_admin_email' => 'admin@test.com']);
+    config(['app.super_admin_emails' => ['admin@test.com']]);
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
@@ -38,7 +38,7 @@ it('blocks non-super-admin from youtube callback', function () {
 });
 
 it('handles youtube oauth callback and stores token', function () {
-    config(['app.super_admin_email' => 'admin@test.com']);
+    config(['app.super_admin_emails' => ['admin@test.com']]);
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
@@ -54,7 +54,7 @@ it('handles youtube oauth callback and stores token', function () {
 });
 
 it('redirects to dashboard with error when callback has no code', function () {
-    config(['app.super_admin_email' => 'admin@test.com']);
+    config(['app.super_admin_emails' => ['admin@test.com']]);
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
@@ -65,7 +65,7 @@ it('redirects to dashboard with error when callback has no code', function () {
 });
 
 it('handles youtube callback failure gracefully', function () {
-    config(['app.super_admin_email' => 'admin@test.com']);
+    config(['app.super_admin_emails' => ['admin@test.com']]);
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 

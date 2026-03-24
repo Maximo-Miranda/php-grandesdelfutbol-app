@@ -19,6 +19,7 @@ type BirthdayMember = {
 type Props = {
     club: Club & { members: ClubMember[]; members_count: number; pending_members_count: number; players_count: number; completed_matches_count: number };
     nextMatch?: FootballMatch & { attendances_count?: number };
+    lastMatch?: FootballMatch & { attendances_count?: number };
     birthdays: BirthdayMember[];
 };
 
@@ -145,6 +146,30 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                 <p class="font-medium">Sin partidos proximos</p>
                 <p class="text-sm text-muted-foreground">Crea un partido para empezar a organizar.</p>
             </div>
+
+            <!-- Last match card -->
+            <Link
+                v-if="lastMatch"
+                :href="`${base}/matches/${lastMatch.ulid}/summary`"
+                class="mb-4 block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+            >
+                <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ultimo partido</p>
+                <p class="text-lg font-bold">{{ lastMatch.title }}</p>
+                <div class="mt-2 flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays class="size-3.5 shrink-0" />
+                        <span class="capitalize">{{ formatMatchDate(lastMatch.scheduled_at) }}</span>
+                    </div>
+                    <div v-if="lastMatch.field" class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin class="size-3.5 shrink-0" />
+                        <span>{{ lastMatch.field.name }}</span>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center gap-3 text-sm">
+                    <span class="text-muted-foreground">{{ lastMatch.attendances_count ?? 0 }} jugadores</span>
+                    <span v-if="lastMatch.video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
+                </div>
+            </Link>
 
             <!-- Birthdays this month -->
             <div class="mb-4 overflow-hidden rounded-lg border border-border">

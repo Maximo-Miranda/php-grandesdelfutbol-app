@@ -11,6 +11,7 @@ import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } 
 type Props = {
     clubs: Club[];
     nextMatch?: FootballMatch | null;
+    lastMatch?: FootballMatch | null;
     pendingInvitations?: ClubInvitation[];
     pendingMemberships?: ClubMember[];
 };
@@ -113,6 +114,33 @@ const confirmedCount = computed(() => {
                 <p class="mt-2 text-sm font-medium text-primary">
                     {{ confirmedCount }}/{{ nextMatch.max_players }} confirmados
                 </p>
+            </Link>
+
+            <!-- Last match -->
+            <Link
+                v-if="lastMatch"
+                :href="`/clubs/${lastMatch.club?.ulid}/matches/${lastMatch.ulid}/summary`"
+                class="mb-6 block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+            >
+                <div class="mb-2 flex items-center gap-2">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ultimo partido</p>
+                    <Badge v-if="lastMatch.club" variant="secondary" class="text-[10px]">{{ lastMatch.club.name }}</Badge>
+                </div>
+                <p class="text-lg font-bold">{{ lastMatch.title }}</p>
+                <div class="mt-2 flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays class="size-3.5 shrink-0" />
+                        <span class="capitalize">{{ formatMatchDate(lastMatch.scheduled_at) }}</span>
+                    </div>
+                    <div v-if="lastMatch.field" class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin class="size-3.5 shrink-0" />
+                        <span>{{ lastMatch.field.name }}</span>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center gap-3 text-sm">
+                    <span class="text-muted-foreground">{{ lastMatch.attendances_count ?? 0 }} jugadores</span>
+                    <span v-if="(lastMatch as any).video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
+                </div>
             </Link>
 
             <!-- Clubs list -->

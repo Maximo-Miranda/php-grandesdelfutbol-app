@@ -116,7 +116,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isSuperAdmin(): bool
     {
-        return $this->email === config('app.super_admin_email');
+        return in_array($this->email, config('app.super_admin_emails', []));
     }
 
     public function clubMemberships(): HasMany

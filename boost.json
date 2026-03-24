@@ -13,6 +13,7 @@
     "sail": false,
     "skills": [
         "configuring-horizon",
+        "pulse-development",
         "socialite-development",
         "wayfinder-development",
         "pest-testing",

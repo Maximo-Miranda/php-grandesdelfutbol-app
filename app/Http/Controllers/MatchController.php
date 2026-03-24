@@ -24,9 +24,7 @@ class MatchController extends Controller
     {
         Gate::authorize('viewAny', [FootballMatch::class, $club]);
 
-        $filter = $request->query('filter') === 'all'
-            ? 'all'
-            : ($request->enum('filter', MatchStatus::class) ?? MatchStatus::Upcoming);
+        $filter = $request->enum('filter', MatchStatus::class) ?? 'all';
 
         $query = $club->matches()
             ->with('field')

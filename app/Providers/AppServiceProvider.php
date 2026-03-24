@@ -55,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn ($user) => $user->isSuperAdmin() ? true : null);
 
         Gate::define('superAdmin', fn ($user) => $user->isSuperAdmin());
+        Gate::define('viewPulse', fn ($user) => $user->isSuperAdmin());
     }
 
     /**

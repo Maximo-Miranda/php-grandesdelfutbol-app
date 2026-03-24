@@ -20,9 +20,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const tabs = [
+    { key: 'all', label: 'Todos' },
     { key: 'upcoming', label: 'Proximos' },
     { key: 'completed', label: 'Finalizados' },
-    { key: 'all', label: 'Todos' },
 ] as const;
 
 function switchTab(tab: string) {

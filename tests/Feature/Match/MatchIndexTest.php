@@ -11,7 +11,7 @@ beforeEach(function () {
     ClubMember::factory()->create(['club_id' => $this->club->id, 'user_id' => $this->user->id]);
 });
 
-test('matches index defaults to upcoming filter', function () {
+test('matches index defaults to all filter', function () {
     FootballMatch::factory()->count(3)->create(['club_id' => $this->club->id]);
     FootballMatch::factory()->completed()->create(['club_id' => $this->club->id]);
 
@@ -20,8 +20,8 @@ test('matches index defaults to upcoming filter', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('clubs/matches/Index')
-            ->has('matches.data', 3)
-            ->where('filter', 'upcoming')
+            ->has('matches.data', 4)
+            ->where('filter', 'all')
         );
 });
 
