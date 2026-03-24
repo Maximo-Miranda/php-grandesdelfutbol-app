@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('matches:process-schedules')->everyFiveMinutes();
         $schedule->command('matches:notify-registration-open')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command('horizon:snapshot')->everyFiveMinutes();
     })
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

@@ -70,6 +70,8 @@ RUN apk add --no-cache \
         pcntl \
         gd \
         exif \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && apk del .build-deps \
     && rm -rf /var/cache/apk/* /tmp/*
 
