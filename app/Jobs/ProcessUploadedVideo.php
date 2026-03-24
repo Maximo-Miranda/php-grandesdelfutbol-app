@@ -63,39 +63,41 @@ class ProcessUploadedVideo implements ShouldQueue
                     $videoUpload->update(['s3_path' => $encodedPath]);
                 }
 
-                // Auto reels if match has finalized stats
-                if ($match->stats_finalized_at && $videoUpload->best_resolution) {
-                    $hasQualifyingEvents = $match->events()
-                        ->where(function ($q) {
-                            $q->whereIn('event_type', ['goal', 'penalty_scored'])
-                                ->orWhere('highlighted', true);
-                        })
-                        ->whereNotNull('player_id')
-                        ->exists();
-
-                    if ($hasQualifyingEvents) {
-                        app(ReelService::class)->generateReelsForMatch($match);
-                    }
-                }
-
-                // Determine final status
+                // Determine final status first — must always run
                 $videoUpload->refresh();
 
                 if ($videoUpload->youtube_video_id) {
                     WaitForYouTubeProcessing::dispatch($videoUpload);
                 } elseif ($videoUpload->best_resolution) {
-                    // Encoding done but no YouTube — mark ready without YouTube
                     $videoUpload->update([
                         'status' => VideoUploadStatus::Ready,
                         'encoded_at' => now(),
                         'error_message' => null,
                     ]);
                 } else {
-                    // Nothing completed successfully
                     $videoUpload->update([
                         'status' => VideoUploadStatus::Failed,
                         'error_message' => 'El procesamiento del video falló. Puedes reintentar.',
                     ]);
+                }
+
+                // Auto reels if match has finalized stats (non-critical)
+                try {
+                    if ($match->stats_finalized_at && $videoUpload->best_resolution) {
+                        $hasQualifyingEvents = $match->events()
+                            ->where(function ($q) {
+                                $q->whereIn('event_type', ['goal', 'penalty_scored'])
+                                    ->orWhere('highlighted', true);
+                            })
+                            ->whereNotNull('player_id')
+                            ->exists();
+
+                        if ($hasQualifyingEvents) {
+                            app(ReelService::class)->generateReelsForMatch($match);
+                        }
+                    }
+                } catch (Throwable $e) {
+                    report($e);
                 }
             })
             ->dispatch();

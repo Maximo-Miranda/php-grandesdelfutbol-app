@@ -51,13 +51,18 @@ class EncodeVideoTo720p implements ShouldQueue
         try {
             $this->downloadFromS3($this->videoUpload->s3_path, $inputFile);
 
-            $duration = $this->getVideoDuration($inputFile);
+            $properties = $this->getVideoProperties($inputFile);
 
-            if ($duration > 0) {
-                $this->videoUpload->update(['duration_seconds' => $duration]);
+            if ($properties['duration'] > 0) {
+                $this->videoUpload->update(['duration_seconds' => $properties['duration']]);
             }
 
-            $this->encode($inputFile, $outputFile);
+            if ($this->shouldStreamCopy($properties)) {
+                $this->streamCopy($inputFile, $outputFile, $properties);
+            } else {
+                $this->encode($inputFile, $outputFile, $properties);
+            }
+
             $this->uploadToS3($outputFile, $s3Output);
 
             $this->videoUpload->update([
@@ -76,6 +81,144 @@ class EncodeVideoTo720p implements ShouldQueue
         $this->videoUpload->update([
             'error_message' => 'Error al encodear video: '.mb_substr($exception?->getMessage() ?? 'Unknown', 0, 500),
         ]);
+    }
+
+    private function getVideoProperties(string $filePath): array
+    {
+        $result = Process::timeout(30)->run([
+            'ffprobe', '-v', 'quiet',
+            '-show_entries', 'stream=codec_name,codec_type,height',
+            '-show_entries', 'format=duration',
+            '-of', 'json',
+            $filePath,
+        ]);
+
+        if (! $result->successful()) {
+            return $this->fallbackProperties();
+        }
+
+        $data = json_decode($result->output(), true);
+
+        if (! is_array($data)) {
+            return $this->fallbackProperties();
+        }
+
+        $videoHeight = 0;
+        $videoCodec = 'unknown';
+        $audioCodec = null;
+
+        foreach ($data['streams'] ?? [] as $stream) {
+            if (($stream['codec_type'] ?? '') === 'video' && $videoHeight === 0) {
+                $videoHeight = (int) ($stream['height'] ?? 0);
+                $videoCodec = $stream['codec_name'] ?? 'unknown';
+            }
+
+            if (($stream['codec_type'] ?? '') === 'audio' && $audioCodec === null) {
+                $audioCodec = $stream['codec_name'] ?? null;
+            }
+        }
+
+        $duration = (int) round((float) ($data['format']['duration'] ?? 0));
+
+        return [
+            'video_height' => $videoHeight,
+            'video_codec' => $videoCodec,
+            'audio_codec' => $audioCodec,
+            'duration' => $duration,
+        ];
+    }
+
+    /**
+     * @return array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}
+     */
+    private function fallbackProperties(): array
+    {
+        return [
+            'video_height' => PHP_INT_MAX,
+            'video_codec' => 'unknown',
+            'audio_codec' => null,
+            'duration' => 0,
+        ];
+    }
+
+    /**
+     * @param  array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}  $properties
+     */
+    private function shouldStreamCopy(array $properties): bool
+    {
+        return $properties['video_height'] <= 720
+            && $properties['video_height'] > 0
+            && $properties['video_codec'] === 'h264';
+    }
+
+    /**
+     * @param  array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}  $properties
+     */
+    private function streamCopy(string $inputFile, string $outputFile, array $properties): void
+    {
+        $command = [
+            'ffmpeg', '-y',
+            '-i', $inputFile,
+            '-c:v', 'copy',
+            ...$this->audioArgs($properties),
+            '-movflags', '+faststart',
+            $outputFile,
+        ];
+
+        $result = Process::timeout(300)->run($command);
+
+        if (! $result->successful()) {
+            throw new RuntimeException('FFmpeg stream copy failed: '.$result->errorOutput());
+        }
+
+        $this->validateOutput($outputFile);
+    }
+
+    /**
+     * @param  array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}  $properties
+     */
+    private function encode(string $inputFile, string $outputFile, array $properties): void
+    {
+        $command = [
+            'ffmpeg', '-y',
+            '-threads', '0',
+            '-i', $inputFile,
+            '-c:v', 'libx264',
+            '-crf', '23',
+            '-preset', 'veryfast',
+            '-vf', 'scale=-2:720',
+            ...$this->audioArgs($properties),
+            '-movflags', '+faststart',
+            $outputFile,
+        ];
+
+        $result = Process::timeout(7200)->run($command);
+
+        if (! $result->successful()) {
+            throw new RuntimeException('FFmpeg encoding failed: '.$result->errorOutput());
+        }
+
+        $this->validateOutput($outputFile);
+    }
+
+    /**
+     * @param  array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}  $properties
+     * @return list<string>
+     */
+    private function audioArgs(array $properties): array
+    {
+        if ($properties['audio_codec'] === 'aac') {
+            return ['-c:a', 'copy'];
+        }
+
+        return ['-c:a', 'aac', '-b:a', '128k'];
+    }
+
+    private function validateOutput(string $outputFile): void
+    {
+        if (! file_exists($outputFile) || filesize($outputFile) === 0) {
+            throw new RuntimeException('FFmpeg did not produce a valid output file.');
+        }
     }
 
     private function cleanupFile(string $path): void
@@ -104,41 +247,5 @@ class EncodeVideoTo720p implements ShouldQueue
         $stream = fopen($localPath, 'rb');
         Storage::disk('s3')->put($s3Path, $stream);
         fclose($stream);
-    }
-
-    private function getVideoDuration(string $filePath): int
-    {
-        $result = Process::timeout(30)->run([
-            'ffprobe', '-v', 'quiet',
-            '-show_entries', 'format=duration',
-            '-of', 'csv=p=0',
-            $filePath,
-        ]);
-
-        return $result->successful() ? (int) round((float) trim($result->output())) : 0;
-    }
-
-    private function encode(string $inputFile, string $outputFile): void
-    {
-        $result = Process::timeout(7200)->run([
-            'ffmpeg', '-y',
-            '-i', $inputFile,
-            '-c:v', 'libx264',
-            '-crf', '23',
-            '-preset', 'fast',
-            '-vf', 'scale=-2:720',
-            '-c:a', 'aac',
-            '-b:a', '128k',
-            '-movflags', '+faststart',
-            $outputFile,
-        ]);
-
-        if (! $result->successful()) {
-            throw new RuntimeException('FFmpeg encoding failed: '.$result->errorOutput());
-        }
-
-        if (! file_exists($outputFile) || filesize($outputFile) === 0) {
-            throw new RuntimeException('FFmpeg did not produce a valid output file.');
-        }
     }
 }

@@ -46,9 +46,28 @@ const errorMessage = ref(props.existingUpload?.error_message ?? '');
 const showDeleteConfirm = ref(false);
 const showUploadingWarning = ref(false);
 let removeInertiaListener: (() => void) | null = null;
+let wakeLock: WakeLockSentinel | null = null;
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+        }
+    } catch {
+        // Wake Lock not supported or denied — non-critical
+    }
+}
+
+async function releaseWakeLock() {
+    if (wakeLock) {
+        await wakeLock.release().catch(() => {});
+        wakeLock = null;
+    }
+}
 
 function startNavigationGuard() {
     window.addEventListener('beforeunload', onBeforeUnloadHandler);
+    requestWakeLock();
     removeInertiaListener = router.on('before', (event) => {
         if (status.value === 'uploading' || status.value === 'paused') {
             event.preventDefault();
@@ -60,12 +79,14 @@ function startNavigationGuard() {
 
 function stopNavigationGuard() {
     window.removeEventListener('beforeunload', onBeforeUnloadHandler);
+    releaseWakeLock();
     if (removeInertiaListener) {
         removeInertiaListener();
         removeInertiaListener = null;
     }
 }
 const uploadedFilename = ref(props.existingUpload?.original_filename ?? '');
+const videoUploadUrl = computed(() => `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`);
 
 let uppy: Uppy | null = null;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -73,29 +94,26 @@ let lastLoaded = 0;
 let lastTime = 0;
 let lastS3Key: string | null = null;
 
-const statusLabel = computed(() => {
-    switch (status.value) {
-        case 'idle': return 'Sin video';
-        case 'uploading': return 'Subiendo...';
-        case 'paused': return 'Pausado';
-        case 'encoding': return 'Procesando video...';
-        case 'ready': return 'Video listo';
-        case 'failed': return 'Error';
-        default: return '';
-    }
-});
+const STATUS_LABELS: Record<string, string> = {
+    idle: 'Sin video',
+    uploading: 'Subiendo...',
+    paused: 'Pausado',
+    encoding: 'Procesando video...',
+    ready: 'Video listo',
+    failed: 'Error',
+};
 
-const statusColor = computed(() => {
-    switch (status.value) {
-        case 'idle': return 'text-muted-foreground';
-        case 'uploading': return 'text-blue-400';
-        case 'paused': return 'text-yellow-400';
-        case 'encoding': return 'text-amber-400';
-        case 'ready': return 'text-emerald-400';
-        case 'failed': return 'text-red-400';
-        default: return '';
-    }
-});
+const STATUS_COLORS: Record<string, string> = {
+    idle: 'text-muted-foreground',
+    uploading: 'text-blue-400',
+    paused: 'text-yellow-400',
+    encoding: 'text-amber-400',
+    ready: 'text-emerald-400',
+    failed: 'text-red-400',
+};
+
+const statusLabel = computed(() => STATUS_LABELS[status.value] ?? '');
+const statusColor = computed(() => STATUS_COLORS[status.value] ?? '');
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024) return bytes + ' B';
@@ -143,9 +161,9 @@ async function startUpload(file: File) {
     try {
         // Clean up any stale upload before starting a new one
         if (props.existingUpload) {
-            await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
+            await fetch(videoUploadUrl.value, {
                 method: 'DELETE',
-                headers: { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+                headers: freshHeaders(),
                 credentials: 'same-origin',
             }).catch(() => {});
         }
@@ -157,13 +175,25 @@ async function startUpload(file: File) {
     }
 }
 
-function initUppy(file: File) {
-    const csrf = getCsrfToken();
-    const headers: Record<string, string> = {
-        'X-XSRF-TOKEN': csrf,
+function freshHeaders(): Record<string, string> {
+    return {
+        'X-XSRF-TOKEN': getCsrfToken(),
         'Accept': 'application/json',
     };
+}
 
+async function fetchOrThrow(input: RequestInfo, init?: RequestInit): Promise<Response> {
+    const res = await fetch(input, init);
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Error ${res.status}: ${text.slice(0, 200) || res.statusText}`);
+    }
+
+    return res;
+}
+
+function initUppy(file: File) {
     uppy = new Uppy({
         restrictions: {
             maxFileSize: 25 * 1073741824,
@@ -176,10 +206,21 @@ function initUppy(file: File) {
     uppy.use(AwsS3, {
         shouldUseMultipart: (file) => (file.size ?? 0) > 100 * 1024 * 1024,
 
+        getChunkSize(file) {
+            const size = file.size ?? 0;
+            const MB = 1024 * 1024;
+
+            // Target ~100 parts to keep request count manageable
+            const calculated = Math.ceil(size / 100);
+
+            // Minimum 10MB, maximum 100MB per part
+            return Math.min(Math.max(calculated, 10 * MB), 100 * MB);
+        },
+
         async createMultipartUpload(file) {
-            const res = await fetch('/s3/multipart', {
+            const res = await fetchOrThrow('/s3/multipart', {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: file.name,
@@ -192,25 +233,25 @@ function initUppy(file: File) {
         },
 
         async signPart(file, { uploadId, key, partNumber }) {
-            const res = await fetch(
+            const res = await fetchOrThrow(
                 `/s3/multipart/${uploadId}/${partNumber}?key=${encodeURIComponent(key)}`,
-                { credentials: 'same-origin', headers },
+                { credentials: 'same-origin', headers: freshHeaders() },
             );
             return await res.json();
         },
 
         async listParts(file, { uploadId, key }) {
-            const res = await fetch(
+            const res = await fetchOrThrow(
                 `/s3/multipart/${uploadId}?key=${encodeURIComponent(key)}`,
-                { credentials: 'same-origin', headers },
+                { credentials: 'same-origin', headers: freshHeaders() },
             );
             return await res.json();
         },
 
         async completeMultipartUpload(file, { uploadId, key, parts }) {
-            const res = await fetch(`/s3/multipart/${uploadId}/complete`, {
+            const res = await fetchOrThrow(`/s3/multipart/${uploadId}/complete`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ key, parts }),
             });
@@ -220,7 +261,7 @@ function initUppy(file: File) {
         async abortMultipartUpload(file, { uploadId, key }) {
             await fetch(`/s3/multipart/${uploadId}`, {
                 method: 'DELETE',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ key }),
             });
@@ -248,11 +289,10 @@ function initUppy(file: File) {
 
         const s3Key = lastS3Key;
 
-        // Register the upload in backend and trigger processing pipeline
         try {
-            const res = await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
+            const res = await fetch(videoUploadUrl.value, {
                 method: 'POST',
-                headers: { ...{ 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' }, 'Content-Type': 'application/json' },
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: file.name,
@@ -311,12 +351,9 @@ async function cancelUpload() {
     speed.value = '';
 
     try {
-        await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
+        await fetch(videoUploadUrl.value, {
             method: 'DELETE',
-            headers: {
-                'X-XSRF-TOKEN': getCsrfToken(),
-                'Accept': 'application/json',
-            },
+            headers: freshHeaders(),
             credentials: 'same-origin',
         });
     } catch {
@@ -326,12 +363,9 @@ async function cancelUpload() {
 
 async function deleteVideo() {
     try {
-        await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`, {
+        await fetch(videoUploadUrl.value, {
             method: 'DELETE',
-            headers: {
-                'X-XSRF-TOKEN': getCsrfToken(),
-                'Accept': 'application/json',
-            },
+            headers: freshHeaders(),
             credentials: 'same-origin',
         });
         showDeleteConfirm.value = false;
@@ -348,9 +382,9 @@ const retrying = ref(false);
 async function retryYouTube() {
     retrying.value = true;
     try {
-        const res = await fetch(`/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload/retry-youtube`, {
+        const res = await fetch(`${videoUploadUrl.value}/retry-youtube`, {
             method: 'POST',
-            headers: { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+            headers: freshHeaders(),
             credentials: 'same-origin',
         });
 
@@ -369,24 +403,28 @@ async function retryYouTube() {
     }
 }
 
+async function fetchAndSyncStatus(): Promise<void> {
+    const response = await fetch(videoUploadUrl.value, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' },
+    });
+    const data = await response.json();
+
+    if (data.video_upload?.status === 'ready') {
+        status.value = 'ready';
+        stopPolling();
+        emit('uploaded');
+    } else if (data.video_upload?.status === 'failed') {
+        status.value = 'failed';
+        errorMessage.value = data.video_upload.error_message || 'El procesamiento falló.';
+        stopPolling();
+    }
+}
+
 async function refreshStatus() {
     refreshing.value = true;
     try {
-        const response = await fetch(
-            `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`,
-            { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
-        );
-        const data = await response.json();
-
-        if (data.video_upload?.status === 'ready') {
-            status.value = 'ready';
-            stopPolling();
-            emit('uploaded');
-        } else if (data.video_upload?.status === 'failed') {
-            status.value = 'failed';
-            errorMessage.value = data.video_upload.error_message || 'El procesamiento falló.';
-            stopPolling();
-        }
+        await fetchAndSyncStatus();
     } catch {
         // Ignore
     } finally {
@@ -398,21 +436,7 @@ function startPolling() {
     stopPolling();
     pollInterval = setInterval(async () => {
         try {
-            const response = await fetch(
-                `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`,
-                { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
-            );
-            const data = await response.json();
-
-            if (data.video_upload?.status === 'ready') {
-                status.value = 'ready';
-                stopPolling();
-                emit('uploaded');
-            } else if (data.video_upload?.status === 'failed') {
-                status.value = 'failed';
-                errorMessage.value = data.video_upload.error_message || 'El procesamiento falló.';
-                stopPolling();
-            }
+            await fetchAndSyncStatus();
         } catch {
             // Retry on next interval
         }
@@ -430,13 +454,22 @@ function onBeforeUnloadHandler(e: BeforeUnloadEvent) {
     e.preventDefault();
 }
 
-onMounted(async () => {
+function onVisibilityChange() {
+    if (document.visibilityState === 'visible' && (status.value === 'uploading' || status.value === 'paused')) {
+        requestWakeLock();
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     if (status.value === 'encoding') {
         startPolling();
     }
 });
 
 onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     stopPolling();
     stopNavigationGuard();
     if (uppy) {
@@ -529,10 +562,13 @@ onBeforeUnmount(() => {
                     allowfullscreen
                 />
             </div>
-            <!-- Processing indicator while YouTube upload is pending -->
-            <div v-else class="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-                <Loader2 class="size-4 animate-spin text-amber-400" />
-                <span class="text-xs text-amber-400">Preparando video...</span>
+            <!-- YouTube not available — show retry option -->
+            <div v-else class="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <span class="text-xs text-muted-foreground">YouTube no disponible</span>
+                <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
+                    <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
+                    Subir a YouTube
+                </Button>
             </div>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">
