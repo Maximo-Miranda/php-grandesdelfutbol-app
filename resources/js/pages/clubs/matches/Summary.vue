@@ -5,6 +5,7 @@ import {
     ArrowLeftRight,
     Calendar,
     Check,
+    CheckCircle,
     CircleDot,
     Clock,
     CornerDownRight,
@@ -212,6 +213,23 @@ const videoEmbedUrl = computed(() => {
 const deletingVideo = ref(false);
 const showDeleteVideoDialog = ref(false);
 const copiedLink = ref(false);
+const retryingYouTube = ref(false);
+
+function retryYouTubeUpload() {
+    retryingYouTube.value = true;
+    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+    fetch(`${base}/${props.match.ulid}/video-upload/retry-youtube`, {
+        method: 'POST',
+        headers: { 'X-XSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        credentials: 'same-origin',
+    }).then((res) => {
+        if (res.ok) {
+            router.reload();
+        }
+    }).finally(() => {
+        retryingYouTube.value = false;
+    });
+}
 
 function copyYoutubeLink() {
     if (!youtubeUrl.value) return;
@@ -1004,6 +1022,46 @@ async function shareReel(reel: MatchReel) {
                     <div v-else></div>
                     <!-- Delete video (admin) -->
                     <Dialog v-if="isAdmin" v-model:open="showDeleteVideoDialog">
+                        <DialogTrigger as-child>
+                            <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
+                                <Trash2 class="size-3.5" />
+                                Eliminar video
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Eliminar video del partido</DialogTitle>
+                                <DialogDescription>
+                                    Se eliminara el video de este partido. Los reels generados se mantendran pero no se podran generar nuevos hasta subir otro video.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter class="gap-2 sm:gap-0">
+                                <DialogClose as-child>
+                                    <Button variant="outline">Cancelar</Button>
+                                </DialogClose>
+                                <Button variant="destructive" class="gap-2" :disabled="deletingVideo" @click="confirmDeleteVideo">
+                                    <Trash2 class="size-4" />
+                                    {{ deletingVideo ? 'Eliminando...' : 'Eliminar video' }}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </div>
+            <div v-else-if="hasVideoReady && !isFullscreen" class="mt-4">
+                <div class="flex items-center gap-2 text-sm text-emerald-400">
+                    <CheckCircle class="size-4" />
+                    <span class="font-medium">Video listo</span>
+                </div>
+                <div class="mt-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    <span class="text-xs text-muted-foreground">YouTube no disponible</span>
+                    <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retryingYouTube" @click="retryYouTubeUpload">
+                        <RefreshCw class="size-3.5" :class="retryingYouTube ? 'animate-spin' : ''" />
+                        Subir a YouTube
+                    </Button>
+                </div>
+                <div v-if="isAdmin" class="mt-2">
+                    <Dialog v-model:open="showDeleteVideoDialog">
                         <DialogTrigger as-child>
                             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
                                 <Trash2 class="size-3.5" />
