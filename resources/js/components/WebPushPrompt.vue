@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Bell, ChevronRight } from 'lucide-vue-next';
+import { Bell } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useWebPush } from '@/composables/useWebPush';
 
@@ -25,19 +25,25 @@ const href = computed(() =>
     <Link
         v-if="visible"
         :href="href"
-        class="flex items-center gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2.5 transition-colors hover:bg-primary/15"
+        class="group flex items-center gap-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-amber-400/5 px-4 py-3 transition-all hover:from-amber-500/15 hover:to-amber-400/10"
     >
-        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/20">
-            <Bell class="size-4 text-primary" />
+        <span class="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
+            <Bell class="size-4 text-amber-500 transition-transform group-hover:rotate-12" />
+            <span class="absolute -right-0.5 -top-0.5 flex size-2.5">
+                <span class="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span class="relative inline-flex size-2.5 rounded-full bg-amber-500" />
+            </span>
         </span>
         <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-foreground">
-                Activa las notificaciones push
+            <p class="text-sm font-semibold text-foreground">
+                No te pierdas nada
             </p>
             <p class="text-xs text-muted-foreground">
-                Enterate al instante de partidos, invitaciones y novedades de tu club
+                Activa las alertas y enterate primero
             </p>
         </div>
-        <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+        <span class="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+            Activar
+        </span>
     </Link>
 </template>

@@ -17,6 +17,7 @@ class StoreVideoServiceRequestRequest extends FormRequest
         $isGuest = ! $this->user();
 
         return [
+            'match_ulid' => ['nullable', 'string', 'exists:matches,ulid'],
             'name' => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'email' => [$isGuest ? 'required' : 'nullable', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:20'],

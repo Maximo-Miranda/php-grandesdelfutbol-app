@@ -3,7 +3,7 @@
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\User;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests cannot access club notifications page', function () {
@@ -23,35 +23,31 @@ test('club member can view notifications page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('clubs/Notifications')
             ->has('club')
-            ->has('ntfyTopic')
-            ->has('ntfyUrl')
-            ->has('ntfyHost')
-            ->has('vapidPublicKey')
-            ->where('ntfyTopic', "gdf-{$club->ulid}"),
+            ->has('vapidPublicKey'),
         );
 });
 
-test('admin can send test notification to club ntfy topic', function () {
-    Http::fake();
+test('member with push subscription can send test notification', function () {
+    Notification::fake();
 
     $club = Club::factory()->create();
-    $admin = User::factory()->create();
-    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
+    $user = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $user->updatePushSubscription('https://push.example.com/1', 'key1', 'auth1');
 
-    $this->actingAs($admin)
+    $this->actingAs($user)
         ->post(route('clubs.notifications.test', $club))
         ->assertRedirect()
-        ->assertSessionHas('success', 'Notificación de prueba enviada al canal del club.');
-
-    Http::assertSentCount(1);
+        ->assertSessionHas('success', 'Notificación de prueba enviada.');
 });
 
-test('non-admin member cannot send test notification', function () {
+test('member without push subscription cannot send test notification', function () {
     $club = Club::factory()->create();
     $user = User::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
 
     $this->actingAs($user)
         ->post(route('clubs.notifications.test', $club))
-        ->assertForbidden();
+        ->assertRedirect()
+        ->assertSessionHas('error', 'Primero activa las notificaciones push.');
 });

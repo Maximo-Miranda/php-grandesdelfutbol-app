@@ -3,9 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\FootballMatch;
-use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
@@ -34,7 +34,23 @@ class MatchStatsFinalizedNotification extends Notification implements ShouldQueu
     /** @return array<int, string> */
     public function via(object $notifiable): array
     {
-        return [WebPushChannel::class];
+        $channels = ['mail'];
+
+        if ($notifiable->pushSubscriptions()->exists()) {
+            $channels[] = WebPushChannel::class;
+        }
+
+        return $channels;
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject("Estadísticas disponibles — {$this->matchTitle}")
+            ->greeting('Estadísticas registradas')
+            ->line("Las estadísticas de **{$this->matchTitle}** ya están disponibles. Revisa tus números.")
+            ->action('Ver resumen', $this->summaryUrl)
+            ->salutation('Grandes del Futbol');
     }
 
     public function toWebPush(object $notifiable, object $notification): WebPushMessage
@@ -46,16 +62,5 @@ class MatchStatsFinalizedNotification extends Notification implements ShouldQueu
             ->badge('/badge-96x96.png')
             ->tag("match-stats-{$this->match->id}")
             ->data(['url' => $this->summaryUrl]);
-    }
-
-    /** @return array<string, mixed> */
-    public function toNtfyPayload(): array
-    {
-        return NtfyMessage::create("{$this->matchTitle} — Revisa tus números")
-            ->title('Estadísticas disponibles')
-            ->tags('trophy')
-            ->priority(3)
-            ->click($this->summaryUrl)
-            ->toArray();
     }
 }

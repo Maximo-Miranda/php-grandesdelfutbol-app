@@ -77,7 +77,7 @@ export function useWebPush() {
         try {
             const registration = await waitForSW();
             if (!registration) {
-                error.value = 'El service worker no está disponible. Ejecuta npm run build para habilitarlo.';
+                error.value = 'Las notificaciones no están disponibles en este momento. Recarga la página e intenta de nuevo.';
                 return false;
             }
 
@@ -115,7 +115,11 @@ export function useWebPush() {
             isSubscribed.value = response.ok;
             return response.ok;
         } catch (e) {
-            error.value = 'No se pudo activar las notificaciones. Intenta de nuevo.';
+            if (Notification.permission === 'denied') {
+                error.value = 'Las notificaciones están bloqueadas en tu navegador. Ve a Ajustes del navegador > Permisos > Notificaciones y permite este sitio.';
+            } else {
+                error.value = 'No se pudo activar las notificaciones. Verifica que tu navegador permita notificaciones para este sitio e intenta de nuevo.';
+            }
             console.error('[WebPush] Subscribe failed:', e);
             return false;
         } finally {

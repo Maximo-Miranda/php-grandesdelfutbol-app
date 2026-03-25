@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Enums\MatchStatus;
-use App\Jobs\PublishClubNtfy;
 use App\Models\FootballMatch;
 use App\Notifications\MatchRegistrationOpenNotification;
 use Illuminate\Console\Command;
@@ -42,21 +41,16 @@ class NotifyMatchRegistrationOpen extends Command
 
         $query->chunkById(100, function ($matches) {
             foreach ($matches as $match) {
-                $notification = new MatchRegistrationOpenNotification($match);
-
-                $users = $match->club->approvedMemberUsersWithPush();
+                $users = $match->club->approvedMemberUsers();
 
                 if ($users->isNotEmpty()) {
-                    Notification::send($users, $notification);
-                    $this->info("Match #{$match->id} '{$match->title}': web push sent to {$users->count()} user(s).");
+                    Notification::send($users, new MatchRegistrationOpenNotification($match));
+                    $this->info("Match #{$match->id} '{$match->title}': notified {$users->count()} member(s).");
                 }
-
-                // ntfy to club topic
-                PublishClubNtfy::dispatch($match->club, $notification->toNtfyPayload());
 
                 Log::info('matches:notify-registration-open — notified', [
                     'match_id' => $match->id,
-                    'web_push_count' => $users->count(),
+                    'member_count' => $users->count(),
                 ]);
 
                 $match->update(['registration_notified_at' => now()]);

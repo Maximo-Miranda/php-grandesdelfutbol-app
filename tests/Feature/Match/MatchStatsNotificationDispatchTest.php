@@ -1,17 +1,14 @@
 <?php
 
-use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
 use App\Models\User;
 use App\Notifications\MatchStatsFinalizedNotification;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 
-test('dispatches web push and ntfy when stats are finalized', function () {
+test('notifies all approved members when stats are finalized for the first time', function () {
     Notification::fake();
-    Bus::fake([PublishClubNtfy::class]);
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -19,31 +16,10 @@ test('dispatches web push and ntfy when stats are finalized', function () {
 
     $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
 
-    $this->actingAs($admin)
-        ->post(route('clubs.matches.finalizeStats', [$club, $match]))
-        ->assertRedirect();
-
-    Bus::assertDispatched(PublishClubNtfy::class, function ($job) use ($club) {
-        return $job->club->id === $club->id;
-    });
-});
-
-test('sends web push to members with push subscriptions when stats are finalized', function () {
-    Notification::fake();
-    Bus::fake([PublishClubNtfy::class]);
-
-    $club = Club::factory()->create();
-    $admin = User::factory()->create();
-    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
-
-    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
-
-    // Member with push subscription
     $memberWithPush = User::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithPush->id]);
     $memberWithPush->updatePushSubscription('https://push.example.com/1', 'key1', 'auth1');
 
-    // Member without push subscription
     $memberWithout = User::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $memberWithout->id]);
 
@@ -52,12 +28,40 @@ test('sends web push to members with push subscriptions when stats are finalized
         ->assertRedirect();
 
     Notification::assertSentTo($memberWithPush, MatchStatsFinalizedNotification::class);
-    Notification::assertNotSentTo($memberWithout, MatchStatsFinalizedNotification::class);
+    Notification::assertSentTo($memberWithout, MatchStatsFinalizedNotification::class);
 });
 
-test('always dispatches ntfy job even when no push subscriptions exist', function () {
+test('does not re-notify when stats are re-finalized', function () {
     Notification::fake();
-    Bus::fake([PublishClubNtfy::class]);
+
+    $club = Club::factory()->create();
+    $admin = User::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
+
+    $member = User::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $member->id]);
+
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+
+    // First finalization — notifies
+    $this->actingAs($admin)
+        ->post(route('clubs.matches.finalizeStats', [$club, $match]))
+        ->assertRedirect();
+
+    Notification::assertSentTo($member, MatchStatsFinalizedNotification::class);
+
+    Notification::fake(); // Reset
+
+    // Re-finalization — should NOT notify again
+    $this->actingAs($admin)
+        ->post(route('clubs.matches.finalizeStats', [$club, $match]))
+        ->assertRedirect();
+
+    Notification::assertNothingSent();
+});
+
+test('does not notify when no approved members exist', function () {
+    Notification::fake();
 
     $club = Club::factory()->create();
     $admin = User::factory()->create();
@@ -69,6 +73,6 @@ test('always dispatches ntfy job even when no push subscriptions exist', functio
         ->post(route('clubs.matches.finalizeStats', [$club, $match]))
         ->assertRedirect();
 
-    Notification::assertNothingSent();
-    Bus::assertDispatched(PublishClubNtfy::class);
+    // Admin is a member so they get notified
+    Notification::assertSentTo($admin, MatchStatsFinalizedNotification::class);
 });

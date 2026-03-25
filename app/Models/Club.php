@@ -188,27 +188,11 @@ class Club extends Model
             ->get();
     }
 
-    public function ntfyTopic(): string
-    {
-        return "gdf-{$this->ulid}";
-    }
-
     /** @return \Illuminate\Support\Collection<int, User> */
     public function approvedMemberUsers(): \Illuminate\Support\Collection
     {
         return $this->members()
             ->where('status', ClubMemberStatus::Approved)
-            ->with('user')
-            ->get()
-            ->pluck('user');
-    }
-
-    /** @return \Illuminate\Support\Collection<int, User> */
-    public function approvedMemberUsersWithPush(): \Illuminate\Support\Collection
-    {
-        return $this->members()
-            ->where('status', ClubMemberStatus::Approved)
-            ->whereHas('user', fn ($q) => $q->whereHas('pushSubscriptions'))
             ->with('user')
             ->get()
             ->pluck('user');

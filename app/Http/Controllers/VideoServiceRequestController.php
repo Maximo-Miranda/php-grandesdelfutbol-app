@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\VideoServiceRequest\StoreVideoServiceRequestRequest;
+use App\Models\FootballMatch;
 use App\Models\VideoServiceRequest;
 use App\Notifications\VideoServiceRequestNotification;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,11 @@ class VideoServiceRequestController extends Controller
         }
 
         $data['club_name'] = $data['club_name'] ?? 'Anónimo';
+
+        if (! empty($data['match_ulid'])) {
+            $data['match_id'] = FootballMatch::where('ulid', $data['match_ulid'])->value('id');
+        }
+        unset($data['match_ulid']);
 
         $videoServiceRequest = VideoServiceRequest::create($data);
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Send, Settings, UserPlus, UsersRound, Video } from 'lucide-vue-next';
+import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Send, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import VideoServiceCta from '@/components/VideoServiceCta.vue';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,7 @@ async function submitVideoServiceRequest() {
                 preferred_time: props.nextMatch?.scheduled_at?.split('T')[1]?.substring(0, 5) ?? '',
                 selected_plan: vsrPlan.value,
                 message: vsrMessage.value || null,
+                match_ulid: props.nextMatch?.ulid ?? null,
             }),
         });
         if (res.ok) {
@@ -190,15 +192,12 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                 </p>
             </Link>
 
-            <button
+            <VideoServiceCta
                 v-if="nextMatch"
-                type="button"
-                class="mb-4 flex w-full items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5 text-left transition-colors hover:bg-emerald-500/10"
-                @click="showVideoServiceDialog = true"
-            >
-                <Video class="size-4 shrink-0 text-emerald-500" />
-                <span class="text-sm font-medium">¿Quieres que grabemos este partido?</span>
-            </button>
+                class="mb-4"
+                :status="nextMatch.active_video_service_request?.status"
+                @request="showVideoServiceDialog = true"
+            />
 
             <div v-else class="mb-4 rounded-lg border border-border p-4 text-center">
                 <CalendarDays class="mx-auto mb-2 size-8 text-muted-foreground" />

@@ -1,6 +1,5 @@
 <?php
 
-use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
@@ -8,12 +7,10 @@ use App\Models\MatchAttendance;
 use App\Models\MatchEvent;
 use App\Models\Player;
 use App\Models\User;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 
 test('admin can finalize stats for a completed match', function () {
     Notification::fake();
-    Bus::fake([PublishClubNtfy::class]);
 
     $user = User::factory()->create();
     $club = Club::factory()->create();
@@ -57,7 +54,6 @@ test('cannot finalize stats for non-completed match', function () {
 
 test('re-registering stats reverts previous and reapplies without duplication', function () {
     Notification::fake();
-    Bus::fake([PublishClubNtfy::class]);
 
     $user = User::factory()->create();
     $club = Club::factory()->create();

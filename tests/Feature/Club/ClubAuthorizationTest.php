@@ -83,6 +83,6 @@ test('club index only shows clubs user is a member of', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('clubs/Index')
-            ->has('clubs', 1)
+            ->has('clubs.data', 1)
         );
 });

@@ -34,23 +34,14 @@ class ClubController extends Controller
 
         $user = auth()->user();
 
-        $clubs = Club::query()
-            ->forUser($user)
-            ->with('owner')
-            ->withCount([
-                'members' => fn ($query) => $query->where('status', ClubMemberStatus::Approved),
-                'matches',
-                'matches as upcoming_matches_count' => fn ($query) => $query->upcoming(),
-            ])
-            ->latest()
-            ->get();
+        $clubIds = Club::query()->forUser($user)->pluck('id');
 
         $pendingMemberships = $user->clubMemberships()
             ->with('club')
             ->where('status', ClubMemberStatus::Pending)
             ->get();
 
-        if ($clubs->isEmpty() && $pendingMemberships->isEmpty()) {
+        if ($clubIds->isEmpty() && $pendingMemberships->isEmpty()) {
             $invitation = ClubInvitation::query()
                 ->where('email', $user->email)
                 ->valid()
@@ -63,12 +54,25 @@ class ClubController extends Controller
             return redirect()->route('clubs.create');
         }
 
-        $clubIds = $clubs->pluck('id');
+        $perPage = request()->has('page') ? 10 : 5;
+
+        $clubs = Inertia::scroll(
+            fn () => Club::query()
+                ->forUser($user)
+                ->with('owner')
+                ->withCount([
+                    'members' => fn ($query) => $query->where('status', ClubMemberStatus::Approved),
+                    'matches',
+                    'matches as upcoming_matches_count' => fn ($query) => $query->upcoming(),
+                ])
+                ->latest()
+                ->simplePaginate($perPage),
+        );
 
         $nextMatch = FootballMatch::query()
             ->whereIn('club_id', $clubIds)
             ->upcoming()
-            ->with('club', 'field')
+            ->with('club', 'field', 'activeVideoServiceRequest')
             ->withCount([
                 'attendances',
                 'attendances as confirmed_count' => fn ($q) => $q->where('status', AttendanceStatus::Confirmed),
@@ -126,7 +130,7 @@ class ClubController extends Controller
 
         $nextMatch = $club->matches()
             ->upcoming()
-            ->with('field', 'attendances')
+            ->with('field', 'attendances', 'activeVideoServiceRequest')
             ->orderBy('scheduled_at')
             ->first();
 

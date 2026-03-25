@@ -40,6 +40,7 @@ export type FootballMatch = {
     registration_opens_hours: number;
     notes: string | null;
     video_upload?: MatchVideoUpload | null;
+    active_video_service_request?: { status: 'pending' | 'contacted' | 'completed' | 'rejected' } | null;
     started_at: string | null;
     ended_at: string | null;
     stats_finalized_at: string | null;

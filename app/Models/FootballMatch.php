@@ -193,6 +193,11 @@ class FootballMatch extends Model
         return $this->hasOne(MatchVideoUpload::class, 'football_match_id');
     }
 
+    public function activeVideoServiceRequest(): HasOne
+    {
+        return $this->hasOne(VideoServiceRequest::class, 'match_id')->latestOfMany();
+    }
+
     public function confirmedAttendeeUsers(): Collection
     {
         return $this->attendances()

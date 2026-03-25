@@ -4,11 +4,8 @@ import {
     Bell,
     BellOff,
     Check,
-    Clipboard,
-    Download,
-    ExternalLink,
+    Mail,
     Send,
-    Smartphone,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
@@ -20,9 +17,6 @@ import type { BreadcrumbItem, Club } from '@/types';
 
 type Props = {
     club: Club;
-    ntfyTopic: string;
-    ntfyUrl: string;
-    ntfyHost: string;
     vapidPublicKey: string;
 };
 
@@ -46,65 +40,75 @@ const {
     unsubscribe,
 } = useWebPush();
 
-// Platform detection for ntfy
-const isAndroid = computed(() => {
-    if (typeof navigator === 'undefined') return false;
-    return /Android/i.test(navigator.userAgent);
-});
-
-const isMobile = computed(() => isAndroid.value || isIos.value);
-
-const ntfyAppUrl = computed(() => {
-    if (isAndroid.value) return 'https://play.google.com/store/apps/details?id=io.heckel.ntfy';
-    if (isIos.value) return 'https://apps.apple.com/app/ntfy/id1625396347';
-    return 'https://ntfy.sh/app';
-});
-
-const ntfyAppLabel = computed(() => {
-    if (isAndroid.value) return 'Google Play';
-    if (isIos.value) return 'App Store';
-    return 'ntfy Web App';
-});
-
 const testSent = ref(false);
-const copiedTopic = ref(false);
 
-function copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text);
-    copiedTopic.value = true;
-    setTimeout(() => { copiedTopic.value = false; }, 2000);
-}
+const permissionDeniedInstructions = computed(() => {
+    if (typeof navigator === 'undefined') return '';
+    const ua = navigator.userAgent;
+    if (/Android/i.test(ua)) {
+        return 'Abre los ajustes del navegador > Configuración del sitio > Notificaciones y permite este sitio.';
+    }
+    if (/iPhone|iPad|iPod/i.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1)) {
+        return 'Ve a Ajustes del iPhone > la app del navegador > Notificaciones y actívalas. Luego recarga esta página.';
+    }
+    if (/Chrome/i.test(ua)) {
+        return 'Haz clic en el candado junto a la URL > Permisos del sitio > Notificaciones > Permitir.';
+    }
+    if (/Firefox/i.test(ua)) {
+        return 'Haz clic en el candado junto a la URL > Permisos > Notificaciones > Permitir.';
+    }
+    return 'Abre los ajustes de tu navegador y permite las notificaciones para este sitio.';
+});
 </script>
 
 <template>
     <Head title="Notificaciones" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto w-full max-w-2xl space-y-8 px-4 py-6">
+        <div class="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
             <Heading
                 title="Notificaciones"
                 :description="`Configura cómo recibir notificaciones de ${club.name}`"
             />
 
-            <!-- Web Push section -->
-            <div class="space-y-4 rounded-lg border border-border p-4">
+            <!-- Email section -->
+            <div class="space-y-3 rounded-lg border border-border p-4">
                 <div class="flex items-center gap-2">
-                    <Bell class="size-5 text-primary" />
-                    <h2 class="text-lg font-semibold">Notificaciones push</h2>
-                    <Badge v-if="isSubscribed" variant="default" class="ml-auto">
+                    <Mail class="size-5 shrink-0 text-primary" style="margin-top: 1px" />
+                    <h2 class="text-base font-semibold">Correo electrónico</h2>
+                    <Badge variant="default" class="ml-auto">
                         <Check class="mr-1 size-3" />
-                        Activa
+                        Siempre activo
                     </Badge>
                 </div>
 
                 <p class="text-sm text-muted-foreground">
-                    Recibe notificaciones directamente en tu dispositivo cuando se abra una convocatoria, se suba un video o se publiquen estadísticas.
+                    Te enviamos por correo las convocatorias, videos y estadísticas de tu club. Si no ves nuestros correos, revisa tu carpeta de spam y marca los mensajes de <strong class="text-foreground">Grandes del Futbol</strong> como "no es spam" para recibirlos siempre en tu bandeja principal.
+                </p>
+            </div>
+
+            <!-- Web Push section -->
+            <div class="space-y-4 rounded-lg border border-border p-4">
+                <div class="flex items-center gap-2">
+                    <Bell class="size-5 shrink-0 text-primary" style="margin-top: 1px" />
+                    <h2 class="text-base font-semibold">Notificaciones push</h2>
+                    <Badge v-if="isSubscribed" variant="default" class="ml-auto">
+                        <Check class="mr-1 size-3" />
+                        Activa
+                    </Badge>
+                    <Badge v-else variant="secondary" class="ml-auto">
+                        Opcional
+                    </Badge>
+                </div>
+
+                <p class="text-sm text-muted-foreground">
+                    Recibe alertas instantáneas en tu dispositivo además del correo. Ideal para no perderte convocatorias de último momento.
                 </p>
 
                 <!-- iOS not installed as PWA -->
                 <div v-if="needsInstall" class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
                     <p class="text-sm font-medium text-amber-700 dark:text-amber-400">
-                        Para recibir notificaciones en iPhone, primero añade esta app a tu pantalla de inicio:
+                        Para recibir notificaciones push en iPhone, primero añade esta app a tu pantalla de inicio:
                     </p>
                     <ol class="mt-2 list-inside list-decimal space-y-1 text-sm text-amber-700 dark:text-amber-400">
                         <li>Toca el botón <strong>Compartir</strong> en Safari</li>
@@ -115,8 +119,11 @@ function copyToClipboard(text: string): void {
 
                 <!-- Permission denied -->
                 <div v-else-if="permission === 'denied'" class="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-                    <p class="text-sm text-destructive">
-                        Los permisos de notificaciones están bloqueados. Actívalos desde los ajustes de tu navegador.
+                    <p class="text-sm font-medium text-destructive">
+                        Las notificaciones están bloqueadas en tu navegador.
+                    </p>
+                    <p class="mt-1 text-sm text-destructive/80">
+                        {{ permissionDeniedInstructions }}
                     </p>
                 </div>
 
@@ -129,133 +136,26 @@ function copyToClipboard(text: string): void {
 
                 <!-- Active/Inactive toggle -->
                 <div v-else>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <Button
                             v-if="!isSubscribed"
                             :disabled="isLoading"
                             @click="subscribe"
                         >
                             <Bell class="size-4" />
-                            Activar notificaciones
+                            Activar notificaciones push
                         </Button>
-                        <Button
-                            v-else
-                            variant="destructive"
-                            :disabled="isLoading"
-                            @click="unsubscribe"
-                        >
-                            <BellOff class="size-4" />
-                            Desactivar
-                        </Button>
-                    </div>
-                    <p v-if="pushError" class="mt-2 text-sm text-destructive">
-                        {{ pushError }}
-                    </p>
-                </div>
-            </div>
-
-            <!-- ntfy section (secondary) -->
-            <div class="space-y-5 rounded-lg border border-border p-4">
-                <div class="flex items-center gap-2">
-                    <Smartphone class="size-5 text-muted-foreground" />
-                    <h2 class="text-lg font-semibold">ntfy (alternativa)</h2>
-                </div>
-
-                <p class="text-sm text-muted-foreground">
-                    Si prefieres usar una app externa, puedes recibir las mismas notificaciones a través de ntfy. Es gratis y funciona en cualquier dispositivo.
-                </p>
-
-                <!-- Step 1: Install -->
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            1
-                        </span>
-                        <h3 class="text-sm font-medium">Instala la app de ntfy</h3>
-                    </div>
-                    <p class="pl-8 text-xs text-muted-foreground">
-                        Descárgala gratis desde la tienda de tu dispositivo.
-                    </p>
-                    <div class="pl-8">
-                        <a
-                            :href="ntfyAppUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                        >
-                            <Download class="size-4" />
-                            {{ ntfyAppLabel }}
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Step 2: Subscribe -->
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            2
-                        </span>
-                        <h3 class="text-sm font-medium">Suscríbete al canal del club</h3>
-                    </div>
-                    <div class="space-y-2 pl-8">
-                        <p class="text-xs text-muted-foreground">
-                            Abre ntfy, toca <strong>+</strong> para agregar un canal y pega este nombre:
-                        </p>
-                        <div class="flex items-center gap-2">
-                            <code class="flex-1 break-all rounded-md border border-border bg-background px-3 py-2 font-mono text-sm">
-                                {{ ntfyTopic }}
-                            </code>
+                        <template v-else>
                             <Button
-                                variant="outline"
-                                size="sm"
-                                class="shrink-0 gap-1.5"
-                                @click="copyToClipboard(ntfyTopic)"
+                                variant="destructive"
+                                :disabled="isLoading"
+                                @click="unsubscribe"
                             >
-                                <Check v-if="copiedTopic" class="size-3.5" />
-                                <Clipboard v-else class="size-3.5" />
-                                {{ copiedTopic ? 'Copiado' : 'Copiar' }}
+                                <BellOff class="size-4" />
+                                Desactivar
                             </Button>
-                        </div>
-                        <a
-                            v-if="isAndroid"
-                            :href="`ntfy://${ntfyHost}/${ntfyTopic}?display=${encodeURIComponent(club.name)}`"
-                            class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                        >
-                            <ExternalLink class="size-3.5" />
-                            O toca aquí para abrirlo directo en ntfy
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Step 3: Verify permissions -->
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            3
-                        </span>
-                        <h3 class="text-sm font-medium">Verifica los permisos</h3>
-                    </div>
-                    <div class="space-y-2 pl-8">
-                        <p class="text-xs text-muted-foreground">
-                            Asegúrate de que ntfy pueda enviar notificaciones en tu dispositivo:
-                        </p>
-                        <ul class="space-y-1 text-xs text-muted-foreground">
-                            <li v-if="isAndroid || !isMobile" class="flex items-start gap-1.5">
-                                <span class="mt-0.5 font-bold text-foreground">Android:</span>
-                                Ajustes &gt; Aplicaciones &gt; ntfy &gt; Notificaciones &gt; Activar
-                            </li>
-                            <li v-if="isIos || !isMobile" class="flex items-start gap-1.5">
-                                <span class="mt-0.5 font-bold text-foreground">iPhone:</span>
-                                Ajustes &gt; Notificaciones &gt; ntfy &gt; Permitir notificaciones
-                            </li>
-                            <li v-if="!isMobile" class="flex items-start gap-1.5">
-                                <span class="mt-0.5 font-bold text-foreground">Mac/Windows:</span>
-                                Activa las notificaciones del navegador en los ajustes del sistema
-                            </li>
-                        </ul>
-
-                        <!-- Test button -->
-                        <div class="pt-1">
+                            <!-- Test push -->
                             <Form
                                 :action="`/clubs/${club.ulid}/notifications/test`"
                                 method="post"
@@ -272,15 +172,40 @@ function copyToClipboard(text: string): void {
                                     Enviar prueba
                                 </Button>
                             </Form>
-                            <p
-                                v-if="testSent"
-                                class="mt-1.5 text-xs text-green-600 dark:text-green-400"
-                            >
-                                Notificación enviada. Si no la ves, revisa los permisos del paso anterior.
-                            </p>
-                        </div>
+                        </template>
                     </div>
+                    <p v-if="pushError" class="mt-2 text-sm text-destructive">
+                        {{ pushError }}
+                    </p>
+                    <p
+                        v-if="testSent"
+                        class="mt-2 text-xs text-green-600 dark:text-green-400"
+                    >
+                        Notificación enviada. Si no la ves, revisa los permisos de notificaciones de tu navegador.
+                    </p>
                 </div>
+            </div>
+
+            <!-- What you receive -->
+            <div class="space-y-3 rounded-lg border border-border p-4">
+                <h2 class="text-base font-semibold">Notificaciones que recibes</h2>
+                <ul class="space-y-2 text-sm text-muted-foreground">
+                    <li class="flex items-start gap-2">
+                        <span class="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary" />
+                        <span><strong class="text-foreground">Convocatoria abierta</strong> — cuando se habilita la confirmación de un partido</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary" />
+                        <span><strong class="text-foreground">Video disponible</strong> — cuando el video del partido está listo</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary" />
+                        <span><strong class="text-foreground">Estadísticas registradas</strong> — cuando el admin registra las estadísticas del partido</span>
+                    </li>
+                </ul>
+                <p class="text-xs text-muted-foreground">
+                    Todas se envían por correo. Si tienes push activas, también las recibes como alerta instantánea.
+                </p>
             </div>
         </div>
     </AppLayout>

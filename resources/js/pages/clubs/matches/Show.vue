@@ -28,6 +28,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
+import VideoServiceCta from '@/components/VideoServiceCta.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -348,6 +349,7 @@ async function submitVideoServiceRequest() {
                 preferred_time: props.match.scheduled_at?.split('T')[1]?.substring(0, 5) ?? '',
                 selected_plan: vsrPlan.value,
                 message: vsrMessage.value || null,
+                match_ulid: props.match.ulid,
             }),
         });
         if (res.ok) {
@@ -406,18 +408,12 @@ async function submitVideoServiceRequest() {
             </div>
 
             <!-- Video service CTA -->
-            <button
+            <VideoServiceCta
                 v-if="match.status === 'upcoming'"
-                type="button"
-                class="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-left transition-colors hover:bg-emerald-500/10"
-                @click="showVideoServiceDialog = true"
-            >
-                <Video class="size-5 shrink-0 text-emerald-500" />
-                <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium">¿Quieres que grabemos este partido?</p>
-                    <p class="text-xs text-muted-foreground">Selecciona un plan y te contactamos.</p>
-                </div>
-            </button>
+                class="mt-4"
+                :status="match.active_video_service_request?.status"
+                @request="showVideoServiceDialog = true"
+            />
 
             <!-- Team Matchup (Champions League style) -->
             <div v-if="hasTeamAssignments" class="mt-4 overflow-hidden rounded-xl border border-border bg-card">

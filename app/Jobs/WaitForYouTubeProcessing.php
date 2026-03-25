@@ -92,6 +92,6 @@ class WaitForYouTubeProcessing implements ShouldQueue
             return;
         }
 
-        Notification::send($club->approvedMemberUsersWithPush(), new MatchVideoUploadedNotification($match));
+        Notification::send($club->approvedMemberUsers(), new MatchVideoUploadedNotification($match));
     }
 }

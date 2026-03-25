@@ -3,9 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\FootballMatch;
-use App\Notifications\Messages\NtfyMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
@@ -34,7 +34,23 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
     /** @return array<int, string> */
     public function via(object $notifiable): array
     {
-        return [WebPushChannel::class];
+        $channels = ['mail'];
+
+        if ($notifiable->pushSubscriptions()->exists()) {
+            $channels[] = WebPushChannel::class;
+        }
+
+        return $channels;
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject("Convocatoria abierta — {$this->matchTitle}")
+            ->greeting('Se abrió la convocatoria')
+            ->line("**{$this->matchTitle}** ya tiene convocatoria abierta. Confirma tu asistencia.")
+            ->action('Confirmar asistencia', $this->matchUrl)
+            ->salutation('Grandes del Futbol');
     }
 
     public function toWebPush(object $notifiable, object $notification): WebPushMessage
@@ -46,16 +62,5 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
             ->badge('/badge-96x96.png')
             ->tag("match-registration-{$this->match->id}")
             ->data(['url' => $this->matchUrl]);
-    }
-
-    /** @return array<string, mixed> */
-    public function toNtfyPayload(): array
-    {
-        return NtfyMessage::create("{$this->matchTitle} — Confirma tu asistencia")
-            ->title('Convocatoria abierta')
-            ->tags('soccer')
-            ->priority(4)
-            ->click($this->matchUrl)
-            ->toArray();
     }
 }

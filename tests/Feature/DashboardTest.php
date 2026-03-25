@@ -56,7 +56,7 @@ test('clubs index renders for users with clubs', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('clubs/Index')
-            ->has('clubs', 1)
+            ->has('clubs.data', 1)
             ->has('pendingInvitations')
         );
 });

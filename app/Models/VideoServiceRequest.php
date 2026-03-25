@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property string $ulid
  * @property int|null $user_id
+ * @property int|null $match_id
  * @property string $name
  * @property string $email
  * @property string|null $phone
@@ -32,6 +33,7 @@ class VideoServiceRequest extends Model
 
     protected $fillable = [
         'user_id',
+        'match_id',
         'name',
         'email',
         'phone',
@@ -47,6 +49,11 @@ class VideoServiceRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function match(): BelongsTo
+    {
+        return $this->belongsTo(FootballMatch::class);
     }
 
     protected function casts(): array

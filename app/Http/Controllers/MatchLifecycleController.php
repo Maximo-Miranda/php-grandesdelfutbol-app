@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MatchStatus;
-use App\Jobs\PublishClubNtfy;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Notifications\MatchStatsFinalizedNotification;
@@ -75,16 +74,17 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'Las estadísticas solo pueden registrarse para partidos completados.');
         }
 
+        $isFirstFinalization = $match->stats_finalized_at === null;
+
         $this->statService->finalizeStats($match);
 
-        $notification = new MatchStatsFinalizedNotification($match);
-
-        $members = $club->approvedMemberUsersWithPush();
-        if ($members->isNotEmpty()) {
-            Notification::send($members, $notification);
+        // Only notify on first finalization to avoid spam on re-registrations
+        if ($isFirstFinalization) {
+            $members = $club->approvedMemberUsers();
+            if ($members->isNotEmpty()) {
+                Notification::send($members, new MatchStatsFinalizedNotification($match));
+            }
         }
-
-        PublishClubNtfy::dispatch($club, $notification->toNtfyPayload());
 
         return back()->with('success', 'Estadísticas registradas.');
     }
