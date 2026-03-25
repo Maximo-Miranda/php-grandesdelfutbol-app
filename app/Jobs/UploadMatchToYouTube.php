@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoUploadStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
@@ -112,12 +113,21 @@ class UploadMatchToYouTube implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        // Don't retry if YouTube quota exceeded — the scheduled command will handle it
-        if ($exception && str_contains($exception->getMessage(), 'uploadLimitExceeded')) {
-            $this->delete();
-        }
-
         report($exception);
+
+        $isQuotaExceeded = $exception && str_contains($exception->getMessage(), 'uploadLimitExceeded');
+        $errorMessage = $isQuotaExceeded
+            ? 'Se alcanzó el límite diario de YouTube. Se reintentará automáticamente.'
+            : 'Error al subir a YouTube: '.mb_substr($exception?->getMessage() ?? 'Unknown', 0, 500);
+
+        $this->videoUpload->refresh();
+
+        $this->videoUpload->update([
+            'status' => $this->videoUpload->best_resolution
+                ? VideoUploadStatus::Ready
+                : VideoUploadStatus::Failed,
+            'error_message' => $errorMessage,
+        ]);
     }
 
     private function isDailyLimitReached(): bool

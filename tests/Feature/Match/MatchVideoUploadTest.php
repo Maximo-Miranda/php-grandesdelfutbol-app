@@ -128,6 +128,49 @@ test('admin can delete video upload', function () {
     Storage::disk('s3')->assertMissing('uploads/test/video.mp4');
 });
 
+test('retry youtube requires super admin', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    MatchVideoUpload::factory()->ready()->create([
+        'football_match_id' => $match->id,
+        'uploaded_by' => $user->id,
+        's3_path' => 'videos/test/1080p.mp4',
+    ]);
+
+    $this->actingAs($user)
+        ->postJson(route('clubs.matches.videoUpload.retryYouTube', [$club, $match]))
+        ->assertForbidden();
+});
+
+test('super admin can retry youtube without changing status', function () {
+    Queue::fake();
+
+    $superAdmin = User::factory()->create();
+    config(['app.super_admin_emails' => [$superAdmin->email]]);
+
+    $club = Club::factory()->create();
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    MatchVideoUpload::factory()->ready()->create([
+        'football_match_id' => $match->id,
+        'uploaded_by' => $superAdmin->id,
+        's3_path' => 'videos/test/1080p.mp4',
+    ]);
+
+    $this->actingAs($superAdmin)
+        ->postJson(route('clubs.matches.videoUpload.retryYouTube', [$club, $match]))
+        ->assertOk();
+
+    $this->assertDatabaseHas('match_video_uploads', [
+        'football_match_id' => $match->id,
+        'status' => VideoUploadStatus::Ready->value,
+        'error_message' => null,
+    ]);
+});
+
 test('delete returns 404 when no video exists', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -49,10 +49,10 @@ class MatchVideoUploadController extends Controller
         ]);
     }
 
-    /** Retry YouTube upload for a video that already has S3 720p but failed YouTube. */
+    /** Retry YouTube upload for a video that already has S3 encoding but failed YouTube. */
     public function retryYouTube(Club $club, FootballMatch $match): JsonResponse
     {
-        Gate::authorize('update', $match);
+        Gate::authorize('superAdmin');
 
         $videoUpload = $match->videoUpload;
 
@@ -73,7 +73,6 @@ class MatchVideoUploadController extends Controller
             'youtube_video_id' => null,
             'youtube_uploaded_at' => null,
             'youtube_upload_requested_at' => now(),
-            'status' => VideoUploadStatus::Encoding,
             'error_message' => null,
         ]);
 

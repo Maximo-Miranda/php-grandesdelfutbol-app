@@ -379,31 +379,6 @@ async function deleteVideo() {
 }
 
 const refreshing = ref(false);
-const retrying = ref(false);
-
-async function retryYouTube() {
-    retrying.value = true;
-    try {
-        const res = await fetch(`${videoUploadUrl.value}/retry-youtube`, {
-            method: 'POST',
-            headers: freshHeaders(),
-            credentials: 'same-origin',
-        });
-
-        if (res.ok) {
-            status.value = 'encoding';
-            errorMessage.value = '';
-            startPolling();
-        } else {
-            const data = await res.json();
-            errorMessage.value = data.error || 'Error al reintentar.';
-        }
-    } catch {
-        errorMessage.value = 'Error al reintentar la subida.';
-    } finally {
-        retrying.value = false;
-    }
-}
 
 async function fetchAndSyncStatus(): Promise<void> {
     const response = await fetch(videoUploadUrl.value, {
@@ -588,10 +563,6 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div class="mt-3 flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
-                    <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
-                    Reintentar
-                </Button>
                 <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="refreshing" @click="refreshStatus">
                     <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
                     Verificar estado

@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\VideoUploadStatus;
 use App\Jobs\UploadMatchToYouTube;
 use App\Models\MatchVideoUpload;
 use App\Services\YouTubeService;
+use Google\Service\Exception;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\mock;
@@ -65,4 +67,40 @@ it('is dispatched on video-processing queue', function () {
     $job = new UploadMatchToYouTube($upload);
 
     expect($job->queue)->toBe('video-processing');
+});
+
+it('sets status to ready with error message when youtube fails and video is encoded', function () {
+    $upload = MatchVideoUpload::factory()->ready()->create([
+        'best_resolution' => '1080p',
+        's3_path' => 'videos/test/1080p.mp4',
+        'youtube_video_id' => null,
+    ]);
+
+    $job = new UploadMatchToYouTube($upload);
+    $exception = new Exception('uploadLimitExceeded', 400);
+
+    $job->failed($exception);
+
+    $upload->refresh();
+
+    expect($upload->status)->toBe(VideoUploadStatus::Ready)
+        ->and($upload->error_message)->toContain('límite diario de YouTube');
+});
+
+it('sets status to failed when youtube fails and video has no resolution', function () {
+    $upload = MatchVideoUpload::factory()->encoding()->create([
+        'best_resolution' => null,
+        's3_path' => 'uploads/original.mp4',
+        'youtube_video_id' => null,
+    ]);
+
+    $job = new UploadMatchToYouTube($upload);
+    $exception = new RuntimeException('Connection timeout');
+
+    $job->failed($exception);
+
+    $upload->refresh();
+
+    expect($upload->status)->toBe(VideoUploadStatus::Failed)
+        ->and($upload->error_message)->toContain('Error al subir a YouTube');
 });
