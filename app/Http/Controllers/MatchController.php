@@ -13,6 +13,7 @@ use App\Services\MatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -198,12 +199,11 @@ class MatchController extends Controller
         ];
     }
 
-    /**
-     * @param  User  $user
-     * @return array<string, mixed>
-     */
-    private function summaryProps(Club $club, FootballMatch $match, $user, bool $isAdmin): array
+    /** @return array<string, mixed> */
+    private function summaryProps(Club $club, FootballMatch $match, User $user, bool $isAdmin): array
     {
+        $videoUpload = $match->videoUpload;
+
         return [
             'club' => $club,
             'match' => $match,
@@ -215,6 +215,9 @@ class MatchController extends Controller
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
+            's3VideoUrl' => $videoUpload?->best_resolution && ! $videoUpload->youtube_video_id
+                ? Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addMinutes(30))
+                : null,
         ];
     }
 }

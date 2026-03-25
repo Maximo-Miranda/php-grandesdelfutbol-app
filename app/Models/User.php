@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Notifications\VerifyEmailCode;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -66,7 +68,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  *
  * @mixin \Eloquent
  */
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasPushSubscriptions, Notifiable, TwoFactorAuthenticatable;
@@ -117,6 +119,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isSuperAdmin(): bool
     {
         return in_array($this->email, config('app.super_admin_emails', []));
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->isSuperAdmin();
     }
 
     public function clubMemberships(): HasMany

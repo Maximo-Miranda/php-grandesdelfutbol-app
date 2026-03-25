@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class WaitForYouTubeProcessing implements ShouldQueue
@@ -49,6 +50,7 @@ class WaitForYouTubeProcessing implements ShouldQueue
                 'error_message' => null,
             ]);
 
+            $this->cleanupOriginal();
             $this->notifyClub();
 
             return;
@@ -69,6 +71,16 @@ class WaitForYouTubeProcessing implements ShouldQueue
     public function failed(?Throwable $exception): void
     {
         report($exception);
+    }
+
+    private function cleanupOriginal(): void
+    {
+        $originalPath = $this->videoUpload->original_s3_path;
+
+        if ($originalPath && Storage::disk('s3')->exists($originalPath)) {
+            Storage::disk('s3')->delete($originalPath);
+            $this->videoUpload->update(['original_s3_path' => null]);
+        }
     }
 
     private function notifyClub(): void

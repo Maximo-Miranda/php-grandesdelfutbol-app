@@ -38,6 +38,10 @@ readonly class SetClubContext
         $club = $this->clubService->resolveForUser($user, $clubId);
 
         if (! $club) {
+            if ($user->isSuperAdmin()) {
+                return $next($request);
+            }
+
             return $this->handleNoClub($request, $next, $user);
         }
 
@@ -72,10 +76,6 @@ readonly class SetClubContext
 
     private function isClubIndependentRoute(Request $request): bool
     {
-        if ($request->route('club')) {
-            return true;
-        }
-
         return $request->routeIs(
             'home',
             'clubs.index',

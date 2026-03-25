@@ -4,6 +4,7 @@ import { Calendar, Clock, MapPin } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import EventIcon from '@/components/match/EventIcon.vue';
 import LiveScoreboard from '@/components/match/LiveScoreboard.vue';
+import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil, getEventTeam as getEventTeamUtil } from '@/lib/match-events';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { FootballMatch, MatchEvent } from '@/types';
@@ -11,6 +12,7 @@ import type { FootballMatch, MatchEvent } from '@/types';
 type Props = {
     match: FootballMatch & { club: { name: string } };
     isMember: boolean;
+    s3VideoUrl?: string | null;
 };
 const props = defineProps<Props>();
 
@@ -109,7 +111,7 @@ const homeUrl = computed(() => {
                 </span>
             </div>
 
-            <!-- YouTube Video -->
+            <!-- Video -->
             <div v-if="match.video_upload?.youtube_embed_url" class="mt-4">
                 <div class="aspect-video w-full overflow-hidden rounded-xl border border-border">
                     <iframe
@@ -119,6 +121,9 @@ const homeUrl = computed(() => {
                         allowfullscreen
                     />
                 </div>
+            </div>
+            <div v-else-if="s3VideoUrl" class="mt-4">
+                <VideoPlayer :src="s3VideoUrl" />
             </div>
 
             <!-- Timeline -->

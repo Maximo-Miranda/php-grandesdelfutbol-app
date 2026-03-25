@@ -10,6 +10,7 @@ use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
@@ -59,10 +60,19 @@ class MatchVideoUploadController extends Controller
             return response()->json(['error' => 'No hay video disponible para subir.'], 422);
         }
 
-        // Clear previous YouTube attempt
+        $cacheKey = 'youtube-daily-uploads:'.now()->format('Y-m-d');
+        $limit = config('youtube.daily_upload_limit', 6);
+
+        if ((int) Cache::get($cacheKey, 0) >= $limit) {
+            return response()->json([
+                'error' => 'Se alcanzó el límite diario de subidas a YouTube. Se subirá automáticamente cuando haya cupo.',
+            ], 429);
+        }
+
         $videoUpload->update([
             'youtube_video_id' => null,
             'youtube_uploaded_at' => null,
+            'youtube_upload_requested_at' => now(),
             'status' => VideoUploadStatus::Encoding,
             'error_message' => null,
         ]);
@@ -83,9 +93,19 @@ class MatchVideoUploadController extends Controller
             return response()->json(['error' => 'No hay video para eliminar.'], 404);
         }
 
-        // Clean up S3 files
+        if (! $videoUpload->youtube_video_id && ! request()->boolean('force')) {
+            return response()->json([
+                'warning' => 'Este video no se ha subido a YouTube. Si lo eliminas, se perderá permanentemente.',
+                'requires_force' => true,
+            ], 409);
+        }
+
         if ($videoUpload->s3_path) {
             Storage::disk('s3')->delete($videoUpload->s3_path);
+        }
+
+        if ($videoUpload->original_s3_path) {
+            Storage::disk('s3')->delete($videoUpload->original_s3_path);
         }
 
         $videoUpload->delete();

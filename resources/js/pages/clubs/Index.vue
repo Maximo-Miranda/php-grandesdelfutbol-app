@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { CalendarDays, ChevronRight, Clock, Handshake, MapPin, Plus, Shield, Trophy, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
+import ClubShield from '@/components/ClubShield.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -160,18 +161,10 @@ const confirmedCount = computed(() => {
                     :href="`/clubs/${club.ulid}`"
                     class="flex items-center gap-3 rounded-xl border border-border/60 bg-gradient-to-r from-card to-card/60 p-3 transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"
                 >
-                    <div
-                        v-if="club.logo_url"
-                        class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted"
-                    >
+                    <div v-if="club.logo_url" class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted">
                         <img :src="club.logo_url" :alt="club.name" class="size-full object-cover" />
                     </div>
-                    <div
-                        v-else
-                        class="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-border bg-muted text-sm font-bold"
-                    >
-                        {{ club.name.charAt(0) }}
-                    </div>
+                    <ClubShield v-else :name="club.name" :size="40" />
                     <div class="min-w-0 flex-1">
                         <p class="truncate font-semibold">{{ club.name }}</p>
                         <div class="flex items-center gap-3 text-xs text-muted-foreground">

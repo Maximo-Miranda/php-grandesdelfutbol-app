@@ -11,6 +11,10 @@ class ClubScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
+        if (auth()->check() && auth()->user()->isSuperAdmin()) {
+            return;
+        }
+
         $clubId = app(ClubContext::class)->id();
 
         if ($clubId !== null) {

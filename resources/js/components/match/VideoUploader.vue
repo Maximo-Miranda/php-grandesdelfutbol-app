@@ -2,6 +2,7 @@
 import { router } from '@inertiajs/vue3';
 import AwsS3 from '@uppy/aws-s3';
 import Uppy from '@uppy/core';
+import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ type Props = {
     matchUlid: string;
     existingUpload?: VideoUploadData | null;
     embedUrl?: string | null;
+    s3VideoUrl?: string | null;
 };
 
 const props = defineProps<Props>();
@@ -562,14 +564,17 @@ onBeforeUnmount(() => {
                     allowfullscreen
                 />
             </div>
-            <!-- YouTube not available — show retry option -->
-            <div v-else class="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <span class="text-xs text-muted-foreground">YouTube no disponible</span>
-                <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
-                    <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
-                    Subir a YouTube
-                </Button>
-            </div>
+            <!-- S3 fallback player + YouTube retry -->
+            <template v-else>
+                <VideoPlayer v-if="props.s3VideoUrl" :src="props.s3VideoUrl" />
+                <div class="mt-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    <span class="text-xs text-muted-foreground">YouTube no disponible</span>
+                    <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
+                        <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
+                        Subir a YouTube
+                    </Button>
+                </div>
+            </template>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">
                 <Trash2 class="size-3.5" />

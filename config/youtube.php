@@ -32,4 +32,27 @@ return [
 
     'category_id' => env('YOUTUBE_CATEGORY_ID', '17'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Rate Limiting
+    |--------------------------------------------------------------------------
+    |
+    | YouTube Data API v3 allows ~10,000 quota units/day.
+    | A video upload costs ~1,600 units → ~6 uploads/day.
+    |
+    */
+
+    'daily_upload_limit' => (int) env('YOUTUBE_DAILY_UPLOAD_LIMIT', 6),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Video Sharing
+    |--------------------------------------------------------------------------
+    |
+    | Duration (in hours) for temporary shareable video links.
+    |
+    */
+
+    'video_share_hours' => (int) env('VIDEO_SHARE_HOURS', 24),
+
 ];

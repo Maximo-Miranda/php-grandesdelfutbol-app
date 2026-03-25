@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import ClubShield from '@/components/ClubShield.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,18 +78,10 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <!-- Club header -->
             <div class="mb-6 flex items-center gap-4">
-                <div
-                    v-if="club.logo_url"
-                    class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
-                >
+                <div v-if="club.logo_url" class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
                     <img :src="club.logo_url" :alt="club.name" class="size-full object-cover" />
                 </div>
-                <div
-                    v-else
-                    class="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-bold text-muted-foreground"
-                >
-                    {{ club.name.charAt(0) }}
-                </div>
+                <ClubShield v-else :name="club.name" :size="56" />
                 <div>
                     <h1 class="flex items-center gap-2 text-2xl font-bold">
                         {{ club.name }}

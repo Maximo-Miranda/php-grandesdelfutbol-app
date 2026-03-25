@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
+/**
+ * @deprecated Use EncodeVideo instead.
+ */
 class EncodeVideoTo720p implements ShouldQueue
 {
     use Batchable, Queueable;
@@ -47,6 +50,9 @@ class EncodeVideoTo720p implements ShouldQueue
         $inputFile = $tempDir."/original-{$match->ulid}.mp4";
         $outputFile = $tempDir."/720p-{$match->ulid}.mp4";
         $s3Output = "videos/matches/{$match->ulid}/720p.mp4";
+
+        // Clean up stale download from a previous crashed attempt
+        $this->cleanupFile($inputFile);
 
         try {
             $this->downloadFromS3($this->videoUpload->s3_path, $inputFile);

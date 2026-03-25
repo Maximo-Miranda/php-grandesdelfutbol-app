@@ -113,8 +113,15 @@ test('admin can delete video upload', function () {
 
     Storage::disk('s3')->put('uploads/test/video.mp4', 'fake');
 
+    // Without force, warns about missing YouTube
     $this->actingAs($user)
         ->deleteJson(route('clubs.matches.videoUpload.destroy', [$club, $match]))
+        ->assertStatus(409)
+        ->assertJsonPath('requires_force', true);
+
+    // With force, deletes successfully
+    $this->actingAs($user)
+        ->deleteJson(route('clubs.matches.videoUpload.destroy', [$club, $match]).'?force=true')
         ->assertOk();
 
     $this->assertDatabaseMissing('match_video_uploads', ['id' => $videoUpload->id]);

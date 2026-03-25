@@ -2,6 +2,7 @@
 import { Head, InfiniteScroll, Link, WhenVisible } from '@inertiajs/vue3';
 import { CalendarDays, ChevronRight, Clock, Goal, Handshake, Shield, Trophy, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
+import ClubShield from '@/components/ClubShield.vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -173,18 +174,10 @@ function formatShortDate(dateStr: string): string {
                         >
                             {{ index + 1 }}
                         </div>
-                        <div
-                            v-if="club.logo_url"
-                            class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted"
-                        >
+                        <div v-if="club.logo_url" class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted">
                             <img :src="club.logo_url" :alt="club.name" class="size-full object-cover" />
                         </div>
-                        <div
-                            v-else
-                            class="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-border bg-muted text-sm font-bold"
-                        >
-                            {{ club.name.charAt(0) }}
-                        </div>
+                        <ClubShield v-else :name="club.name" :size="40" />
                         <div class="min-w-0 flex-1">
                             <p class="truncate font-semibold">{{ club.name }}</p>
                             <div class="flex items-center gap-3 text-xs text-muted-foreground">

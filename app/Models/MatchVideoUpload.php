@@ -24,7 +24,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $encoded_at
  * @property string|null $youtube_video_id
  * @property CarbonImmutable|null $youtube_uploaded_at
+ * @property CarbonImmutable|null $youtube_upload_requested_at
  * @property string|null $s3_path
+ * @property string|null $original_s3_path
  * @property string|null $best_resolution
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -52,7 +54,9 @@ class MatchVideoUpload extends Model
         'encoded_at',
         'youtube_video_id',
         'youtube_uploaded_at',
+        'youtube_upload_requested_at',
         's3_path',
+        'original_s3_path',
         'best_resolution',
     ];
 
@@ -66,6 +70,7 @@ class MatchVideoUpload extends Model
             'uploaded_at' => 'immutable_datetime',
             'encoded_at' => 'immutable_datetime',
             'youtube_uploaded_at' => 'immutable_datetime',
+            'youtube_upload_requested_at' => 'immutable_datetime',
         ];
     }
 

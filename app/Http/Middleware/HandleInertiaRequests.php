@@ -18,23 +18,7 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function share(Request $request): array
     {
         $user = $request->user();
@@ -50,9 +34,21 @@ class HandleInertiaRequests extends Middleware
                 ? Club::query()->forUser($user)->get(['id', 'ulid', 'name'])
                 : [],
             'currentClub' => fn () => app(ClubContext::class)->get(),
-            'currentMemberRole' => fn () => $user && app(ClubContext::class)->get()
-                ? app(ClubContext::class)->get()->getMembership($user)?->role->value
-                : null,
+            'currentMemberRole' => function () use ($user) {
+                $club = app(ClubContext::class)->get();
+
+                if (! $user || ! $club) {
+                    return null;
+                }
+
+                $role = $club->getMembership($user)?->role->value;
+
+                if (! $role && $user->isSuperAdmin()) {
+                    return 'super_admin';
+                }
+
+                return $role;
+            },
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             'googleAuthEnabled' => config('services.google.enabled'),
             'flash' => [

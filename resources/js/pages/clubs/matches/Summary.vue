@@ -49,6 +49,7 @@ import EventTypeGrid from '@/components/match/EventTypeGrid.vue';
 import LiveScoreboard from '@/components/match/LiveScoreboard.vue';
 import MinuteSecondInput from '@/components/match/MinuteSecondInput.vue';
 import PlayerSelector from '@/components/match/PlayerSelector.vue';
+import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, MatchReel, Player
 
 type PositionOption = { value: string; label: string };
 type PaginatedReels = { data: MatchReel[] };
-type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels; s3VideoUrl?: string | null };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.ulid}/matches`;
@@ -215,12 +216,19 @@ const showDeleteVideoDialog = ref(false);
 const copiedLink = ref(false);
 const retryingYouTube = ref(false);
 
+function getCsrfToken(): string {
+    return decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+}
+
+function csrfHeaders(): Record<string, string> {
+    return { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' };
+}
+
 function retryYouTubeUpload() {
     retryingYouTube.value = true;
-    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
     fetch(`${base}/${props.match.ulid}/video-upload/retry-youtube`, {
         method: 'POST',
-        headers: { 'X-XSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        headers: csrfHeaders(),
         credentials: 'same-origin',
     }).then((res) => {
         if (res.ok) {
@@ -229,6 +237,30 @@ function retryYouTubeUpload() {
     }).finally(() => {
         retryingYouTube.value = false;
     });
+}
+
+const generatingShareLink = ref(false);
+const shareLink = ref('');
+const copiedShareLink = ref(false);
+
+async function generateShareLink() {
+    generatingShareLink.value = true;
+    try {
+        const res = await fetch(`${base}/${props.match.ulid}/video-upload/share-link`, {
+            method: 'POST',
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+        });
+        if (res.ok) {
+            const data = await res.json();
+            shareLink.value = data.url;
+            await navigator.clipboard.writeText(data.url);
+            copiedShareLink.value = true;
+            setTimeout(() => { copiedShareLink.value = false; }, 3000);
+        }
+    } finally {
+        generatingShareLink.value = false;
+    }
 }
 
 function copyYoutubeLink() {
@@ -241,10 +273,9 @@ function copyYoutubeLink() {
 
 function confirmDeleteVideo() {
     deletingVideo.value = true;
-    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
     fetch(`${base}/${props.match.ulid}/video-upload`, {
         method: 'DELETE',
-        headers: { 'X-XSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        headers: csrfHeaders(),
         credentials: 'same-origin',
     }).then(() => {
         showDeleteVideoDialog.value = false;
@@ -338,7 +369,6 @@ const showDeleteEventDialog = ref(false);
 const recentPlayerIds = ref<number[]>([]);
 const isFullscreen = ref(false);
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
-
 
 // --- Computed: team players ---
 const teamAPlayers = computed(() => props.match.attendances?.filter(a => a.team === 'a') ?? []);
@@ -1049,12 +1079,14 @@ async function shareReel(reel: MatchReel) {
                 </div>
             </div>
             <div v-else-if="hasVideoReady && !isFullscreen" class="mt-4">
-                <div class="flex items-center gap-2 text-sm text-emerald-400">
-                    <CheckCircle class="size-4" />
-                    <span class="font-medium">Video listo</span>
-                </div>
-                <div class="mt-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-                    <span class="text-xs text-muted-foreground">YouTube no disponible</span>
+                <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" />
+                <div class="mt-2 flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="generatingShareLink" @click="generateShareLink">
+                            <Share2 class="size-3.5" />
+                            {{ copiedShareLink ? 'Link copiado!' : 'Compartir video' }}
+                        </Button>
+                    </div>
                     <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retryingYouTube" @click="retryYouTubeUpload">
                         <RefreshCw class="size-3.5" :class="retryingYouTube ? 'animate-spin' : ''" />
                         Subir a YouTube
@@ -1093,6 +1125,7 @@ async function shareReel(reel: MatchReel) {
                     :club-ulid="club.ulid"
                     :match-ulid="match.ulid"
                     :existing-upload="match.video_upload"
+                    :s3-video-url="s3VideoUrl"
                     @uploaded="() => router.reload()"
                 />
             </div>

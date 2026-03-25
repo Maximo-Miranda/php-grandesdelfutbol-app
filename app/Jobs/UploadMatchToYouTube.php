@@ -48,6 +48,10 @@ class UploadMatchToYouTube implements ShouldQueue
             return;
         }
 
+        if ($this->isDailyLimitReached()) {
+            return;
+        }
+
         $match = $this->videoUpload->match;
         $club = $match?->club;
 
@@ -66,8 +70,14 @@ class UploadMatchToYouTube implements ShouldQueue
 
         $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
 
+        // Clean up stale temp file from a previous crashed attempt
+        if (file_exists($tempFile)) {
+            unlink($tempFile);
+        }
+
         try {
-            $stream = Storage::disk('s3')->readStream($this->videoUpload->s3_path);
+            $s3Path = $this->videoUpload->original_s3_path ?? $this->videoUpload->s3_path;
+            $stream = Storage::disk('s3')->readStream($s3Path);
 
             if (! $stream) {
                 throw new \RuntimeException('No se pudo leer el video de S3.');
@@ -89,6 +99,7 @@ class UploadMatchToYouTube implements ShouldQueue
                 'youtube_uploaded_at' => now(),
             ]);
 
+            $this->incrementDailyCounter();
             $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
         } finally {
             $lock->release();
@@ -101,7 +112,36 @@ class UploadMatchToYouTube implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
+        // Don't retry if YouTube quota exceeded — the scheduled command will handle it
+        if ($exception && str_contains($exception->getMessage(), 'uploadLimitExceeded')) {
+            $this->delete();
+        }
+
         report($exception);
+    }
+
+    private function isDailyLimitReached(): bool
+    {
+        $limit = config('youtube.daily_upload_limit', 6);
+        $count = (int) Cache::get($this->dailyCacheKey(), 0);
+
+        return $count >= $limit;
+    }
+
+    private function incrementDailyCounter(): void
+    {
+        $key = $this->dailyCacheKey();
+
+        if (! Cache::has($key)) {
+            Cache::put($key, 0, now()->endOfDay());
+        }
+
+        Cache::increment($key);
+    }
+
+    private function dailyCacheKey(): string
+    {
+        return 'youtube-daily-uploads:'.now()->format('Y-m-d');
     }
 
     private function addToClubPlaylist(YouTubeService $youtubeService, Club $club, string $videoId): void

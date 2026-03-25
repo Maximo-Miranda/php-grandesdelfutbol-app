@@ -25,6 +25,7 @@ use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\VideoShareController;
 use App\Http\Controllers\YouTubeAuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,7 @@ Route::get('terms', TermsController::class)->name('terms');
 Route::get('privacy', PrivacyController::class)->name('privacy');
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
+Route::get('video/{matchUlid}', [VideoShareController::class, 'show'])->name('video.share');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
 Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');
 
@@ -104,6 +106,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/video-upload', [MatchVideoUploadController::class, 'store'])->name('matches.videoUpload.store');
         Route::get('matches/{match}/video-upload', [MatchVideoUploadController::class, 'show'])->name('matches.videoUpload.show');
         Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->name('matches.videoUpload.retryYouTube');
+        Route::post('matches/{match}/video-upload/share-link', [VideoShareController::class, 'generate'])->name('matches.videoUpload.shareLink');
         Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
 
         Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->name('matches.reels.generate');

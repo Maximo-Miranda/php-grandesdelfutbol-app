@@ -134,6 +134,10 @@ class Club extends Model
 
     public function scopeForUser($query, User $user)
     {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
         return $query->whereHas('members', function ($q) use ($user) {
             $q->where('user_id', $user->id)
                 ->where('status', ClubMemberStatus::Approved);

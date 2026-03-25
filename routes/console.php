@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('telescope:prune --hours=48')->daily();
 Schedule::command('video-uploads:cleanup --hours=48')->daily();
 Schedule::command('app:cleanup-match-videos --days=30')->weekly();
+Schedule::command('youtube:process-pending')->hourly();

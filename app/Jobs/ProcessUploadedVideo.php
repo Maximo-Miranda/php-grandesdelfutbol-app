@@ -41,8 +41,7 @@ class ProcessUploadedVideo implements ShouldQueue
         $originalS3Path = $this->videoUpload->s3_path;
 
         Bus::batch([
-            new EncodeVideoTo720p($this->videoUpload),
-            new UploadMatchToYouTube($this->videoUpload),
+            new EncodeVideo($this->videoUpload),
         ])
             ->name("video-pipeline-match-{$matchId}")
             ->onQueue('video-processing')
@@ -55,20 +54,20 @@ class ProcessUploadedVideo implements ShouldQueue
                     return;
                 }
 
-                // Replace original with encoded 720p if encoding succeeded
-                $encodedPath = "videos/matches/{$matchUlid}/720p.mp4";
+                // Point s3_path to the encoded file for playback; keep original for YouTube
+                $encodedPath = "videos/matches/{$matchUlid}/1080p.mp4";
 
                 if ($originalS3Path !== $encodedPath && Storage::disk('s3')->exists($encodedPath)) {
-                    Storage::disk('s3')->delete($originalS3Path);
-                    $videoUpload->update(['s3_path' => $encodedPath]);
+                    $videoUpload->update([
+                        's3_path' => $encodedPath,
+                        'original_s3_path' => $originalS3Path,
+                    ]);
                 }
 
-                // Determine final status first — must always run
+                // Determine final status — must always run
                 $videoUpload->refresh();
 
-                if ($videoUpload->youtube_video_id) {
-                    WaitForYouTubeProcessing::dispatch($videoUpload);
-                } elseif ($videoUpload->best_resolution) {
+                if ($videoUpload->best_resolution) {
                     $videoUpload->update([
                         'status' => VideoUploadStatus::Ready,
                         'encoded_at' => now(),

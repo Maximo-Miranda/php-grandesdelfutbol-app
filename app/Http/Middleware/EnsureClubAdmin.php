@@ -11,6 +11,10 @@ class EnsureClubAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->user()?->isSuperAdmin()) {
+            return $next($request);
+        }
+
         $club = $request->route('club');
 
         if (! $club instanceof Club) {
