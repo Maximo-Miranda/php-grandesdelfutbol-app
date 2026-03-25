@@ -33,7 +33,6 @@ class ReelService
                 $q->whereIn('event_type', [MatchEventType::Goal, MatchEventType::PenaltyScored])
                     ->orWhere('highlighted', true);
             })
-            ->whereNotNull('player_id')
             ->get();
 
         $this->removeOrphanedAutoReels($match, $events->pluck('id')->all());
@@ -58,13 +57,17 @@ class ReelService
 
             $this->clearAndDeleteReel($existingReel);
 
+            $label = $event->player?->display_name
+                ?? $event->team?->label()
+                ?? 'Evento';
+
             $reel = $this->createReel($match, [
                 'event_id' => $event->id,
                 'player_id' => $event->player_id,
                 'source' => ReelSource::Auto,
                 'title' => sprintf(
                     '%s — %s (%d:%02d)',
-                    $event->player?->display_name ?? 'Evento',
+                    $label,
                     $event->event_type->label(),
                     $event->minute,
                     $event->second,

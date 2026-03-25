@@ -60,6 +60,55 @@ test('generate endpoint dispatches jobs for goals and highlighted events only', 
     expect(MatchReel::count())->toBe(2);
 });
 
+test('generate creates reels for goals without player (team only)', function () {
+    Bus::fake();
+
+    [$club, $match, $user] = createMatchWithVideo();
+
+    MatchEvent::factory()->teamEvent(MatchEventType::Goal, 'a')->create([
+        'match_id' => $match->id,
+        'minute' => 3,
+        'second' => 30,
+    ]);
+    MatchEvent::factory()->teamEvent(MatchEventType::Goal, 'b')->create([
+        'match_id' => $match->id,
+        'minute' => 5,
+        'second' => 39,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.generate', [$club, $match]))
+        ->assertRedirect();
+
+    Bus::assertBatched(fn ($batch) => $batch->jobs->count() === 2);
+
+    $reels = MatchReel::all();
+    expect($reels)->toHaveCount(2)
+        ->and($reels[0]->title)->toContain('Equipo A')
+        ->and($reels[1]->title)->toContain('Equipo B');
+});
+
+test('generate creates reels for highlighted events without player', function () {
+    Bus::fake();
+
+    [$club, $match, $user] = createMatchWithVideo();
+
+    MatchEvent::factory()->teamEvent(MatchEventType::Save, 'b')->create([
+        'match_id' => $match->id,
+        'highlighted' => true,
+        'minute' => 10,
+        'second' => 0,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.reels.generate', [$club, $match]))
+        ->assertRedirect();
+
+    Bus::assertBatched(fn ($batch) => $batch->jobs->count() === 1);
+
+    expect(MatchReel::first()->title)->toContain('Equipo B');
+});
+
 test('generate fails without video upload', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();

@@ -88,7 +88,6 @@ class ProcessUploadedVideo implements ShouldQueue
                                 $q->whereIn('event_type', ['goal', 'penalty_scored'])
                                     ->orWhere('highlighted', true);
                             })
-                            ->whereNotNull('player_id')
                             ->exists();
 
                         if ($hasQualifyingEvents) {
