@@ -66,6 +66,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
 import { formatDate, formatTime, formatEventTime } from '@/lib/utils';
@@ -75,6 +76,7 @@ type PositionOption = { value: string; label: string };
 type PaginatedReels = { data: MatchReel[] };
 type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels; s3VideoUrl?: string | null };
 const props = defineProps<Props>();
+const { isSuperAdmin } = useClubPermissions();
 
 const base = `/clubs/${props.club.ulid}/matches`;
 
@@ -212,6 +214,7 @@ const videoEmbedUrl = computed(() => {
 });
 const deletingVideo = ref(false);
 const showDeleteVideoDialog = ref(false);
+const showFinalizeDialog = ref(false);
 const copiedLink = ref(false);
 const retryingYouTube = ref(false);
 
@@ -241,14 +244,24 @@ function retryYouTubeUpload() {
 const generatingShareLink = ref(false);
 const shareLink = ref('');
 const copiedShareLink = ref(false);
+const copiedPublicLink = ref(false);
+
+function copyPublicLink() {
+    const url = `${window.location.origin}/match/${props.match.share_token}`;
+    navigator.clipboard.writeText(url).then(() => {
+        copiedPublicLink.value = true;
+        setTimeout(() => { copiedPublicLink.value = false; }, 3000);
+    });
+}
 
 async function generateShareLink() {
     generatingShareLink.value = true;
     try {
         const res = await fetch(`${base}/${props.match.ulid}/video-upload/share-link`, {
             method: 'POST',
-            headers: csrfHeaders(),
+            headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
             credentials: 'same-origin',
+            body: JSON.stringify({ hours: 2 }),
         });
         if (res.ok) {
             const data = await res.json();
@@ -1064,7 +1077,7 @@ async function shareReel(reel: MatchReel) {
                                     Se eliminara el video de este partido. Los reels generados se mantendran pero no se podran generar nuevos hasta subir otro video.
                                 </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter class="gap-2 sm:gap-0">
+                            <DialogFooter class="flex flex-col gap-2 sm:flex-row">
                                 <DialogClose as-child>
                                     <Button variant="outline">Cancelar</Button>
                                 </DialogClose>
@@ -1080,23 +1093,21 @@ async function shareReel(reel: MatchReel) {
             <div v-else-if="hasVideoReady && !isFullscreen" class="mt-4">
                 <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" />
                 <div class="mt-2 flex items-center justify-between">
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-2">
                         <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="generatingShareLink" @click="generateShareLink">
-                            <Share2 class="size-3.5" />
-                            {{ copiedShareLink ? 'Link copiado!' : 'Compartir video' }}
+                            <Copy class="size-3.5" />
+                            {{ copiedShareLink ? 'Link copiado!' : 'Copiar link' }}
+                        </Button>
+                        <Button v-if="match.share_token" type="button" variant="outline" size="sm" class="gap-1.5" @click="copyPublicLink">
+                            <Copy class="size-3.5" />
+                            {{ copiedPublicLink ? 'Link copiado!' : 'Página pública' }}
                         </Button>
                     </div>
-                    <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retryingYouTube" @click="retryYouTubeUpload">
-                        <RefreshCw class="size-3.5" :class="retryingYouTube ? 'animate-spin' : ''" />
-                        Subir a YouTube
-                    </Button>
-                </div>
-                <div v-if="isAdmin" class="mt-2">
-                    <Dialog v-model:open="showDeleteVideoDialog">
+                    <Dialog v-if="isAdmin" v-model:open="showDeleteVideoDialog">
                         <DialogTrigger as-child>
                             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
                                 <Trash2 class="size-3.5" />
-                                Eliminar video
+                                Eliminar
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -1106,7 +1117,7 @@ async function shareReel(reel: MatchReel) {
                                     Se eliminara el video de este partido. Los reels generados se mantendran pero no se podran generar nuevos hasta subir otro video.
                                 </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter class="gap-2 sm:gap-0">
+                            <DialogFooter class="flex flex-col gap-2 sm:flex-row">
                                 <DialogClose as-child>
                                     <Button variant="outline">Cancelar</Button>
                                 </DialogClose>
@@ -1179,6 +1190,38 @@ async function shareReel(reel: MatchReel) {
                     <Star class="size-3" />
                     Estadisticas acumuladas el {{ formatStatsDate(match.stats_finalized_at) }}
                 </Badge>
+            </div>
+
+            <!-- CTA: Register stats (visible for admin when not yet finalized) -->
+            <div v-if="isAdmin && !match.stats_finalized_at && !isFullscreen" class="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center">
+                <Star class="mx-auto mb-2 size-6 text-emerald-500" />
+                <p class="text-sm font-medium">¿Listo para cerrar este partido?</p>
+                <p class="mt-1 text-xs text-muted-foreground">Registra las estadísticas en el perfil de cada jugador y envíales su resumen.</p>
+                <Dialog v-model:open="showFinalizeDialog">
+                    <DialogTrigger as-child>
+                        <Button class="mt-3 w-full gap-2">
+                            <Star class="size-4" />
+                            Registrar y notificar
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>¿Ya registraste todos los eventos?</DialogTitle>
+                            <DialogDescription>
+                                Al confirmar, las estadísticas de este partido se acumularán en el perfil de cada jugador y se les enviará una notificación con su resumen. Si aún te faltan goles, tarjetas u otros eventos por registrar, puedes seguir editando y volver cuando estés listo.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter class="flex flex-col gap-2 sm:flex-row">
+                            <DialogClose as-child>
+                                <Button variant="outline" class="w-full sm:w-auto">Seguir editando</Button>
+                            </DialogClose>
+                            <Button class="w-full gap-2 sm:w-auto" @click="showFinalizeDialog = false; finalizeStats();">
+                                <Star class="size-4" />
+                                Registrar y notificar
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <!-- ===== TAB BAR (non-admin, when reels exist) ===== -->
@@ -1423,20 +1466,11 @@ async function shareReel(reel: MatchReel) {
                 </div>
 
                 <!-- ===== ADMIN ACTIONS (in Resumen tab) ===== -->
-                <div v-if="isAdmin" class="mt-6 space-y-2">
-                    <Button
-                        v-if="match.status === 'completed'"
-                        class="w-full gap-2"
-                        @click="finalizeStats"
-                    >
-                        <Star class="size-4" />
-                        {{ match.stats_finalized_at ? 'Re-registrar estadísticas' : 'Registrar estadísticas' }}
-                    </Button>
-
+                <div v-if="isAdmin" class="mt-6 flex justify-end">
                     <Dialog v-model:open="showDeleteDialog">
                         <DialogTrigger as-child>
-                            <Button variant="destructive" class="w-full gap-2">
-                                <Trash2 class="size-4" />
+                            <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive">
+                                <Trash2 class="size-3.5" />
                                 Eliminar partido
                             </Button>
                         </DialogTrigger>
@@ -1449,7 +1483,7 @@ async function shareReel(reel: MatchReel) {
                                     de asistencia y eventos.
                                 </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter class="gap-2 sm:gap-0">
+                            <DialogFooter class="flex flex-col gap-2 sm:flex-row">
                                 <DialogClose as-child>
                                     <Button variant="outline">Cancelar</Button>
                                 </DialogClose>
@@ -1462,12 +1496,6 @@ async function shareReel(reel: MatchReel) {
                     </Dialog>
                 </div>
 
-                <!-- Public link -->
-                <div v-if="match.share_token" class="mt-4 text-center">
-                    <Link :href="`/match/${match.share_token}`" class="text-sm text-muted-foreground hover:underline">
-                        Ver pagina publica del partido
-                    </Link>
-                </div>
             </div>
 
             <!-- ========================================== -->

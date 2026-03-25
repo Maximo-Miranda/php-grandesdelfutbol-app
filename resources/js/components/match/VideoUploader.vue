@@ -567,12 +567,8 @@ onBeforeUnmount(() => {
             <!-- S3 fallback player + YouTube retry -->
             <template v-else>
                 <VideoPlayer v-if="props.s3VideoUrl" :src="props.s3VideoUrl" />
-                <div class="mt-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-                    <span class="text-xs text-muted-foreground">YouTube no disponible</span>
-                    <Button type="button" variant="outline" size="sm" class="gap-1.5" :disabled="retrying" @click="retryYouTube">
-                        <RefreshCw class="size-3.5" :class="retrying ? 'animate-spin' : ''" />
-                        Subir a YouTube
-                    </Button>
+                <div class="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
+                    <span class="text-xs text-muted-foreground">Video disponible desde la plataforma</span>
                 </div>
             </template>
 

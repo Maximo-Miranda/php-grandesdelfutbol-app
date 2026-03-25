@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Send, Settings, UserPlus, UsersRound, Video } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { roleBadgeClass, useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -59,6 +71,50 @@ const confirmedCount = computed(() => {
     if (!props.nextMatch?.attendances) return 0;
     return props.nextMatch.attendances.filter(a => a.status === 'confirmed').length;
 });
+
+// Video service request
+const page = usePage();
+const showVideoServiceDialog = ref(false);
+const vsrPlan = ref('recocha');
+const vsrPhone = ref(page.props.auth.user?.player_profile?.phone ?? '');
+const vsrMessage = ref('');
+const vsrErrors = ref<Record<string, string[]>>({});
+const vsrSubmitting = ref(false);
+const vsrSuccess = ref(false);
+
+async function submitVideoServiceRequest() {
+    vsrSubmitting.value = true;
+    vsrErrors.value = {};
+    const user = page.props.auth.user;
+    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+
+    try {
+        const res = await fetch('/video-service-request', {
+            method: 'POST',
+            headers: { 'X-XSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                name: user?.name ?? '',
+                email: user?.email ?? '',
+                phone: vsrPhone.value,
+                club_name: props.club.name,
+                venue_address: props.nextMatch?.field?.name ?? '',
+                preferred_date: props.nextMatch?.scheduled_at?.split('T')[0] ?? '',
+                preferred_time: props.nextMatch?.scheduled_at?.split('T')[1]?.substring(0, 5) ?? '',
+                selected_plan: vsrPlan.value,
+                message: vsrMessage.value || null,
+            }),
+        });
+        if (res.ok) {
+            vsrSuccess.value = true;
+        } else if (res.status === 422) {
+            const data = await res.json();
+            vsrErrors.value = data.errors ?? {};
+        }
+    } finally {
+        vsrSubmitting.value = false;
+    }
+}
 
 function formatMatchDate(dateStr: string): string {
     return formatDate(dateStr, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -133,6 +189,16 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                     {{ confirmedCount }}/{{ nextMatch.max_players }} confirmados
                 </p>
             </Link>
+
+            <button
+                v-if="nextMatch"
+                type="button"
+                class="mb-4 flex w-full items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5 text-left transition-colors hover:bg-emerald-500/10"
+                @click="showVideoServiceDialog = true"
+            >
+                <Video class="size-4 shrink-0 text-emerald-500" />
+                <span class="text-sm font-medium">¿Quieres que grabemos este partido?</span>
+            </button>
 
             <div v-else class="mb-4 rounded-lg border border-border p-4 text-center">
                 <CalendarDays class="mx-auto mb-2 size-8 text-muted-foreground" />
@@ -303,5 +369,54 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
             :processing="leavingClub"
             @confirm="leaveClub"
         />
+        <!-- Video service request dialog -->
+        <Dialog v-model:open="showVideoServiceDialog">
+            <DialogContent class="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Solicitar grabación</DialogTitle>
+                    <DialogDescription>Selecciona el plan y te contactamos para coordinar.</DialogDescription>
+                </DialogHeader>
+
+                <div v-if="vsrSuccess" class="py-6 text-center">
+                    <div class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+                        <Check class="size-6 text-emerald-500" />
+                    </div>
+                    <p class="font-semibold">Solicitud enviada</p>
+                    <p class="mt-1 text-sm text-muted-foreground">Te contactaremos pronto.</p>
+                    <Button class="mt-4" variant="outline" @click="showVideoServiceDialog = false; vsrSuccess = false;">Cerrar</Button>
+                </div>
+
+                <form v-else class="space-y-4" @submit.prevent="submitVideoServiceRequest">
+                    <div class="grid gap-1.5">
+                        <Label for="vsr-plan">Tipo de servicio</Label>
+                        <select
+                            id="vsr-plan"
+                            v-model="vsrPlan"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option value="recocha">Recocha — $60.000/partido</option>
+                            <option value="profesional">Profesional — $130.000/partido</option>
+                            <option value="mensual">Mensual — Desde $200.000/mes</option>
+                        </select>
+                        <InputError :message="vsrErrors.selected_plan?.[0]" />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="vsr-phone">Teléfono / WhatsApp</Label>
+                        <Input id="vsr-phone" v-model="vsrPhone" type="tel" placeholder="300 123 4567" />
+                        <InputError :message="vsrErrors.phone?.[0]" />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="vsr-message">Mensaje <span class="text-xs text-muted-foreground">(opcional)</span></Label>
+                        <Textarea id="vsr-message" v-model="vsrMessage" rows="2" placeholder="Algo que debamos saber..." />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" :disabled="vsrSubmitting" class="w-full gap-2">
+                            <Send class="size-4" />
+                            {{ vsrSubmitting ? 'Enviando...' : 'Enviar solicitud' }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

@@ -15,7 +15,7 @@ use Inertia\Response;
 
 class VideoShareController extends Controller
 {
-    public function generate(Club $club, FootballMatch $match): JsonResponse
+    public function generate(Request $request, Club $club, FootballMatch $match): JsonResponse
     {
         Gate::authorize('update', $match);
 
@@ -25,7 +25,8 @@ class VideoShareController extends Controller
             return response()->json(['error' => 'No hay video disponible para compartir.'], 422);
         }
 
-        $hours = config('youtube.video_share_hours', 24);
+        $hours = $request->integer('hours', config('youtube.video_share_hours', 24));
+        $hours = min($hours, 72);
         $expiresAt = now()->addHours($hours);
 
         $url = URL::temporarySignedRoute(

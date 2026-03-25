@@ -56,6 +56,8 @@ return [
 
     'super_admin_emails' => array_filter(array_map('trim', explode(',', env('SUPER_ADMIN_EMAILS', env('SUPER_ADMIN_EMAIL', ''))))),
 
+    'video_service_request_email' => env('VIDEO_SERVICE_REQUEST_EMAIL', 'maximo.miranda@wudok.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

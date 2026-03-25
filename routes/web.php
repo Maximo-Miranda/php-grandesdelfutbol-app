@@ -25,9 +25,12 @@ use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\VideoServiceRequestController;
 use App\Http\Controllers\VideoShareController;
 use App\Http\Controllers\YouTubeAuthController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Laravel\Fortify\Features;
 
 Route::get('/', HomeController::class)->name('home');
 Route::get('terms', TermsController::class)->name('terms');
@@ -38,7 +41,23 @@ Route::get('video/{matchUlid}', [VideoShareController::class, 'show'])->name('vi
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
 Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');
 
+Route::post('video-service-request', [VideoServiceRequestController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('video-service-request.store');
+
 Route::middleware('guest')->group(function () {
+    Route::get('start', function () {
+        if (auth()->check()) {
+            return redirect()->route('home');
+        }
+
+        return Inertia::render('auth/Start', [
+            'canRegister' => Features::enabled(Features::registration()),
+            'mode' => request()->query('mode', 'register'),
+            'googleAuthEnabled' => config('services.google.enabled', false),
+        ]);
+    })->name('start');
+
     Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
     Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 });
