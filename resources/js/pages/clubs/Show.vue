@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Send, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
+import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin, Settings, UserPlus, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';

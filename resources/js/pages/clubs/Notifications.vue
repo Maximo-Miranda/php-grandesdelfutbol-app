@@ -32,7 +32,6 @@ const {
     isSubscribed,
     isLoading,
     permission,
-    isIos,
     needsInstall,
     error: pushError,
     subscribe,

@@ -66,7 +66,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
 import { formatDate, formatTime, formatEventTime } from '@/lib/utils';
@@ -76,7 +75,6 @@ type PositionOption = { value: string; label: string };
 type PaginatedReels = { data: MatchReel[] };
 type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels; s3VideoUrl?: string | null };
 const props = defineProps<Props>();
-const { isSuperAdmin } = useClubPermissions();
 
 const base = `/clubs/${props.club.ulid}/matches`;
 
@@ -216,7 +214,6 @@ const deletingVideo = ref(false);
 const showDeleteVideoDialog = ref(false);
 const showFinalizeDialog = ref(false);
 const copiedLink = ref(false);
-const retryingYouTube = ref(false);
 
 function getCsrfToken(): string {
     return decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
@@ -224,21 +221,6 @@ function getCsrfToken(): string {
 
 function csrfHeaders(): Record<string, string> {
     return { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' };
-}
-
-function retryYouTubeUpload() {
-    retryingYouTube.value = true;
-    fetch(`${base}/${props.match.ulid}/video-upload/retry-youtube`, {
-        method: 'POST',
-        headers: csrfHeaders(),
-        credentials: 'same-origin',
-    }).then((res) => {
-        if (res.ok) {
-            router.reload();
-        }
-    }).finally(() => {
-        retryingYouTube.value = false;
-    });
 }
 
 const generatingShareLink = ref(false);

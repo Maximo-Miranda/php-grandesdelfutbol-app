@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Check, ChevronRight, Moon, Send, Sun, Trophy, UserPlus, Users, Video } from 'lucide-vue-next';
+import { Check, ChevronRight, Send, Trophy, UserPlus, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import InputError from '@/components/InputError.vue';
@@ -8,7 +8,6 @@ import PhoneInput from '@/components/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
-    DialogClose,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -18,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAppearance } from '@/composables/useAppearance';
+import { getCsrfToken } from '@/lib/utils';
 import { dashboard, privacy, terms } from '@/routes';
 import heroImage from '../../images/hero-football.jpg';
 
@@ -33,18 +32,11 @@ const props = withDefaults(
     },
 );
 
-const { updateAppearance, resolvedAppearance } = useAppearance();
-const isDark = computed(() => resolvedAppearance.value === 'dark');
-
-function toggleDarkMode() {
-    updateAppearance(isDark.value ? 'light' : 'dark');
-}
-
+const page = usePage();
 const isLoggedIn = computed(() => !!page.props.auth?.user);
 
 // Video service request dialog
 const showRequestDialog = ref(false);
-const selectedPlan = ref('');
 const requestForm = ref({
     name: '',
     email: '',
@@ -61,11 +53,9 @@ const requestSubmitting = ref(false);
 const requestSuccess = ref(false);
 
 function openRequest(plan: string) {
-    selectedPlan.value = plan;
     requestForm.value.selected_plan = plan;
     requestErrors.value = {};
     requestSuccess.value = false;
-    requestForm.value.selected_plan = plan;
     showRequestDialog.value = true;
 }
 
@@ -74,12 +64,13 @@ async function submitRequest() {
     requestErrors.value = {};
 
     try {
-        const csrf = decodeURIComponent(
-            document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '',
-        );
         const res = await fetch('/video-service-request', {
             method: 'POST',
-            headers: { 'X-XSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            headers: {
+                'X-XSRF-TOKEN': getCsrfToken(),
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
             credentials: 'same-origin',
             body: JSON.stringify(requestForm.value),
         });
@@ -95,8 +86,6 @@ async function submitRequest() {
         requestSubmitting.value = false;
     }
 }
-
-const page = usePage();
 
 const pricingPlans = [
     {

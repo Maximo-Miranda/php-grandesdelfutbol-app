@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import {
     ArrowDownRight,
     Ban,
     CalendarPlus,
     Check,
-    ChevronRight,
     EllipsisVertical,
     Gamepad2,
     Lock,
@@ -21,12 +20,9 @@ import {
     Undo2,
     UserMinus,
     Users,
-    Video,
-    Send,
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import InputError from '@/components/InputError.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,8 +43,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import VideoServiceCta from '@/components/VideoServiceCta.vue';
 import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';
