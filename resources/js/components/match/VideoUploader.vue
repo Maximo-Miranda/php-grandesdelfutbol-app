@@ -2,9 +2,9 @@
 import { router } from '@inertiajs/vue3';
 import AwsS3 from '@uppy/aws-s3';
 import Uppy from '@uppy/core';
-import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,

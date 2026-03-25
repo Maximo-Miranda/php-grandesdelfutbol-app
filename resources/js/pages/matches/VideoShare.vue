@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { formatDate } from '@/lib/utils';
-import { computed } from 'vue';
 
 type Props = {
     match: {

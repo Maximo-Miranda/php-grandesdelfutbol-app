@@ -5,7 +5,6 @@ import {
     ArrowLeftRight,
     Calendar,
     Check,
-    CheckCircle,
     CircleDot,
     Clock,
     CornerDownRight,
