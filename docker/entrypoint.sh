@@ -23,6 +23,9 @@ php artisan migrate --force --no-interaction
 # Run one-time operations
 php artisan operations:process --sync --no-interaction
 
+# Publish Filament assets (CSS/JS for admin panel)
+php artisan filament:assets --no-interaction
+
 # Cache configuration, routes, views, and events
 php artisan optimize --no-interaction
 
