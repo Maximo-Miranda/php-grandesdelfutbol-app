@@ -17,8 +17,8 @@ class VideoServiceRequestController extends Controller
 
         if ($user = $request->user()) {
             $data['user_id'] = $user->id;
-            $data['name'] = $data['name'] ?: $user->name;
-            $data['email'] = $data['email'] ?: $user->email;
+            $data['name'] = $data['name'] ?? $user->name;
+            $data['email'] = $data['email'] ?? $user->email;
         }
 
         $data['club_name'] = $data['club_name'] ?? 'Anónimo';

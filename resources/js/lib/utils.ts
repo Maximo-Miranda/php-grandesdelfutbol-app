@@ -28,3 +28,9 @@ export function formatDateTime(dateStr: string): string {
 export function formatEventTime(minute: number, second: number): string {
     return `${minute}:${String(second).padStart(2, '0')}`;
 }
+
+export function getCsrfToken(): string {
+    return decodeURIComponent(
+        document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '',
+    );
+}

@@ -1,23 +1,13 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link, usePage } from '@inertiajs/vue3';
-import { CalendarDays, Check, ChevronRight, Clock, Handshake, MapPin, Plus, Shield, Trophy, UsersRound } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
+import { CalendarDays, ChevronRight, Clock, Handshake, MapPin, Plus, Shield, Trophy, UsersRound } from 'lucide-vue-next';
+import { computed } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
-import InputError from '@/components/InputError.vue';
 import VideoServiceCta from '@/components/VideoServiceCta.vue';
+import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
@@ -28,7 +18,7 @@ type PaginatedClubs = {
 
 type Props = {
     clubs: PaginatedClubs;
-    nextMatch?: FootballMatch | null;
+    nextMatch?: (FootballMatch & { confirmed_count?: number }) | null;
     lastMatch?: FootballMatch | null;
     pendingInvitations?: ClubInvitation[];
     pendingMemberships?: ClubMember[];
@@ -48,53 +38,17 @@ function formatMatchTime(dateStr: string): string {
     return formatTime(dateStr, { hour12: true });
 }
 
-const confirmedCount = computed(() => {
-    return (props.nextMatch as any)?.confirmed_count ?? 0;
-});
+const confirmedCount = computed(() => props.nextMatch?.confirmed_count ?? 0);
 
-// Video service request
-const page = usePage();
-const showVideoServiceDialog = ref(false);
-const vsrPlan = ref('recocha');
-const vsrPhone = ref(page.props.auth.user?.player_profile?.phone ?? '');
-const vsrMessage = ref('');
-const vsrErrors = ref<Record<string, string[]>>({});
-const vsrSubmitting = ref(false);
-const vsrSuccess = ref(false);
+const vsr = useVideoServiceRequest();
 
-async function submitVideoServiceRequest() {
-    vsrSubmitting.value = true;
-    vsrErrors.value = {};
-    const user = page.props.auth.user;
-    const csrf = decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
-
-    try {
-        const res = await fetch('/video-service-request', {
-            method: 'POST',
-            headers: { 'X-XSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                name: user?.name ?? '',
-                email: user?.email ?? '',
-                phone: vsrPhone.value,
-                club_name: props.nextMatch?.club?.name ?? '',
-                venue_address: props.nextMatch?.field?.name ?? '',
-                preferred_date: props.nextMatch?.scheduled_at?.split('T')[0] ?? '',
-                preferred_time: props.nextMatch?.scheduled_at?.split('T')[1]?.substring(0, 5) ?? '',
-                selected_plan: vsrPlan.value,
-                message: vsrMessage.value || null,
-                match_ulid: props.nextMatch?.ulid ?? null,
-            }),
-        });
-        if (res.ok) {
-            vsrSuccess.value = true;
-        } else if (res.status === 422) {
-            const data = await res.json();
-            vsrErrors.value = data.errors ?? {};
-        }
-    } finally {
-        vsrSubmitting.value = false;
-    }
+function openVsr(): void {
+    vsr.open({
+        clubName: props.nextMatch?.club?.name ?? '',
+        fieldName: props.nextMatch?.field?.name,
+        scheduledAt: props.nextMatch?.scheduled_at,
+        matchUlid: props.nextMatch?.ulid,
+    });
 }
 </script>
 
@@ -184,7 +138,7 @@ async function submitVideoServiceRequest() {
                 class="mb-6"
                 compact
                 :status="nextMatch.active_video_service_request?.status"
-                @request="showVideoServiceDialog = true"
+                @request="openVsr"
             />
 
             <!-- Last match -->
@@ -210,7 +164,7 @@ async function submitVideoServiceRequest() {
                 </div>
                 <div class="mt-2 flex items-center gap-3 text-sm">
                     <span class="text-muted-foreground">{{ lastMatch.attendances_count ?? 0 }} jugadores</span>
-                    <span v-if="(lastMatch as any).video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
+                    <span v-if="lastMatch.video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
                 </div>
             </Link>
 
@@ -275,53 +229,16 @@ async function submitVideoServiceRequest() {
             </InfiniteScroll>
         </div>
 
-        <!-- Video service request dialog -->
-        <Dialog v-model:open="showVideoServiceDialog">
-            <DialogContent class="sm:max-w-sm">
-                <DialogHeader>
-                    <DialogTitle>Solicitar grabacion</DialogTitle>
-                    <DialogDescription>Selecciona el plan y te contactamos para coordinar.</DialogDescription>
-                </DialogHeader>
-
-                <div v-if="vsrSuccess" class="py-6 text-center">
-                    <div class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
-                        <Check class="size-6 text-emerald-500" />
-                    </div>
-                    <p class="font-semibold">Solicitud enviada</p>
-                    <p class="mt-1 text-sm text-muted-foreground">Te contactaremos pronto.</p>
-                    <Button class="mt-4" variant="outline" @click="showVideoServiceDialog = false; vsrSuccess = false;">Cerrar</Button>
-                </div>
-
-                <form v-else class="space-y-4" @submit.prevent="submitVideoServiceRequest">
-                    <div class="grid gap-1.5">
-                        <Label for="vsr-plan">Tipo de servicio</Label>
-                        <select
-                            id="vsr-plan"
-                            v-model="vsrPlan"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                            <option value="recocha">Recocha — $60.000/partido</option>
-                            <option value="profesional">Profesional — $130.000/partido</option>
-                            <option value="mensual">Mensual — desde $200.000/mes</option>
-                        </select>
-                        <InputError v-if="vsrErrors.selected_plan" :message="vsrErrors.selected_plan[0]" />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="vsr-phone">WhatsApp / Telefono</Label>
-                        <Input id="vsr-phone" v-model="vsrPhone" type="tel" required />
-                        <InputError v-if="vsrErrors.phone" :message="vsrErrors.phone[0]" />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="vsr-message">Mensaje (opcional)</Label>
-                        <Textarea id="vsr-message" v-model="vsrMessage" rows="2" />
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" :disabled="vsrSubmitting" class="w-full">
-                            {{ vsrSubmitting ? 'Enviando...' : 'Enviar solicitud' }}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+        <VideoServiceRequestDialog
+            v-model:open="vsr.showDialog.value"
+            v-model:plan="vsr.plan.value"
+            v-model:phone="vsr.phone.value"
+            v-model:message="vsr.message.value"
+            :errors="vsr.errors.value"
+            :submitting="vsr.submitting.value"
+            :success="vsr.success.value"
+            @submit="vsr.submit"
+            @close="vsr.close"
+        />
     </AppLayout>
 </template>

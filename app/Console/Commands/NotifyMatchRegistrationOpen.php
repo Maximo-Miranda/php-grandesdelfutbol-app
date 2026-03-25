@@ -33,12 +33,6 @@ class NotifyMatchRegistrationOpen extends Command
             $query->whereRaw("? >= datetime(scheduled_at, '-' || registration_opens_hours || ' hours')", [$now]);
         }
 
-        if (! $query->exists()) {
-            $this->info('No eligible matches found.');
-
-            return self::SUCCESS;
-        }
-
         $query->chunkById(100, function ($matches) {
             foreach ($matches as $match) {
                 $users = $match->club->approvedMemberUsers();

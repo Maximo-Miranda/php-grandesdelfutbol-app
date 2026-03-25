@@ -17,7 +17,6 @@ import type { BreadcrumbItem, Club } from '@/types';
 
 type Props = {
     club: Club;
-    vapidPublicKey: string;
 };
 
 const props = defineProps<Props>();

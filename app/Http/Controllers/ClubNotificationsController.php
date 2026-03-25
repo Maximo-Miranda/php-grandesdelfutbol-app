@@ -20,7 +20,6 @@ class ClubNotificationsController extends Controller
 
         return Inertia::render('clubs/Notifications', [
             'club' => $club,
-            'vapidPublicKey' => config('webpush.vapid.public_key'),
         ]);
     }
 
