@@ -4,6 +4,7 @@ import { Check, ChevronRight, Moon, Send, Sun, Trophy, UserPlus, Users, Video } 
 import { computed, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import InputError from '@/components/InputError.vue';
+import PhoneInput from '@/components/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -439,22 +440,15 @@ const pricingPlans = [
                         </div>
                         <div class="grid gap-1.5">
                             <Label for="req-email">Email <span class="text-destructive">*</span></Label>
-                            <Input id="req-email" v-model="requestForm.email" type="email" placeholder="tu@email.com" />
+                            <Input id="req-email" v-model="requestForm.email" placeholder="tu@email.com" />
                             <InputError :message="requestErrors.email?.[0]" />
                         </div>
-                        <div class="grid gap-1.5">
-                            <Label for="req-phone">Teléfono / WhatsApp <span class="text-destructive">*</span></Label>
-                            <Input id="req-phone" v-model="requestForm.phone" type="tel" placeholder="300 123 4567" />
-                            <InputError :message="requestErrors.phone?.[0]" />
-                        </div>
                     </template>
-                    <template v-else>
-                        <div class="grid gap-1.5">
-                            <Label for="req-phone-auth">Teléfono / WhatsApp <span class="text-destructive">*</span></Label>
-                            <Input id="req-phone-auth" v-model="requestForm.phone" type="tel" placeholder="300 123 4567" />
-                            <InputError :message="requestErrors.phone?.[0]" />
-                        </div>
-                    </template>
+                    <div class="grid gap-1.5">
+                        <Label for="req-phone">WhatsApp <span class="text-destructive">*</span></Label>
+                        <PhoneInput id="req-phone" v-model="requestForm.phone" />
+                        <InputError :message="requestErrors.phone?.[0]" />
+                    </div>
                     <div class="grid gap-1.5">
                         <Label for="req-plan">Tipo de servicio <span class="text-destructive">*</span></Label>
                         <select

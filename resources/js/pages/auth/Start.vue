@@ -2,8 +2,8 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { redirect as googleRedirect } from '@/actions/App/Http/Controllers/GoogleAuthController';
-import InputError from '@/components/InputError.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input, PasswordInput } from '@/components/ui/input';

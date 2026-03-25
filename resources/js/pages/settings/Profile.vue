@@ -7,6 +7,7 @@ import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileCo
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import PhoneInput from '@/components/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,40 +74,7 @@ const nationalityOptions = [
     'Espanol', 'Estadounidense', 'Otro',
 ];
 
-const countryCodes = [
-    { code: '+57', flag: '🇨🇴', country: 'Colombia' },
-    { code: '+54', flag: '🇦🇷', country: 'Argentina' },
-    { code: '+52', flag: '🇲🇽', country: 'Mexico' },
-    { code: '+55', flag: '🇧🇷', country: 'Brasil' },
-    { code: '+51', flag: '🇵🇪', country: 'Peru' },
-    { code: '+56', flag: '🇨🇱', country: 'Chile' },
-    { code: '+593', flag: '🇪🇨', country: 'Ecuador' },
-    { code: '+58', flag: '🇻🇪', country: 'Venezuela' },
-    { code: '+598', flag: '🇺🇾', country: 'Uruguay' },
-    { code: '+595', flag: '🇵🇾', country: 'Paraguay' },
-    { code: '+591', flag: '🇧🇴', country: 'Bolivia' },
-    { code: '+506', flag: '🇨🇷', country: 'Costa Rica' },
-    { code: '+507', flag: '🇵🇦', country: 'Panama' },
-    { code: '+504', flag: '🇭🇳', country: 'Honduras' },
-    { code: '+503', flag: '🇸🇻', country: 'El Salvador' },
-    { code: '+502', flag: '🇬🇹', country: 'Guatemala' },
-    { code: '+505', flag: '🇳🇮', country: 'Nicaragua' },
-    { code: '+53', flag: '🇨🇺', country: 'Cuba' },
-    { code: '+1', flag: '🇩🇴', country: 'Rep. Dominicana' },
-    { code: '+34', flag: '🇪🇸', country: 'Espana' },
-    { code: '+1', flag: '🇺🇸', country: 'Estados Unidos' },
-];
-
-function parsePhone(phone: string): { code: string; number: string } {
-    if (!phone) return { code: '+57', number: '' };
-    const match = countryCodes.find(c => phone.startsWith(c.code));
-    if (match) return { code: match.code, number: phone.slice(match.code.length).trim() };
-    return { code: '+57', number: phone };
-}
-
-const parsed = parsePhone(props.profile.phone ?? '');
-const phoneCode = ref(parsed.code);
-const phoneNumber = ref(parsed.number);
+const phoneValue = ref(props.profile.phone ?? '');
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -154,7 +122,7 @@ function submitPlayerProfile() {
         ...data,
         gender: noneToNull(data.gender),
         preferred_position: noneToNull(data.preferred_position),
-        phone: phoneNumber.value ? `${phoneCode.value}${phoneNumber.value}` : null,
+        phone: phoneValue.value || null,
     })).patch(PlayerProfileController.update.url(), {
         forceFormData: true,
         onSuccess: () => {
@@ -280,25 +248,7 @@ function submitPlayerProfile() {
                             </div>
                             <div class="grid gap-2">
                                 <Label for="phone">WhatsApp</Label>
-                                <div class="flex gap-2">
-                                    <Select v-model="phoneCode">
-                                        <SelectTrigger class="w-[130px] shrink-0">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem v-for="c in countryCodes" :key="c.flag + c.code" :value="c.code">
-                                                {{ c.flag }} {{ c.code }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Input
-                                        id="phone"
-                                        v-model="phoneNumber"
-                                        type="tel"
-                                        inputmode="tel"
-                                        placeholder="300 123 4567"
-                                    />
-                                </div>
+                                <PhoneInput id="phone" v-model="phoneValue" />
                                 <InputError :message="playerForm.errors.phone" />
                             </div>
                         </div>

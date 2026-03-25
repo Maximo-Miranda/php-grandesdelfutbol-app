@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
+import PhoneInput from '@/components/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -67,8 +67,12 @@ const emit = defineEmits<{
                     <InputError v-if="errors.selected_plan" :message="errors.selected_plan[0]" />
                 </div>
                 <div class="grid gap-1.5">
-                    <Label for="vsr-phone">WhatsApp / Telefono</Label>
-                    <Input id="vsr-phone" :model-value="phone" type="tel" required @update:model-value="emit('update:phone', $event)" />
+                    <Label for="vsr-phone">WhatsApp</Label>
+                    <PhoneInput
+                        id="vsr-phone"
+                        :model-value="phone"
+                        @update:model-value="emit('update:phone', $event)"
+                    />
                     <InputError v-if="errors.phone" :message="errors.phone[0]" />
                 </div>
                 <div class="grid gap-1.5">

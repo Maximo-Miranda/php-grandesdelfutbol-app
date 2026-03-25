@@ -4,10 +4,10 @@ import { Bell, Cake, CalendarDays, Check, Clock, Copy, LinkIcon, LogOut, MapPin,
 import { computed, ref } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import VideoServiceCta from '@/components/VideoServiceCta.vue';
-import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import VideoServiceCta from '@/components/VideoServiceCta.vue';
+import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { roleBadgeClass, useClubPermissions } from '@/composables/useClubPermissions';
 import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';
 import AppLayout from '@/layouts/AppLayout.vue';

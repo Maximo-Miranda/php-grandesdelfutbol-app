@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Notifications\VideoServiceRequestNotification;
 use Illuminate\Support\Facades\Notification;
 
@@ -17,7 +18,7 @@ function validRequestData(array $overrides = []): array
     ], $overrides);
 }
 
-it('can submit a valid video service request', function (): void {
+it('can submit a valid video service request as guest', function (): void {
     Notification::fake();
 
     $this->postJson(route('video-service-request.store'), validRequestData())
@@ -29,6 +30,25 @@ it('can submit a valid video service request', function (): void {
         'email' => 'juan@example.com',
         'club_name' => 'Anónimo',
         'status' => 'pending',
+    ]);
+});
+
+it('uses authenticated user data when logged in', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson(route('video-service-request.store'), validRequestData([
+            'name' => null,
+            'email' => null,
+        ]))
+        ->assertCreated();
+
+    $this->assertDatabaseHas('video_service_requests', [
+        'user_id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
     ]);
 });
 
@@ -65,4 +85,16 @@ it('sends notification on successful submission', function (): void {
         ->assertCreated();
 
     Notification::assertSentOnDemand(VideoServiceRequestNotification::class);
+});
+
+it('is throttled to 3 requests per minute', function (): void {
+    Notification::fake();
+
+    for ($i = 0; $i < 3; $i++) {
+        $this->postJson(route('video-service-request.store'), validRequestData())
+            ->assertCreated();
+    }
+
+    $this->postJson(route('video-service-request.store'), validRequestData())
+        ->assertTooManyRequests();
 });

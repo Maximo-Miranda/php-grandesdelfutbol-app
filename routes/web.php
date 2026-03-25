@@ -42,7 +42,7 @@ Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class,
 Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');
 
 Route::post('video-service-request', [VideoServiceRequestController::class, 'store'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:3,1')
     ->name('video-service-request.store');
 
 Route::middleware('guest')->group(function () {
