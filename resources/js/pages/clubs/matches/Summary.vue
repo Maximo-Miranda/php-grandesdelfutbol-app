@@ -2225,6 +2225,7 @@ async function shareReel(reel: MatchReel) {
                             controls
                             preload="metadata"
                             class="mx-auto max-h-80 w-full"
+                            @play="trackReelView(reel)"
                         ></video>
                     </div>
                     <div v-if="reel.media_url" class="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-2.5">
