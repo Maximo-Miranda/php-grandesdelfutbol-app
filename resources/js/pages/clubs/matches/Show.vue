@@ -3,6 +3,7 @@ import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import {
     ArrowDownRight,
     Ban,
+    Bell,
     CalendarPlus,
     Check,
     EllipsisVertical,
@@ -46,6 +47,7 @@ import { Input } from '@/components/ui/input';
 import VideoServiceCta from '@/components/VideoServiceCta.vue';
 import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';
+import { useWebPush } from '@/composables/useWebPush';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
@@ -324,6 +326,40 @@ function openVsr(): void {
         matchUlid: props.match.ulid,
     });
 }
+
+// --- Push notification prompt (just-in-time after confirming attendance) ---
+const PUSH_DISMISS_KEY = 'push-prompt-match-dismissed';
+const {
+    isSupported: pushSupported,
+    isSubscribed: pushSubscribed,
+    needsInstall: pushNeedsInstall,
+    permission: pushPermission,
+    isLoading: pushLoading,
+    subscribe: pushSubscribe,
+} = useWebPush();
+const pushDismissed = ref(localStorage.getItem(PUSH_DISMISS_KEY) === '1');
+const pushActivated = ref(false);
+
+const showPushBanner = computed(() =>
+    myStatus.value === 'confirmed'
+    && props.match.status === 'upcoming'
+    && pushSupported.value
+    && !pushSubscribed.value
+    && !pushNeedsInstall.value
+    && pushPermission.value !== 'denied'
+    && !pushDismissed.value
+    && !pushActivated.value,
+);
+
+async function activatePush() {
+    const ok = await pushSubscribe();
+    if (ok) pushActivated.value = true;
+}
+
+function dismissPush() {
+    pushDismissed.value = true;
+    localStorage.setItem(PUSH_DISMISS_KEY, '1');
+}
 </script>
 
 <template>
@@ -600,6 +636,50 @@ function openVsr(): void {
                         {{ teamLabel(myAttendance.team) }}
                     </span>
                 </template>
+            </div>
+
+            <!-- Push notification prompt (just-in-time) -->
+            <div
+                v-if="showPushBanner"
+                class="mt-3 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-amber-400/5 p-3"
+            >
+                <span class="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
+                    <Bell class="size-4 text-amber-500" />
+                    <span class="absolute -right-0.5 -top-0.5 flex size-2.5">
+                        <span class="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                        <span class="relative inline-flex size-2.5 rounded-full bg-amber-500" />
+                    </span>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-foreground">Activá notificaciones</p>
+                    <p class="text-xs text-muted-foreground">Enterate si hay cambios en este partido</p>
+                </div>
+                <div class="flex shrink-0 items-center gap-1.5">
+                    <Button
+                        size="sm"
+                        class="bg-amber-500 text-white hover:bg-amber-600"
+                        :disabled="pushLoading"
+                        @click="activatePush"
+                    >
+                        {{ pushLoading ? 'Activando...' : 'Activar' }}
+                    </Button>
+                    <button
+                        type="button"
+                        class="p-1 text-muted-foreground hover:text-foreground"
+                        @click="dismissPush"
+                    >
+                        <X class="size-4" />
+                    </button>
+                </div>
+            </div>
+
+            <!-- Push activated confirmation -->
+            <div
+                v-if="pushActivated"
+                class="mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400"
+            >
+                <Bell class="size-4" />
+                <span>Notificaciones activadas — te avisaremos de cualquier cambio</span>
             </div>
 
             <!-- No player linked warning -->

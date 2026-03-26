@@ -7,10 +7,12 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISS_KEY = 'pwa-install-dismissed-at';
+const GUIDE_DONE_KEY = 'pwa-install-guide-done';
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const dismissed = ref(false);
+const guideDone = ref(localStorage.getItem(GUIDE_DONE_KEY) === '1');
 
 export function usePwaInstall() {
     const stored = localStorage.getItem(DISMISS_KEY);
@@ -33,6 +35,17 @@ export function usePwaInstall() {
 
     const canInstall = computed(() => deferredPrompt.value !== null);
 
+    const browserName = computed<'safari' | 'chrome' | 'other'>(() => {
+        const ua = navigator.userAgent;
+        if (/CriOS/.test(ua)) return 'chrome';
+        if (/Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua)) return 'safari';
+        return 'other';
+    });
+
+    const shouldShowInstallGuide = computed(() => {
+        return isIos.value && !isStandalone.value && !guideDone.value;
+    });
+
     useEventListener(window, 'beforeinstallprompt', (e: Event) => {
         e.preventDefault();
         deferredPrompt.value = e as BeforeInstallPromptEvent;
@@ -52,5 +65,10 @@ export function usePwaInstall() {
         localStorage.setItem(DISMISS_KEY, String(Date.now()));
     }
 
-    return { canInstall, isIos, isStandalone, dismissed, promptInstall, dismiss };
+    function markGuideDone(): void {
+        guideDone.value = true;
+        localStorage.setItem(GUIDE_DONE_KEY, '1');
+    }
+
+    return { canInstall, isIos, isStandalone, dismissed, browserName, shouldShowInstallGuide, guideDone, promptInstall, dismiss, markGuideDone };
 }

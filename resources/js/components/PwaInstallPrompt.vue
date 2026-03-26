@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { Download, Share, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import PwaInstallGuide from '@/components/PwaInstallGuide.vue';
 import { usePwaInstall } from '@/composables/usePwaInstall';
 
-const { canInstall, isIos, isStandalone, dismissed, promptInstall, dismiss } = usePwaInstall();
+const { canInstall, isIos, isStandalone, dismissed, shouldShowInstallGuide, promptInstall, dismiss } = usePwaInstall();
+
+const showGuide = ref(shouldShowInstallGuide.value);
 
 const visible = computed(() => {
     if (isStandalone.value || dismissed.value) return false;
+    if (shouldShowInstallGuide.value) return false;
     return canInstall.value || isIos.value;
 });
 </script>
@@ -55,4 +59,5 @@ const visible = computed(() => {
             </div>
         </Transition>
     </Teleport>
+    <PwaInstallGuide v-model:open="showGuide" />
 </template>
