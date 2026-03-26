@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, Link, router, useForm } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ArrowLeftRight,
@@ -2049,6 +2049,7 @@ async function shareReel(reel: MatchReel) {
                 </Dialog>
 
                 <!-- Reels list -->
+                <InfiniteScroll data="reels" #default="{ fetching }">
                 <div class="space-y-3">
                     <div
                         v-for="reel in displayReels"
@@ -2194,12 +2195,17 @@ async function shareReel(reel: MatchReel) {
                 <p v-if="!displayReels.length" class="text-center text-sm text-muted-foreground">
                     No hay reels generados.
                 </p>
+                <div v-if="fetching" class="py-4 text-center text-sm text-muted-foreground">
+                    Cargando más reels...
+                </div>
+                </InfiniteScroll>
             </div>
 
             <!-- ========================================== -->
             <!-- TAB: LO MEJOR (non-admin)                 -->
             <!-- ========================================== -->
             <div v-if="!isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
+                <InfiniteScroll data="reels" #default="{ fetching: fetchingReels }">
                 <div
                     v-for="reel in completedReels"
                     :key="reel.ulid"
@@ -2243,6 +2249,10 @@ async function shareReel(reel: MatchReel) {
                 <p v-if="!completedReels.length" class="text-center text-sm text-muted-foreground">
                     Aún no hay jugadas disponibles.
                 </p>
+                <div v-if="fetchingReels" class="py-4 text-center text-sm text-muted-foreground">
+                    Cargando más jugadas...
+                </div>
+                </InfiniteScroll>
             </div>
 
         </div>

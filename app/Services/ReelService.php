@@ -30,7 +30,7 @@ class ReelService
 
         $events = $match->events()
             ->where(function ($q) {
-                $q->whereIn('event_type', [MatchEventType::Goal, MatchEventType::PenaltyScored])
+                $q->whereIn('event_type', [MatchEventType::Goal, MatchEventType::OwnGoal, MatchEventType::PenaltyScored])
                     ->orWhere('highlighted', true);
             })
             ->get();

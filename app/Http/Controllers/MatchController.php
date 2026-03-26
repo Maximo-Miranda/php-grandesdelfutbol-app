@@ -97,11 +97,13 @@ class MatchController extends Controller
         if ($match->status === MatchStatus::Completed) {
             return Inertia::render('clubs/matches/Summary', [
                 ...$this->summaryProps($club, $match, $user, $isAdmin),
-                'reels' => fn () => $match->reels()
-                    ->whereIn('source', ['auto', 'manual'])
-                    ->with('player', 'event', 'media')
-                    ->orderBy('start_second')
-                    ->simplePaginate(10, pageName: 'reels'),
+                'reels' => Inertia::scroll(
+                    fn () => $match->reels()
+                        ->whereIn('source', ['auto', 'manual'])
+                        ->with('player', 'event', 'media')
+                        ->orderBy('start_second')
+                        ->simplePaginate(10, pageName: 'reels'),
+                ),
             ]);
         }
 

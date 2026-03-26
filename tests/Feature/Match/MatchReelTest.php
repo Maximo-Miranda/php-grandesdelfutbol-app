@@ -188,13 +188,14 @@ test('reel casts status to ReelStatus enum', function () {
         ->and($reel->status)->toBe(ReelStatus::Pending);
 });
 
-test('only goals, penalty scored, and highlighted events generate reels', function () {
+test('only goals, own goals, penalty scored, and highlighted events generate reels', function () {
     Bus::fake();
 
     [$club, $match, $user] = createMatchWithVideo();
     $player = Player::factory()->create(['club_id' => $club->id]);
 
     MatchEvent::factory()->goal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
+    MatchEvent::factory()->ownGoal()->create(['match_id' => $match->id, 'player_id' => $player->id]);
     MatchEvent::factory()->assist()->create(['match_id' => $match->id, 'player_id' => $player->id]);
     MatchEvent::factory()->teamEvent(MatchEventType::ShotOnTarget, 'a')->create(['match_id' => $match->id]);
     MatchEvent::factory()->neutralEvent(MatchEventType::Timeout)->create(['match_id' => $match->id]);
@@ -203,7 +204,7 @@ test('only goals, penalty scored, and highlighted events generate reels', functi
         ->post(route('clubs.matches.reels.generate', [$club, $match]))
         ->assertRedirect();
 
-    expect(MatchReel::count())->toBe(1);
+    expect(MatchReel::count())->toBe(2);
 });
 
 test('admin can create manual clip with minute and second', function () {
