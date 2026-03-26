@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Club;
 use App\Services\ClubContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -30,9 +29,6 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user?->loadMissing('playerProfile'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'userClubs' => fn () => $user
-                ? Club::query()->forUser($user)->get(['id', 'ulid', 'name'])
-                : [],
             'currentClub' => fn () => app(ClubContext::class)->get(),
             'currentMemberRole' => function () use ($user) {
                 $club = app(ClubContext::class)->get();

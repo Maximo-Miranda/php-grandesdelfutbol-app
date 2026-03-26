@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { useMediaQuery } from '@vueuse/core';
-import { ChevronDown, Plus, Search } from 'lucide-vue-next';
+import { useLocalStorage } from '@vueuse/core';
+import { ChevronDown, Clock, Loader2, Plus } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import ClubShield from '@/components/ClubShield.vue';
 import { Button } from '@/components/ui/button';
@@ -11,47 +11,86 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import type { Club } from '@/types';
 
-const page = usePage<{ userClubs: Pick<Club, 'id' | 'ulid' | 'name'>[]; currentClub: Club | null }>();
-const clubs = computed(() => page.props.userClubs ?? []);
+type ClubItem = Pick<Club, 'id' | 'ulid' | 'name'>;
+
+const page = usePage<{ currentClub: Club | null }>();
 const currentClub = computed(() => page.props.currentClub);
 
 const open = ref(false);
-const search = ref('');
-const PAGE_SIZE = 20;
-const visibleCount = ref(PAGE_SIZE);
-const isMobile = useMediaQuery('(max-width: 768px)');
+const clubs = ref<ClubItem[]>([]);
+const loading = ref(false);
+const nextPageUrl = ref<string | null>(null);
 
-const filtered = computed(() => {
-    const q = search.value.toLowerCase().trim();
-    if (!q) return clubs.value;
-    return clubs.value.filter(c => c.name.toLowerCase().includes(q));
-});
+// Recently visited clubs (max 3, persisted in localStorage)
+const recentClubIds = useLocalStorage<number[]>('recent-club-ids', []);
+const recentClubs = ref<ClubItem[]>([]);
 
-const visible = computed(() => filtered.value.slice(0, visibleCount.value));
-const hasMore = computed(() => visibleCount.value < filtered.value.length);
+function trackVisit(clubId: number) {
+    const ids = recentClubIds.value.filter(id => id !== clubId);
+    ids.unshift(clubId);
+    recentClubIds.value = ids.slice(0, 3);
+}
 
-watch(search, () => {
-    visibleCount.value = PAGE_SIZE;
-});
+async function fetchPage(url: string, append = false) {
+    loading.value = true;
+    try {
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+        const json = await res.json();
+        if (append) {
+            clubs.value.push(...json.data);
+        } else {
+            clubs.value = json.data;
+        }
+        nextPageUrl.value = json.next_page_url;
+    } finally {
+        loading.value = false;
+    }
+}
+
+async function fetchRecent() {
+    if (recentClubIds.value.length === 0) {
+        recentClubs.value = [];
+        return;
+    }
+    try {
+        const res = await fetch(`/clubs-search?ids=${recentClubIds.value.join(',')}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+        const json = await res.json();
+        const map = new Map<number, ClubItem>(json.data.map((c: ClubItem) => [c.id, c]));
+        recentClubs.value = recentClubIds.value
+            .map(id => map.get(id))
+            .filter((c): c is ClubItem => !!c);
+    } catch {
+        recentClubs.value = [];
+    }
+}
+
+function loadMore() {
+    if (nextPageUrl.value) {
+        fetchPage(nextPageUrl.value, true);
+    }
+}
 
 watch(open, (val) => {
-    if (!val) {
-        search.value = '';
-        visibleCount.value = PAGE_SIZE;
+    if (val) {
+        fetchPage('/clubs-search');
+        fetchRecent();
+    } else {
+        clubs.value = [];
+        nextPageUrl.value = null;
     }
 });
 
-function loadMore() {
-    visibleCount.value += PAGE_SIZE;
+function selectClub(club: ClubItem) {
+    trackVisit(club.id);
+    open.value = false;
 }
 </script>
 
@@ -62,106 +101,64 @@ function loadMore() {
         <ChevronDown class="size-3.5 text-muted-foreground" />
     </button>
 
-    <!-- Mobile: bottom sheet -->
-    <Sheet v-if="isMobile" v-model:open="open">
-        <SheetContent side="bottom" class="flex max-h-[70dvh] flex-col gap-0 rounded-t-xl p-0">
-            <SheetHeader class="border-b px-4 pb-3 pt-4">
-                <SheetTitle class="text-base">Cambiar Club</SheetTitle>
-            </SheetHeader>
-
-            <div class="border-b px-3 py-2">
-                <div class="relative">
-                    <Search class="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input
-                        v-model="search"
-                        placeholder="Buscar club..."
-                        class="pl-8"
-                    />
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto overscroll-contain px-1 py-1">
-                <p v-if="!filtered.length" class="px-3 py-6 text-center text-sm text-muted-foreground">
-                    No se encontraron clubs
-                </p>
-
-                <Link
-                    v-for="club in visible"
-                    :key="club.id"
-                    :href="`/clubs/${club.ulid}`"
-                    class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent"
-                    :class="{ 'bg-accent/50': currentClub?.id === club.id }"
-                    @click="open = false"
-                >
-                    <ClubShield :name="club.name" :size="28" />
-                    <span class="min-w-0 flex-1 truncate">{{ club.name }}</span>
-                </Link>
-
-                <button
-                    v-if="hasMore"
-                    class="mt-1 w-full rounded-lg py-2 text-center text-xs text-muted-foreground hover:bg-accent"
-                    @click="loadMore"
-                >
-                    Mostrar más ({{ filtered.length - visibleCount }} restantes)
-                </button>
-            </div>
-
-            <div class="border-t px-3 py-2">
-                <Button as-child variant="ghost" size="sm" class="w-full justify-start gap-2">
-                    <Link href="/clubs/create" @click="open = false">
-                        <Plus class="size-4" />
-                        Crear Club
-                    </Link>
-                </Button>
-            </div>
-        </SheetContent>
-    </Sheet>
-
-    <!-- Desktop: centered dialog -->
-    <Dialog v-else v-model:open="open">
-        <DialogContent class="flex max-h-[80dvh] flex-col gap-0 p-0 sm:max-w-sm">
+    <Dialog v-model:open="open">
+        <DialogContent class="flex max-h-[min(70dvh,28rem)] flex-col gap-0 p-0 sm:max-w-sm">
             <DialogHeader class="border-b px-4 pb-3 pt-4">
                 <DialogTitle class="text-base">Cambiar Club</DialogTitle>
             </DialogHeader>
 
-            <div class="border-b px-3 py-2">
-                <div class="relative">
-                    <Search class="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input
-                        v-model="search"
-                        placeholder="Buscar club..."
-                        class="pl-8"
-                        autofocus
-                    />
+            <!-- Recent clubs -->
+            <div v-if="recentClubs.length" class="border-b px-3 py-2.5">
+                <p class="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Clock class="size-3" />
+                    Recientes
+                </p>
+                <div class="flex gap-2">
+                    <Link
+                        v-for="club in recentClubs"
+                        :key="club.id"
+                        :href="`/clubs/${club.ulid}`"
+                        class="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/50 px-2 py-2 text-center transition-colors hover:bg-accent"
+                        :class="{ 'border-primary/40 bg-accent/50': currentClub?.id === club.id }"
+                        @click="selectClub(club)"
+                    >
+                        <ClubShield :name="club.name" :size="28" />
+                        <span class="w-full truncate text-[11px] leading-tight">{{ club.name }}</span>
+                    </Link>
                 </div>
             </div>
 
+            <!-- Club list -->
             <div class="flex-1 overflow-y-auto overscroll-contain px-1 py-1">
-                <p v-if="!filtered.length" class="px-3 py-6 text-center text-sm text-muted-foreground">
-                    No se encontraron clubs
-                </p>
+                <div v-if="loading && clubs.length === 0" class="flex justify-center py-6">
+                    <Loader2 class="size-5 animate-spin text-muted-foreground" />
+                </div>
 
                 <Link
-                    v-for="club in visible"
+                    v-for="club in clubs"
                     :key="club.id"
                     :href="`/clubs/${club.ulid}`"
                     class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent"
                     :class="{ 'bg-accent/50': currentClub?.id === club.id }"
-                    @click="open = false"
+                    @click="selectClub(club)"
                 >
                     <ClubShield :name="club.name" :size="28" />
                     <span class="min-w-0 flex-1 truncate">{{ club.name }}</span>
                 </Link>
 
+                <!-- Load more button -->
                 <button
-                    v-if="hasMore"
-                    class="mt-1 w-full rounded-lg py-2 text-center text-xs text-muted-foreground hover:bg-accent"
+                    v-if="nextPageUrl"
+                    class="mt-1 w-full rounded-lg py-2.5 text-center text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    :disabled="loading"
                     @click="loadMore"
                 >
-                    Mostrar más ({{ filtered.length - visibleCount }} restantes)
+                    <Loader2 v-if="loading" class="mx-auto size-4 animate-spin" />
+                    <span v-else>Ver más</span>
                 </button>
             </div>
 
+            <!-- Create club -->
             <div class="border-t px-3 py-2">
                 <Button as-child variant="ghost" size="sm" class="w-full justify-start gap-2">
                     <Link href="/clubs/create" @click="open = false">

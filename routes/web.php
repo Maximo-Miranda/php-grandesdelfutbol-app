@@ -6,6 +6,7 @@ use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubJoinController;
 use App\Http\Controllers\ClubMemberController;
 use App\Http\Controllers\ClubNotificationsController;
+use App\Http\Controllers\ClubSearchController;
 use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationCodeController;
@@ -82,6 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('player-card', PlayerCardController::class)->name('player-card');
     Route::resource('clubs', ClubController::class);
+    Route::get('clubs-search', ClubSearchController::class)->name('clubs.search');
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');
 
     Route::prefix('clubs/{club}')->name('clubs.')->group(function () {
