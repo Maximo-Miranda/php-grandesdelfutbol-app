@@ -42,6 +42,7 @@ export type PlayerProfile = {
     nationality: string | null;
     bio: string | null;
     preferred_position: string | null;
+    phone?: string | null;
     created_at: string;
     updated_at: string;
 };

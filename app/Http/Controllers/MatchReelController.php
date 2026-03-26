@@ -80,7 +80,7 @@ class MatchReelController extends Controller
     {
         $reel->increment('view_count');
 
-        return response()->json(['view_count' => $reel->view_count + 1]);
+        return response()->json(['view_count' => $reel->view_count]);
     }
 
     public function destroy(Request $request, Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse

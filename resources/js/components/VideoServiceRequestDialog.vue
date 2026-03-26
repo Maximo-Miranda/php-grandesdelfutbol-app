@@ -77,7 +77,7 @@ const emit = defineEmits<{
                 </div>
                 <div class="grid gap-1.5">
                     <Label for="vsr-message">Mensaje (opcional)</Label>
-                    <Textarea id="vsr-message" :model-value="message" rows="2" @update:model-value="emit('update:message', $event)" />
+                    <Textarea id="vsr-message" :model-value="message" rows="2" @update:model-value="emit('update:message', String($event))" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" :disabled="submitting" class="w-full">

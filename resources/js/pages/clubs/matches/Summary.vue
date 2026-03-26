@@ -617,8 +617,8 @@ function openEditEvent(event: MatchEvent) {
 const editEventScope = computed(() => eventScopes[editForm.event_type] ?? 'player');
 
 const editTeamPlayers = computed(() => {
-    if (!editForm.team) return [];
-    return props.match.attendances?.filter(a => a.team === editForm.team) ?? [];
+    const all = props.match.attendances ?? [];
+    return editForm.team ? all.filter(a => a.team === editForm.team) : all;
 });
 
 function submitEditEvent() {
@@ -788,7 +788,7 @@ const allReels = computed(() => {
 });
 
 function reelMediaUrl(reel: MatchReel): string | null {
-    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url;
+    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url ?? null;
 }
 
 const completedReels = computed(() => allReels.value.filter(r => r.status === 'completed' && r.source !== 'request'));
@@ -810,7 +810,6 @@ function submitManualClip() {
     });
 }
 
-const viewedReelUlids = new Set<string>();
 const viewBoosts = reactive(new Map<string, number>());
 
 function reelViewCount(reel: MatchReel): number {
@@ -818,9 +817,8 @@ function reelViewCount(reel: MatchReel): number {
 }
 
 function trackReelView(reel: MatchReel) {
-    if (viewedReelUlids.has(reel.ulid)) return;
-    viewedReelUlids.add(reel.ulid);
-    viewBoosts.set(reel.ulid, (viewBoosts.get(reel.ulid) ?? 0) + 1);
+    if (viewBoosts.has(reel.ulid)) return;
+    viewBoosts.set(reel.ulid, 1);
 
     fetch(`${base}/${props.match.ulid}/reels/${reel.ulid}/view`, {
         method: 'POST',
@@ -835,7 +833,6 @@ function refreshReels() {
     refreshingReels.value = true;
     router.reload({
         only: ['reels'],
-        preserveScroll: true,
         onFinish: () => { refreshingReels.value = false; },
     });
 }
@@ -975,7 +972,7 @@ async function shareReel(reel: MatchReel) {
                         <div class="min-w-0 flex-1 text-right">
                             <div class="mb-2 flex items-center justify-end gap-2">
                                 <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_a_name }}</p>
-                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>
+                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>
                             </div>
                             <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamAGoals }}</p>
                         </div>
@@ -986,7 +983,7 @@ async function shareReel(reel: MatchReel) {
 
                         <div class="min-w-0 flex-1 text-left">
                             <div class="mb-2 flex items-center gap-2">
-                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>
+                                <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>
                                 <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_b_name }}</p>
                             </div>
                             <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamBGoals }}</p>
@@ -1376,8 +1373,8 @@ async function shareReel(reel: MatchReel) {
 
                     <!-- Team A stats -->
                     <div v-if="teamAStats.length" class="overflow-hidden rounded-xl border border-border">
-                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: match.team_a_color + '20' }">
-                            <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>
+                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: (match.team_a_color ?? '') + '20' }">
+                            <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>
                             <span class="flex-1 text-sm font-bold">{{ match.team_a_name }}</span>
                         </div>
                         <div class="divide-y divide-border/50">
@@ -1388,7 +1385,7 @@ async function shareReel(reel: MatchReel) {
                             >
                                 <div
                                     class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                                    :style="{ backgroundColor: match.team_a_color + '30' }"
+                                    :style="{ backgroundColor: (match.team_a_color ?? '') + '30' }"
                                 >
                                     {{ stat.jerseyNumber ?? stat.name.charAt(0).toUpperCase() }}
                                 </div>
@@ -1413,8 +1410,8 @@ async function shareReel(reel: MatchReel) {
 
                     <!-- Team B stats -->
                     <div v-if="teamBStats.length" class="overflow-hidden rounded-xl border border-border">
-                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: match.team_b_color + '20' }">
-                            <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>
+                        <div class="flex items-center gap-2.5 px-4 py-2.5" :style="{ backgroundColor: (match.team_b_color ?? '') + '20' }">
+                            <span class="size-4 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>
                             <span class="flex-1 text-sm font-bold">{{ match.team_b_name }}</span>
                         </div>
                         <div class="divide-y divide-border/50">
@@ -1425,7 +1422,7 @@ async function shareReel(reel: MatchReel) {
                             >
                                 <div
                                     class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                                    :style="{ backgroundColor: match.team_b_color + '30' }"
+                                    :style="{ backgroundColor: (match.team_b_color ?? '') + '30' }"
                                 >
                                     {{ stat.jerseyNumber ?? stat.name.charAt(0).toUpperCase() }}
                                 </div>
@@ -1728,9 +1725,9 @@ async function shareReel(reel: MatchReel) {
                         </div>
 
                         <!-- Player (player scoped) -->
-                        <div v-if="editEventScope === 'player' && editForm.team" class="grid gap-1.5">
+                        <div v-if="editEventScope === 'player'" class="grid gap-1.5">
                             <Label class="text-xs">Jugador</Label>
-                            <Select :model-value="editForm.player_id ? String(editForm.player_id) : 'none'" @update:model-value="(v: string) => editForm.player_id = v === 'none' ? null : Number(v)">
+                            <Select :model-value="editForm.player_id ? String(editForm.player_id) : 'none'" @update:model-value="(v) => editForm.player_id = v === 'none' ? null : Number(v)">
                                 <SelectTrigger class="h-9 text-sm">
                                     <SelectValue placeholder="Sin jugador" />
                                 </SelectTrigger>
@@ -1744,9 +1741,9 @@ async function shareReel(reel: MatchReel) {
                         </div>
 
                         <!-- Related player (substitution) -->
-                        <div v-if="editForm.event_type === 'substitution' && editForm.team" class="grid gap-1.5">
+                        <div v-if="editForm.event_type === 'substitution'" class="grid gap-1.5">
                             <Label class="text-xs">Jugador que ingresa</Label>
-                            <Select :model-value="editForm.related_player_id ? String(editForm.related_player_id) : 'none'" @update:model-value="(v: string) => editForm.related_player_id = v === 'none' ? null : Number(v)">
+                            <Select :model-value="editForm.related_player_id ? String(editForm.related_player_id) : 'none'" @update:model-value="(v) => editForm.related_player_id = v === 'none' ? null : Number(v)">
                                 <SelectTrigger class="h-9 text-sm">
                                     <SelectValue placeholder="Sin jugador" />
                                 </SelectTrigger>
@@ -1906,8 +1903,8 @@ async function shareReel(reel: MatchReel) {
                 </div>
                 <div v-if="filteredUnregisteredPlayers.length" class="max-h-72 divide-y divide-border/50 overflow-y-auto rounded-lg border border-border">
                     <div class="sticky top-0 z-10 flex items-center justify-end gap-3 border-b border-border bg-card/95 px-2 py-1 text-[9px] font-medium text-muted-foreground backdrop-blur-sm">
-                        <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>{{ match.team_a_name }}</span>
-                        <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>{{ match.team_b_name }}</span>
+                        <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>{{ match.team_a_name }}</span>
+                        <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>{{ match.team_b_name }}</span>
                         <span class="text-zinc-500">Sin eq.</span>
                     </div>
                     <div
@@ -2051,7 +2048,7 @@ async function shareReel(reel: MatchReel) {
                 </Dialog>
 
                 <!-- Reels list -->
-                <InfiniteScroll data="reels" #default="{ fetching }">
+                <InfiniteScroll data="reels" #default="{ loading: fetching }">
                 <div class="space-y-3">
                     <div
                         v-for="reel in displayReels"
@@ -2207,7 +2204,7 @@ async function shareReel(reel: MatchReel) {
             <!-- TAB: LO MEJOR (non-admin)                 -->
             <!-- ========================================== -->
             <div v-if="!isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
-                <InfiniteScroll data="reels" #default="{ fetching: fetchingReels }">
+                <InfiniteScroll data="reels" #default="{ loading: fetchingReels }">
                 <div
                     v-for="reel in completedReels"
                     :key="reel.ulid"

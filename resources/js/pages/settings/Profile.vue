@@ -57,6 +57,7 @@ const playerForm = useForm({
     nationality: props.profile.nationality ?? 'Colombiano',
     bio: props.profile.bio ?? '',
     preferred_position: props.profile.preferred_position ?? 'none',
+    phone: props.profile.phone ?? '',
     photo: null as File | null,
 });
 

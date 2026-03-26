@@ -75,7 +75,7 @@ function formatTime(dateStr: string): string {
                 <p class="text-muted-foreground">No hay partidos.</p>
             </div>
 
-            <InfiniteScroll v-else data="matches" #default="{ fetching }">
+            <InfiniteScroll v-else data="matches" #default="{ loading: fetching }">
                 <div class="space-y-3">
                     <Link
                         v-for="m in matches.data"

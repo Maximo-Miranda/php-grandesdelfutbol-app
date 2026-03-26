@@ -21,7 +21,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
-            currentMemberRole: 'owner' | 'admin' | 'player' | null;
+            currentMemberRole: 'owner' | 'admin' | 'player' | 'super_admin' | null;
             [key: string]: unknown;
         };
     }

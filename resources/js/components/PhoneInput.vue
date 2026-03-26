@@ -52,11 +52,11 @@ function parsePhone(phone: string): { code: string; number: string } {
 
 const parsed = computed(() => parsePhone(props.modelValue));
 
-function onCodeChange(code: string): void {
+function onCodeChange(code: string | number | bigint | Record<string, any> | null): void {
     emit('update:modelValue', parsed.value.number ? `${code}${parsed.value.number}` : '');
 }
 
-function onNumberChange(number: string): void {
+function onNumberChange(number: string | number): void {
     emit('update:modelValue', number ? `${parsed.value.code}${number}` : '');
 }
 </script>

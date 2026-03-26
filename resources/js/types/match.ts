@@ -106,6 +106,7 @@ export type MatchReel = {
     request_notes: string | null;
     processed_at: string | null;
     view_count: number;
+    match?: FootballMatch;
     player?: Player;
     requester?: User;
     media_url?: string | null;

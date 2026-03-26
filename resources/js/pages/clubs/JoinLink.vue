@@ -29,7 +29,7 @@ const registerForm = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    terms: false as boolean | string,
+    terms: false,
     join_slug: props.slug,
 });
 

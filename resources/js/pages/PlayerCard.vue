@@ -67,7 +67,7 @@ const allReels = computed(() => {
 });
 
 function reelMediaUrl(reel: MatchReel): string | null {
-    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url;
+    return cachedMediaUrls.get(reel.ulid) ?? reel.media_url ?? null;
 }
 const hasMoreReels = computed(() => !!props.reels?.next_page_url);
 const refreshing = ref(false);
@@ -77,7 +77,6 @@ function refreshReels() {
     refreshing.value = true;
     router.reload({
         only: ['reels'],
-        preserveScroll: true,
         onFinish: () => { refreshing.value = false; },
     });
 }
@@ -159,7 +158,6 @@ function formatTime(totalSeconds: number): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-const viewedReelUlids = new Set<string>();
 const viewBoosts = reactive(new Map<string, number>());
 
 function reelViewCount(reel: MatchReel): number {
@@ -167,9 +165,8 @@ function reelViewCount(reel: MatchReel): number {
 }
 
 function trackView(reel: MatchReel) {
-    if (viewedReelUlids.has(reel.ulid)) return;
-    viewedReelUlids.add(reel.ulid);
-    viewBoosts.set(reel.ulid, (viewBoosts.get(reel.ulid) ?? 0) + 1);
+    if (viewBoosts.has(reel.ulid)) return;
+    viewBoosts.set(reel.ulid, 1);
 
     const club = props.clubs.find(c => c.id === reel.match?.club_id);
     if (club) {

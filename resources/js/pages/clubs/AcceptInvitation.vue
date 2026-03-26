@@ -32,7 +32,7 @@ const registerForm = useForm({
     email: props.invitation.email,
     password: '',
     password_confirmation: '',
-    terms: false as boolean | string,
+    terms: false,
     invite_token: props.invitation.token,
 });
 

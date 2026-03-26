@@ -198,6 +198,7 @@ function initUppy(file: File) {
         autoProceed: true,
     });
 
+    // @ts-expect-error Uppy types require getUploadParameters but it's not needed for multipart-only uploads
     uppy.use(AwsS3, {
         shouldUseMultipart: (file) => (file.size ?? 0) > 100 * 1024 * 1024,
 

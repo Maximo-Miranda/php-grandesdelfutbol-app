@@ -64,6 +64,10 @@ function clearUser() {
     userSearch.value = '';
 }
 
+function hideUserDropdown() {
+    window.setTimeout(() => showUserDropdown.value = false, 200);
+}
+
 // Delete
 const confirmingDelete = ref(false);
 
@@ -136,7 +140,7 @@ function submit() {
                             placeholder="Buscar usuario por nombre o email..."
                             class="pl-9"
                             @focus="showUserDropdown = true"
-                            @blur="setTimeout(() => showUserDropdown = false, 200)"
+                            @blur="hideUserDropdown"
                         />
                         <div
                             v-if="showUserDropdown && filteredUsers.length > 0"

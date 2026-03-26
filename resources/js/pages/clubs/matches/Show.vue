@@ -1067,8 +1067,8 @@ function openVsr(): void {
                 <InfiniteScroll data="unregisteredPlayers" preserve-url only-next>
                     <div v-if="filteredUnregistered.length" class="max-h-72 divide-y divide-border/50 overflow-y-auto rounded-lg border border-border">
                         <div class="sticky top-0 z-10 flex items-center justify-end gap-3 border-b border-border bg-card/95 px-2 py-1 text-[9px] font-medium text-muted-foreground backdrop-blur-sm">
-                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color }"></span>{{ match.team_a_name }}</span>
-                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color }"></span>{{ match.team_b_name }}</span>
+                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>{{ match.team_a_name }}</span>
+                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>{{ match.team_b_name }}</span>
                             <span class="text-zinc-500">Sin eq.</span>
                             <span class="text-destructive/50">No va</span>
                         </div>
