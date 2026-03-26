@@ -40,7 +40,7 @@ import {
     ExternalLink,
     Loader2,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import EventIcon from '@/components/match/EventIcon.vue';
 import EventTimeline from '@/components/match/EventTimeline.vue';
@@ -68,7 +68,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
-import { formatDate, formatTime, formatEventTime } from '@/lib/utils';
+import { formatDate, formatTime, formatEventTime, getCsrfToken } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, MatchReel, Player } from '@/types';
 
 type PositionOption = { value: string; label: string };
@@ -214,10 +214,6 @@ const deletingVideo = ref(false);
 const showDeleteVideoDialog = ref(false);
 const showFinalizeDialog = ref(false);
 const copiedLink = ref(false);
-
-function getCsrfToken(): string {
-    return decodeURIComponent(document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
-}
 
 function csrfHeaders(): Record<string, string> {
     return { 'X-XSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' };
@@ -815,14 +811,20 @@ function submitManualClip() {
 }
 
 const viewedReelUlids = new Set<string>();
+const viewBoosts = reactive(new Map<string, number>());
+
+function reelViewCount(reel: MatchReel): number {
+    return reel.view_count + (viewBoosts.get(reel.ulid) ?? 0);
+}
 
 function trackReelView(reel: MatchReel) {
     if (viewedReelUlids.has(reel.ulid)) return;
     viewedReelUlids.add(reel.ulid);
+    viewBoosts.set(reel.ulid, (viewBoosts.get(reel.ulid) ?? 0) + 1);
 
     fetch(`${base}/${props.match.ulid}/reels/${reel.ulid}/view`, {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '' },
+        headers: { 'X-XSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
     });
 }
 
@@ -2067,7 +2069,7 @@ async function shareReel(reel: MatchReel) {
                                         </span>
                                         <span>{{ formatSeconds(reel.start_second) }} - {{ formatSeconds(reel.end_second) }}</span>
                                         <span v-if="reel.player">· {{ reel.player.display_name }}</span>
-                                        <span v-if="reel.status === 'completed'" class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reel.view_count }}</span>
+                                        <span v-if="reel.status === 'completed'" class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reelViewCount(reel) }}</span>
                                     </div>
                                 </div>
                                 <span
@@ -2216,7 +2218,7 @@ async function shareReel(reel: MatchReel) {
                         <p v-if="reel.request_notes" class="mt-0.5 text-xs text-foreground/70">{{ reel.request_notes }}</p>
                         <div class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                             <span v-if="reel.player">{{ reel.player.display_name }}</span>
-                            <span class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reel.view_count }}</span>
+                            <span class="inline-flex items-center gap-0.5"><Eye class="size-3" /> {{ reelViewCount(reel) }}</span>
                         </div>
                     </div>
                     <div v-if="reel.media_url" class="border-t border-border bg-black">

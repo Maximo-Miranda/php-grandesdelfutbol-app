@@ -10,6 +10,7 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
 use App\Services\ReelService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -75,11 +76,11 @@ class MatchReelController extends Controller
         return back()->with('success', 'Solicitud rechazada.');
     }
 
-    public function view(Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse
+    public function view(Club $club, FootballMatch $match, MatchReel $reel): JsonResponse
     {
         $reel->increment('view_count');
 
-        return back();
+        return response()->json(['view_count' => $reel->view_count + 1]);
     }
 
     public function destroy(Request $request, Club $club, FootballMatch $match, MatchReel $reel): RedirectResponse

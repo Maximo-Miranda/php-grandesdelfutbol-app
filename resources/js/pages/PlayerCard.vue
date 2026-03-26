@@ -2,7 +2,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { toPng } from 'html-to-image';
 import { Check, Download, Eye, Film, Goal, Loader2, Plus, RefreshCw, Share2, Shield, Sparkles, Trash2, Trophy, UserCircle, X } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import InputError from '@/components/InputError.vue';
 import MinuteSecondInput from '@/components/match/MinuteSecondInput.vue';
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getCsrfToken } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch, MatchReel, PlayerProfile } from '@/types';
 
 type PlayerStats = {
@@ -160,16 +160,22 @@ function formatTime(totalSeconds: number): string {
 }
 
 const viewedReelUlids = new Set<string>();
+const viewBoosts = reactive(new Map<string, number>());
+
+function reelViewCount(reel: MatchReel): number {
+    return reel.view_count + (viewBoosts.get(reel.ulid) ?? 0);
+}
 
 function trackView(reel: MatchReel) {
     if (viewedReelUlids.has(reel.ulid)) return;
     viewedReelUlids.add(reel.ulid);
+    viewBoosts.set(reel.ulid, (viewBoosts.get(reel.ulid) ?? 0) + 1);
 
     const club = props.clubs.find(c => c.id === reel.match?.club_id);
     if (club) {
         fetch(`/clubs/${club.ulid}/matches/${reel.match!.ulid}/reels/${reel.ulid}/view`, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '' },
+            headers: { 'X-XSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
         });
     }
 }
@@ -466,7 +472,7 @@ async function shareCard() {
                                         <span>{{ formatTime(reel.start_second) }} - {{ formatTime(reel.end_second) }}</span>
                                         <span v-if="reel.status === 'completed'" class="inline-flex items-center gap-1">
                                             <Eye class="size-3" />
-                                            {{ reel.view_count }}
+                                            {{ reelViewCount(reel) }}
                                         </span>
                                     </div>
                                 </div>

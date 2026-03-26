@@ -15,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { getCsrfToken } from '@/lib/utils';
 
 type VideoUploadData = {
     ulid: string;
@@ -124,14 +125,6 @@ function formatBytes(bytes: number): string {
     return (bytes / 1073741824).toFixed(2) + ' GB';
 }
 
-function getCsrfToken(): string {
-    return decodeURIComponent(
-        document.cookie
-            .split('; ')
-            .find(row => row.startsWith('XSRF-TOKEN='))
-            ?.split('=')[1] ?? '',
-    );
-}
 
 async function selectFile() {
     const input = document.createElement('input');

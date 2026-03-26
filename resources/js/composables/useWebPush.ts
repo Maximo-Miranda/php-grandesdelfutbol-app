@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { getCsrfToken } from '@/lib/utils';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -87,17 +88,12 @@ export function useWebPush() {
             });
 
             const json = subscription.toJSON();
-            const xsrfToken = document.cookie
-                .split('; ')
-                .find((c) => c.startsWith('XSRF-TOKEN='))
-                ?.split('=')[1];
-
             const response = await fetch('/web-push/subscribe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrfToken) } : {}),
+                    'X-XSRF-TOKEN': getCsrfToken(),
                 },
                 body: JSON.stringify({
                     endpoint: json.endpoint,
@@ -141,17 +137,12 @@ export function useWebPush() {
                 return true;
             }
 
-            const xsrfToken = document.cookie
-                .split('; ')
-                .find((c) => c.startsWith('XSRF-TOKEN='))
-                ?.split('=')[1];
-
             await fetch('/web-push/subscribe', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    ...(xsrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrfToken) } : {}),
+                    'X-XSRF-TOKEN': getCsrfToken(),
                 },
                 body: JSON.stringify({ endpoint: subscription.endpoint }),
             });
