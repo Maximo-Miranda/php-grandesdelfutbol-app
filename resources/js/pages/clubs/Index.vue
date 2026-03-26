@@ -136,7 +136,6 @@ function openVsr(): void {
             <VideoServiceCta
                 v-if="nextMatch"
                 class="mb-6"
-                compact
                 :status="nextMatch.active_video_service_request?.status"
                 @request="openVsr"
             />

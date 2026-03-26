@@ -609,7 +609,7 @@ function openEditEvent(event: MatchEvent) {
     editForm.second = event.second;
     editForm.player_id = event.player_id;
     editForm.related_player_id = event.related_player_id;
-    editForm.team = event.team;
+    editForm.team = event.team ?? props.match.attendances?.find(a => a.player_id === event.player_id)?.team ?? null;
     editForm.notes = event.notes ?? '';
     editForm.highlighted = event.highlighted;
 }
