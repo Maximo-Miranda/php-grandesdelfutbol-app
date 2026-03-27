@@ -71,6 +71,9 @@ test('club show excludes members without a date of birth', function () {
 });
 
 test('club show sorts birthdays closest upcoming first', function () {
+    // Freeze time mid-month so both birthdays stay within the same month
+    Carbon::setTestNow(Carbon::now()->startOfMonth()->addDays(14));
+
     $club = Club::factory()->create();
     $user = User::factory()->create();
     ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
