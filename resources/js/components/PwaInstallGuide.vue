@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronLeft, ChevronRight, Copy, Ellipsis, EllipsisVertical, Share, SquarePlus } from 'lucide-vue-next';
+import { Check, ChevronLeft, ChevronRight, Copy, Ellipsis, Share, SquarePlus } from 'lucide-vue-next';
 import type { Component } from 'vue';
 import { computed, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -28,9 +28,10 @@ const safariSteps: Step[] = [
 ];
 
 const chromeSteps: Step[] = [
-    { icon: EllipsisVertical, title: 'Tocá los tres puntos', description: 'Están arriba a la derecha del navegador' },
-    { icon: SquarePlus, title: 'Buscá "Agregar a pantalla de inicio"', description: 'Deslizá hacia abajo en el menú que aparece' },
-    { icon: Check, title: 'Tocá "Agregar"', description: 'Confirmá y listo, queda en tu pantalla' },
+    { icon: Share, title: 'Tocá el ícono de compartir', description: 'Está arriba a la derecha, al lado de la barra de dirección' },
+    { icon: Ellipsis, title: 'Tocá "Ver más"', description: 'Está en la segunda fila de íconos del menú que aparece' },
+    { icon: SquarePlus, title: 'Tocá "Agregar a inicio"', description: 'Buscalo en la lista que aparece abajo' },
+    { icon: Check, title: 'Tocá "Agregar"', description: 'Confirmá el nombre y listo, queda en tu pantalla' },
 ];
 
 const steps = computed(() => (browserName.value === 'chrome' ? chromeSteps : safariSteps));
