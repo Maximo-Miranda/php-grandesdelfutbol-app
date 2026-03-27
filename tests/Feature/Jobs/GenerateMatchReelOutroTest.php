@@ -114,3 +114,16 @@ test('cutSegment applies correct opacity and padding from config', function () {
             && str_contains($command[$filterIdx + 1], 'overlay=W-w-30:30');
     });
 });
+
+test('storeOutputAndComplete throws when output file is too small', function () {
+    $smallFile = $this->tempDir.'/tiny.mp4';
+    file_put_contents($smallFile, str_repeat('x', 100));
+
+    $reel = MatchReel::factory()->create();
+    $job = new GenerateMatchReel($reel);
+
+    $method = new ReflectionMethod($job, 'storeOutputAndComplete');
+
+    expect(fn () => $method->invoke($job, $smallFile))
+        ->toThrow(RuntimeException::class, 'too small');
+});

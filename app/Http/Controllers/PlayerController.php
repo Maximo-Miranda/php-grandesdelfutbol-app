@@ -44,7 +44,7 @@ class PlayerController extends Controller
                             ->where('subscribable_type', User::class)
                             ->limit(1),
                     ]))
-                    ->orderByRaw('(COALESCE(goals, 0) + COALESCE(assists, 0)) DESC')
+                    ->orderByRaw('(COALESCE(goals, 0) + COALESCE(assists, 0)) DESC, COALESCE(goals, 0) DESC')
                     ->simplePaginate(20),
             ),
         ]);

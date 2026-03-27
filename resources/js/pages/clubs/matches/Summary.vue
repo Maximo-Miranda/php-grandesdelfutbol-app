@@ -833,6 +833,7 @@ function refreshReels() {
     refreshingReels.value = true;
     router.reload({
         only: ['reels'],
+        reset: ['reels'],
         onFinish: () => { refreshingReels.value = false; },
     });
 }
@@ -2205,6 +2206,7 @@ async function shareReel(reel: MatchReel) {
             <!-- ========================================== -->
             <div v-if="!isAdmin && activeTab === 'reels' && !isFullscreen" class="mt-4 space-y-3">
                 <InfiniteScroll data="reels" #default="{ loading: fetchingReels }">
+                <div class="space-y-3">
                 <div
                     v-for="reel in completedReels"
                     :key="reel.ulid"
@@ -2244,6 +2246,7 @@ async function shareReel(reel: MatchReel) {
                             Compartir
                         </button>
                     </div>
+                </div>
                 </div>
 
                 <p v-if="!completedReels.length" class="text-center text-sm text-muted-foreground">

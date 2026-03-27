@@ -151,6 +151,11 @@ class GenerateMatchReel implements ShouldQueue
             throw new RuntimeException('ffmpeg did not produce an output file.');
         }
 
+        $sizeBytes = filesize($outputFile);
+        if ($sizeBytes < 10240) {
+            throw new RuntimeException("ffmpeg output file too small ({$sizeBytes} bytes), likely corrupt.");
+        }
+
         $this->reel->addMedia($outputFile)
             ->toMediaCollection('reel');
 
