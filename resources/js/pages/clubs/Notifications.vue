@@ -109,9 +109,11 @@ const permissionDeniedInstructions = computed(() => {
                         Para recibir notificaciones push en iPhone, primero añade esta app a tu pantalla de inicio:
                     </p>
                     <ol class="mt-2 list-inside list-decimal space-y-1 text-sm text-amber-700 dark:text-amber-400">
-                        <li>Toca el botón <strong>Compartir</strong> en Safari</li>
-                        <li>Selecciona <strong>"Añadir a pantalla de inicio"</strong></li>
-                        <li>Abre la app desde tu pantalla de inicio</li>
+                        <li>Tocá <strong>"..."</strong> en la esquina inferior derecha de Safari</li>
+                        <li>Tocá <strong>"Compartir"</strong></li>
+                        <li>Tocá <strong>"..."</strong> (más opciones) en la fila de íconos</li>
+                        <li>Seleccioná <strong>"Agregar a inicio"</strong></li>
+                        <li>Abrí la app desde tu pantalla de inicio</li>
                     </ol>
                 </div>
 

@@ -11,14 +11,16 @@ const GUIDE_DONE_KEY = 'pwa-install-guide-done';
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
-const dismissed = ref(false);
-const guideDone = ref(localStorage.getItem(GUIDE_DONE_KEY) === '1');
+
+function isWithinCooldown(key: string): boolean {
+    const stored = localStorage.getItem(key);
+    return stored !== null && Date.now() - Number(stored) < COOLDOWN_MS;
+}
+
+const dismissed = ref(isWithinCooldown(DISMISS_KEY));
+const guideDone = ref(isWithinCooldown(GUIDE_DONE_KEY));
 
 export function usePwaInstall() {
-    const stored = localStorage.getItem(DISMISS_KEY);
-    if (stored && Date.now() - Number(stored) < COOLDOWN_MS) {
-        dismissed.value = true;
-    }
 
     const isStandalone = computed(() => {
         return (
@@ -43,7 +45,7 @@ export function usePwaInstall() {
     });
 
     const shouldShowInstallGuide = computed(() => {
-        return isIos.value && !isStandalone.value && !guideDone.value;
+        return isIos.value && !isStandalone.value && !guideDone.value && !dismissed.value;
     });
 
     useEventListener(window, 'beforeinstallprompt', (e: Event) => {
@@ -67,7 +69,7 @@ export function usePwaInstall() {
 
     function markGuideDone(): void {
         guideDone.value = true;
-        localStorage.setItem(GUIDE_DONE_KEY, '1');
+        localStorage.setItem(GUIDE_DONE_KEY, String(Date.now()));
     }
 
     return { canInstall, isIos, isStandalone, dismissed, browserName, shouldShowInstallGuide, guideDone, promptInstall, dismiss, markGuideDone };

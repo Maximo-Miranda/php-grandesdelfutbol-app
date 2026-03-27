@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { ref } from 'vue';
+import { useVModel } from '@vueuse/core';
 import { Eye, EyeOff } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 
 defineOptions({ inheritAttrs: false });
 
-defineProps<{
+const props = defineProps<{
+    defaultValue?: string | number;
+    modelValue?: string | number;
     class?: HTMLAttributes['class'];
 }>();
+
+const emits = defineEmits<{
+    (e: 'update:modelValue', payload: string | number): void;
+}>();
+
+const modelValue = useVModel(props, 'modelValue', emits, {
+    passive: true,
+    defaultValue: props.defaultValue,
+});
 
 const visible = ref(false);
 </script>
@@ -17,6 +29,7 @@ const visible = ref(false);
     <div class="relative">
         <input
             v-bind="$attrs"
+            v-model="modelValue"
             :type="visible ? 'text' : 'password'"
             data-slot="input"
             :class="

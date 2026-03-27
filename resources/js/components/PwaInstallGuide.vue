@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronLeft, ChevronRight, CircleAlert, Copy, EllipsisVertical, Share, SquarePlus } from 'lucide-vue-next';
+import { Check, ChevronLeft, ChevronRight, Copy, Ellipsis, EllipsisVertical, Share, SquarePlus } from 'lucide-vue-next';
 import type { Component } from 'vue';
 import { computed, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -12,7 +12,6 @@ const open = defineModel<boolean>('open', { default: false });
 const { browserName, dismiss, markGuideDone } = usePwaInstall();
 
 const currentStep = ref(0);
-const verificationError = ref('');
 
 interface Step {
     icon: Component;
@@ -21,8 +20,10 @@ interface Step {
 }
 
 const safariSteps: Step[] = [
-    { icon: Share, title: 'Tocá el botón de compartir', description: 'Está en la barra de abajo del navegador' },
-    { icon: SquarePlus, title: 'Buscá "Agregar a inicio"', description: 'Deslizá hacia abajo en el menú que aparece' },
+    { icon: Ellipsis, title: 'Tocá los tres puntos', description: 'Están en la esquina inferior derecha del navegador' },
+    { icon: Share, title: 'Tocá "Compartir"', description: 'Es la primera opción del menú que aparece' },
+    { icon: Ellipsis, title: 'Tocá "..." (más opciones)', description: 'Está en la fila de íconos de abajo del menú de compartir' },
+    { icon: SquarePlus, title: 'Tocá "Agregar a inicio"', description: 'Buscalo en la lista que aparece' },
     { icon: Check, title: 'Tocá "Agregar"', description: 'Confirmá el nombre y listo, queda en tu pantalla' },
 ];
 
@@ -37,29 +38,20 @@ const currentStepData = computed(() => steps.value[currentStep.value]);
 const isOtherBrowser = computed(() => browserName.value === 'other');
 
 function next() {
-    verificationError.value = '';
     if (currentStep.value < steps.value.length - 1) {
         currentStep.value++;
     }
 }
 
 function prev() {
-    verificationError.value = '';
     if (currentStep.value > 0) {
         currentStep.value--;
     }
 }
 
 function verifyInstalled() {
-    const isNowStandalone =
-        (navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-
-    if (isNowStandalone) {
-        markGuideDone();
-        open.value = false;
-    } else {
-        verificationError.value = 'Aún no la veo instalada. Intentá de nuevo siguiendo los pasos.';
-    }
+    markGuideDone();
+    open.value = false;
 }
 
 function postpone() {
@@ -132,12 +124,6 @@ function copyLink() {
                             {{ currentStepData.description }}
                         </p>
                     </div>
-                </div>
-
-                <!-- Verification error -->
-                <div v-if="verificationError" class="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2">
-                    <CircleAlert class="size-4 shrink-0 text-destructive" />
-                    <p class="text-sm text-destructive">{{ verificationError }}</p>
                 </div>
 
                 <!-- Navigation -->

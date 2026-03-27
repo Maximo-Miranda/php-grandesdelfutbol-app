@@ -5,13 +5,14 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import PwaInstallGuide from '@/components/PwaInstallGuide.vue';
 import { usePwaInstall } from '@/composables/usePwaInstall';
 
-const { canInstall, isIos, isStandalone, dismissed, shouldShowInstallGuide, promptInstall, dismiss } = usePwaInstall();
+const { canInstall, isIos, isStandalone, dismissed, shouldShowInstallGuide, guideDone, promptInstall, dismiss } = usePwaInstall();
 
 const showGuide = ref(shouldShowInstallGuide.value);
 
 const visible = computed(() => {
     if (isStandalone.value || dismissed.value) return false;
     if (shouldShowInstallGuide.value) return false;
+    if (isIos.value && guideDone.value) return false;
     return canInstall.value || isIos.value;
 });
 </script>
