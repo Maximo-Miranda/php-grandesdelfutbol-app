@@ -2,48 +2,63 @@
 
 namespace App\Console\Commands;
 
+use App\Models\MatchVideoUpload;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 class CleanupMatchVideos extends Command
 {
-    protected $signature = 'app:cleanup-match-videos {--days=30 : Dias desde que se almaceno el video}';
+    protected $signature = 'app:cleanup-match-videos {--days= : Override dias de retencion (default: config)}';
 
-    protected $description = 'Elimina videos completos cacheados en S3 despues de N dias. Los reels generados se mantienen.';
+    protected $description = 'Elimina la version 720p de S3 despues del periodo de retencion. Verifica que Drive tenga el respaldo.';
 
     public function handle(): int
     {
-        $days = (int) $this->option('days');
-        $disk = Storage::disk('s3');
-        $files = array_merge(
-            $disk->allFiles('videos/matches'),
-            $disk->allFiles('match-videos'), // Legacy path
-        );
+        $days = (int) ($this->option('days') ?? config('youtube.storage.s3_reels_source_days', 30));
 
-        if (empty($files)) {
-            $this->info('No hay videos cacheados para limpiar.');
+        $uploads = MatchVideoUpload::query()
+            ->whereNotNull('s3_reels_path')
+            ->where('s3_reels_uploaded_at', '<', now()->subDays($days))
+            ->get();
+
+        if ($uploads->isEmpty()) {
+            $this->info('No hay videos para limpiar.');
 
             return self::SUCCESS;
         }
 
         $deleted = 0;
-        $freedBytes = 0;
-        $cutoff = now()->subDays($days)->timestamp;
+        $skipped = 0;
 
-        foreach ($files as $file) {
-            $lastModified = $disk->lastModified($file);
+        foreach ($uploads as $upload) {
+            // Verify Drive has the 720p before deleting S3
+            if (! $upload->drive_reels_file_id) {
+                $this->warn("  Saltado: {$upload->ulid} — no tiene 720p en Drive.");
+                $skipped++;
 
-            if ($lastModified < $cutoff) {
-                $freedBytes += $disk->size($file);
-                $disk->delete($file);
-                $deleted++;
-
-                $this->line("  Eliminado: {$file}");
+                continue;
             }
+
+            if (Storage::disk('s3')->exists($upload->s3_reels_path)) {
+                Storage::disk('s3')->delete($upload->s3_reels_path);
+                $this->line("  Eliminado S3: {$upload->s3_reels_path}");
+            }
+
+            // Also clean up any original temp files
+            if ($upload->original_s3_path && Storage::disk('s3')->exists($upload->original_s3_path)) {
+                Storage::disk('s3')->delete($upload->original_s3_path);
+            }
+
+            $upload->update([
+                's3_reels_path' => null,
+                's3_path' => null,
+                'original_s3_path' => null,
+            ]);
+
+            $deleted++;
         }
 
-        $freedMB = round($freedBytes / 1024 / 1024);
-        $this->info("Listo: {$deleted} videos eliminados, ~{$freedMB} MB liberados.");
+        $this->info("Listo: {$deleted} limpiados, {$skipped} saltados.");
 
         return self::SUCCESS;
     }

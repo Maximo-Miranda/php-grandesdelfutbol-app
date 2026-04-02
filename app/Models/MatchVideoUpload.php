@@ -27,6 +27,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $youtube_upload_requested_at
  * @property string|null $s3_path
  * @property string|null $original_s3_path
+ * @property string|null $drive_file_id
+ * @property string|null $drive_reels_file_id
+ * @property string|null $s3_reels_path
+ * @property CarbonImmutable|null $s3_reels_uploaded_at
+ * @property CarbonImmutable|null $drive_shared_at
  * @property string|null $best_resolution
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -39,6 +44,7 @@ class MatchVideoUpload extends Model
         'embed_url',
         'youtube_url',
         'youtube_embed_url',
+        'drive_embed_url',
     ];
 
     protected $fillable = [
@@ -57,7 +63,11 @@ class MatchVideoUpload extends Model
         'youtube_upload_requested_at',
         's3_path',
         'original_s3_path',
+        's3_reels_path',
+        's3_reels_uploaded_at',
         'drive_file_id',
+        'drive_reels_file_id',
+        'drive_shared_at',
         'best_resolution',
     ];
 
@@ -72,6 +82,8 @@ class MatchVideoUpload extends Model
             'encoded_at' => 'immutable_datetime',
             'youtube_uploaded_at' => 'immutable_datetime',
             'youtube_upload_requested_at' => 'immutable_datetime',
+            's3_reels_uploaded_at' => 'immutable_datetime',
+            'drive_shared_at' => 'immutable_datetime',
         ];
     }
 
@@ -87,7 +99,14 @@ class MatchVideoUpload extends Model
 
     public function getEmbedUrlAttribute(): ?string
     {
-        return $this->youtube_embed_url;
+        return $this->youtube_embed_url ?? $this->drive_embed_url;
+    }
+
+    public function getDriveEmbedUrlAttribute(): ?string
+    {
+        return $this->drive_file_id && $this->drive_shared_at
+            ? "https://drive.google.com/file/d/{$this->drive_file_id}/preview"
+            : null;
     }
 
     public function getYoutubeUrlAttribute(): ?string

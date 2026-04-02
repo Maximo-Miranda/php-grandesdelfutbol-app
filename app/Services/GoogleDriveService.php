@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use App\Models\Club;
+use Google\Http\MediaFileUpload;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
+use Google\Service\Drive\Permission;
 use Illuminate\Support\Facades\Http;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
@@ -119,6 +122,76 @@ class GoogleDriveService
         $drive = $this->driveService();
 
         $drive->files->delete($fileId);
+    }
+
+    /**
+     * Upload a local file to Google Drive using resumable chunked upload.
+     *
+     * Used to upload the 720p reels-source version back to Drive after encoding.
+     *
+     * @return string The Drive file ID
+     */
+    public function uploadFile(string $localPath, string $fileName, string $folderId): string
+    {
+        $client = $this->authService->authenticatedClient();
+        $client->setDefer(true);
+
+        $drive = new Drive($client);
+
+        $fileMetadata = new DriveFile([
+            'name' => $fileName,
+            'parents' => [$folderId],
+        ]);
+
+        /** @var RequestInterface $request */
+        $request = $drive->files->create($fileMetadata);
+
+        $chunkSize = 16 * 1024 * 1024; // 16MB chunks
+        $media = new MediaFileUpload(
+            $client,
+            $request,
+            'video/mp4',
+            null,
+            true,
+            $chunkSize,
+        );
+
+        $media->setFileSize(filesize($localPath));
+
+        $handle = fopen($localPath, 'rb');
+        $uploadStatus = false;
+
+        while (! $uploadStatus && ! feof($handle)) {
+            $chunk = fread($handle, $chunkSize);
+            $uploadStatus = $media->nextChunk($chunk);
+        }
+
+        fclose($handle);
+        $client->setDefer(false);
+
+        if (! $uploadStatus instanceof DriveFile) {
+            throw new RuntimeException('Failed to upload file to Google Drive.');
+        }
+
+        return $uploadStatus->getId();
+    }
+
+    /**
+     * Share a file publicly (anyone with the link can view).
+     *
+     * Required for the Google Drive embed player to work.
+     * Uses role=reader so viewers cannot edit or delete.
+     */
+    public function shareFilePublicly(string $fileId): void
+    {
+        $drive = $this->driveService();
+
+        $permission = new Permission([
+            'type' => 'anyone',
+            'role' => 'reader',
+        ]);
+
+        $drive->permissions->create($fileId, $permission);
     }
 
     /**

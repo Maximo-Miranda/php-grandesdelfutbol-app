@@ -201,6 +201,10 @@ function deleteMatch() {
 const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
+const driveViewUrl = computed(() => {
+    const fileId = props.match.video_upload?.drive_file_id;
+    return fileId ? `https://drive.google.com/file/d/${fileId}/view` : null;
+});
 const videoEmbedUrl = computed(() => {
     // Prefer YouTube embed when available
     if (props.match.video_upload?.youtube_embed_url) {
@@ -253,9 +257,10 @@ async function generateShareLink() {
     }
 }
 
-function copyYoutubeLink() {
-    if (!youtubeUrl.value) return;
-    navigator.clipboard.writeText(youtubeUrl.value).then(() => {
+function copyVideoLink() {
+    const url = youtubeUrl.value || driveViewUrl.value;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
         copiedLink.value = true;
         setTimeout(() => { copiedLink.value = false; }, 2000);
     });
@@ -1033,21 +1038,24 @@ async function shareReel(reel: MatchReel) {
                         allowfullscreen
                     />
                 </div>
-                <!-- YouTube processing indicator -->
-                <div v-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400">
-                    <Loader2 class="size-3 animate-spin" />
-                    Preparando video...
+                <!-- YouTube pending indicator -->
+                <div v-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    Pendiente de subir a YouTube
                 </div>
                 <div class="mt-2 flex items-center justify-between">
-                    <!-- Copy YouTube link -->
-                    <div v-if="youtubeUrl" class="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="sm" class="gap-1.5" @click="copyYoutubeLink">
+                    <!-- Copy video link (YouTube or Drive) -->
+                    <div v-if="youtubeUrl || driveViewUrl" class="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" class="gap-1.5" @click="copyVideoLink">
                             <Copy class="size-3.5" />
                             {{ copiedLink ? 'Copiado!' : 'Copiar link' }}
                         </Button>
-                        <a :href="youtubeUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                        <a v-if="youtubeUrl" :href="youtubeUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
                             <ExternalLink class="size-3" />
                             YouTube
+                        </a>
+                        <a v-else-if="driveViewUrl" :href="driveViewUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                            <ExternalLink class="size-3" />
+                            Google Drive
                         </a>
                     </div>
                     <div v-else></div>

@@ -34,6 +34,8 @@ type VideoUploadData = {
     youtube_video_id?: string | null;
     youtube_embed_url?: string | null;
     youtube_url?: string | null;
+    drive_embed_url?: string | null;
+    embed_url?: string | null;
 };
 
 type Props = {
@@ -604,7 +606,10 @@ async function cancelUpload() {
 
 async function deleteVideo() {
     try {
-        await fetch(videoUploadUrl.value, {
+        const url = new URL(videoUploadUrl.value, window.location.origin);
+        url.searchParams.set('force', '1');
+
+        await fetch(url.toString(), {
             method: 'DELETE',
             headers: freshHeaders(),
             credentials: 'same-origin',
@@ -838,16 +843,16 @@ onBeforeUnmount(() => {
                 <span class="text-xs text-muted-foreground">{{ uploadedFilename }}</span>
             </div>
 
-            <!-- YouTube embed -->
-            <div v-if="props.existingUpload?.youtube_embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
+            <!-- Video player: YouTube > Drive embed > S3 fallback -->
+            <div v-if="props.existingUpload?.embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
                 <iframe
-                    :src="props.existingUpload.youtube_embed_url"
+                    :src="props.existingUpload.embed_url"
                     class="h-full w-full"
                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen
                 />
             </div>
-            <!-- S3 fallback player + YouTube retry -->
+            <!-- S3 fallback player (first 30 days, no YouTube/Drive embed) -->
             <template v-else>
                 <VideoPlayer v-if="props.s3VideoUrl" :src="props.s3VideoUrl" />
                 <div class="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
@@ -909,7 +914,7 @@ onBeforeUnmount(() => {
 
         <!-- Delete confirmation dialog -->
         <Dialog v-model:open="showDeleteConfirm">
-            <DialogContent>
+            <DialogContent @pointer-down-outside.prevent @interact-outside.prevent>
                 <DialogHeader>
                     <DialogTitle>Eliminar video del partido</DialogTitle>
                     <DialogDescription>

@@ -11,6 +11,7 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\GoogleDriveService;
 use App\Services\YouTubeQuotaService;
+use App\Services\YouTubeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -96,23 +97,22 @@ class MatchVideoUploadController extends Controller
             return response()->json(['error' => 'No hay video para eliminar.'], 404);
         }
 
-        if (! $videoUpload->youtube_video_id && ! request()->boolean('force')) {
-            return response()->json([
-                'warning' => 'Este video no se ha subido a YouTube. Si lo eliminas, se perderá permanentemente.',
-                'requires_force' => true,
-            ], 409);
+        // Clean up YouTube video
+        if ($videoUpload->youtube_video_id) {
+            rescue(fn () => app(YouTubeService::class)->deleteVideo($videoUpload->youtube_video_id));
         }
 
+        // Clean up Drive files
         if ($videoUpload->drive_file_id) {
             rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_file_id));
         }
-
-        if ($videoUpload->s3_path) {
-            Storage::disk('s3')->delete($videoUpload->s3_path);
+        if ($videoUpload->drive_reels_file_id) {
+            rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_reels_file_id));
         }
 
-        if ($videoUpload->original_s3_path) {
-            Storage::disk('s3')->delete($videoUpload->original_s3_path);
+        // Clean up S3 files
+        foreach (array_filter([$videoUpload->s3_path, $videoUpload->original_s3_path, $videoUpload->s3_reels_path]) as $path) {
+            Storage::disk('s3')->delete($path);
         }
 
         $videoUpload->delete();

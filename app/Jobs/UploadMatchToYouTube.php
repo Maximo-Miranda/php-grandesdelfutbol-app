@@ -6,6 +6,7 @@ use App\Enums\VideoUploadStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
+use App\Services\GoogleDriveService;
 use App\Services\YouTubeQuotaService;
 use App\Services\YouTubeService;
 use Illuminate\Bus\Batchable;
@@ -63,7 +64,11 @@ class UploadMatchToYouTube implements ShouldQueue
         $match = $this->videoUpload->match;
         $club = $match?->club;
 
-        if (! $match || ! $club || ! $this->videoUpload->s3_path) {
+        if (! $match || ! $club) {
+            return;
+        }
+
+        if (! $this->videoUpload->drive_file_id && ! $this->videoUpload->s3_path) {
             return;
         }
 
@@ -84,17 +89,7 @@ class UploadMatchToYouTube implements ShouldQueue
         }
 
         try {
-            $s3Path = $this->videoUpload->original_s3_path ?? $this->videoUpload->s3_path;
-            $stream = Storage::disk('s3')->readStream($s3Path);
-
-            if (! $stream) {
-                throw new \RuntimeException('No se pudo leer el video de S3.');
-            }
-
-            $local = fopen($tempFile, 'wb');
-            stream_copy_to_stream($stream, $local);
-            fclose($local);
-            fclose($stream);
+            $this->downloadVideoToTemp($tempFile);
 
             $title = "{$match->title} - {$club->name}";
             $description = $this->buildDescription($match, $club);
@@ -109,6 +104,9 @@ class UploadMatchToYouTube implements ShouldQueue
 
             $quotaService->increment();
             $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
+
+            // Delete original from Drive — YouTube now has it
+            $this->cleanupDriveOriginal();
         } finally {
             $lock->release();
 
@@ -152,6 +150,57 @@ class UploadMatchToYouTube implements ShouldQueue
             $youtubeService->addToPlaylist($club->youtube_playlist_id, $videoId);
         } catch (Throwable $e) {
             // Non-critical: video is uploaded, playlist is optional
+            report($e);
+        }
+    }
+
+    /**
+     * Download the original video to a temp file.
+     *
+     * Prefers Google Drive (original quality), falls back to S3 for pre-migration videos.
+     */
+    private function downloadVideoToTemp(string $tempFile): void
+    {
+        if ($this->videoUpload->drive_file_id) {
+            app(GoogleDriveService::class)->downloadFile($this->videoUpload->drive_file_id, $tempFile);
+
+            return;
+        }
+
+        $s3Path = $this->videoUpload->original_s3_path ?? $this->videoUpload->s3_path;
+        $stream = Storage::disk('s3')->readStream($s3Path);
+
+        if (! $stream) {
+            throw new \RuntimeException('No se pudo leer el video de S3.');
+        }
+
+        $local = fopen($tempFile, 'wb');
+        stream_copy_to_stream($stream, $local);
+        fclose($local);
+        fclose($stream);
+    }
+
+    /**
+     * Delete the original video from Drive after successful YouTube upload.
+     *
+     * YouTube now has the original quality video, so the Drive copy is redundant.
+     * The 720p reels source (drive_reels_file_id) is kept for future reel generation.
+     */
+    private function cleanupDriveOriginal(): void
+    {
+        if (! $this->videoUpload->drive_file_id) {
+            return;
+        }
+
+        try {
+            app(GoogleDriveService::class)->deleteFile($this->videoUpload->drive_file_id);
+
+            $this->videoUpload->update([
+                'drive_file_id' => null,
+                'drive_shared_at' => null,
+            ]);
+        } catch (Throwable $e) {
+            // Non-critical: Drive file stays but doesn't affect YouTube playback
             report($e);
         }
     }

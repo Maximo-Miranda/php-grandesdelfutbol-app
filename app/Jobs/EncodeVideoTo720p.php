@@ -3,21 +3,26 @@
 namespace App\Jobs;
 
 use App\Models\MatchVideoUpload;
+use App\Services\GoogleDriveService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
-/**
- * @deprecated Use EncodeVideo instead.
- */
 class EncodeVideoTo720p implements ShouldQueue
 {
     use Batchable, Queueable;
+
+    /** @return array<int, object> */
+    public function middleware(): array
+    {
+        return [new WithoutOverlapping($this->videoUpload->id)];
+    }
 
     public int $timeout = 7200;
 
@@ -72,8 +77,13 @@ class EncodeVideoTo720p implements ShouldQueue
             $this->uploadToS3($outputFile, $s3Output);
 
             $this->videoUpload->update([
+                's3_reels_path' => $s3Output,
+                's3_reels_uploaded_at' => now(),
                 'best_resolution' => '720p',
             ]);
+
+            // Upload 720p to Google Drive for permanent storage (reels source after S3 cleanup)
+            $this->uploadReelsSourceToDrive($outputFile, $match->ulid);
         } finally {
             $this->cleanupFile($inputFile);
             $this->cleanupFile($outputFile);
@@ -87,6 +97,33 @@ class EncodeVideoTo720p implements ShouldQueue
         $this->videoUpload->update([
             'error_message' => 'Error al encodear video: '.mb_substr($exception?->getMessage() ?? 'Unknown', 0, 500),
         ]);
+    }
+
+    private function uploadReelsSourceToDrive(string $localPath, string $matchUlid): void
+    {
+        $club = $this->videoUpload->match?->club;
+
+        if (! $club) {
+            return;
+        }
+
+        try {
+            $driveService = app(GoogleDriveService::class);
+            $folderId = $driveService->ensureClubFolder($club);
+
+            $driveFileId = $driveService->uploadFile(
+                $localPath,
+                "{$matchUlid}-720p.mp4",
+                $folderId,
+            );
+
+            $this->videoUpload->update([
+                'drive_reels_file_id' => $driveFileId,
+            ]);
+        } catch (Throwable $e) {
+            // Non-critical: 720p stays in S3 for 30 days, Drive upload can be retried
+            report($e);
+        }
     }
 
     private function getVideoProperties(string $filePath): array

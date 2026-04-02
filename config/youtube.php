@@ -85,4 +85,19 @@ return [
         'chunk_size_mb' => (int) env('DRIVE_UPLOAD_CHUNK_SIZE_MB', 10),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Storage Retention
+    |--------------------------------------------------------------------------
+    |
+    | Controls how long video files are kept in S3 before cleanup.
+    | The 720p reels source is kept in S3 for fast reel generation,
+    | then deleted (Drive retains the permanent copy).
+    |
+    */
+
+    'storage' => [
+        's3_reels_source_days' => (int) env('S3_REELS_SOURCE_DAYS', 30),
+    ],
+
 ];

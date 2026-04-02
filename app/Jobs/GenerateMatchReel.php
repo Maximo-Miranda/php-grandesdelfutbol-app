@@ -6,6 +6,8 @@ use App\Enums\ReelStatus;
 use App\Enums\VideoUploadStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchReel;
+use App\Models\MatchVideoUpload;
+use App\Services\GoogleDriveService;
 use Exception;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -55,8 +57,8 @@ class GenerateMatchReel implements ShouldQueue
             return;
         }
 
-        if (! $videoUpload->s3_path) {
-            $this->markFailed('No hay video en S3 para este partido.');
+        if (! $videoUpload->s3_reels_path && ! $videoUpload->s3_path && ! $videoUpload->drive_reels_file_id && ! $videoUpload->drive_file_id) {
+            $this->markFailed('No hay video disponible para generar el reel.');
 
             return;
         }
@@ -70,7 +72,7 @@ class GenerateMatchReel implements ShouldQueue
         $sourceVideo = null;
 
         try {
-            $sourceVideo = $this->ensureFullVideoDownloaded($match, $videoUpload->s3_path, $tempDir);
+            $sourceVideo = $this->ensureFullVideoDownloaded($match, $videoUpload, $tempDir);
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
         } catch (RuntimeException $e) {
@@ -87,7 +89,12 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    protected function ensureFullVideoDownloaded(FootballMatch $match, string $s3Path, string $tempDir): string
+    /**
+     * Download the video source for reel generation.
+     *
+     * Cascade: S3 720p → S3 legacy → Drive 720p → Drive original
+     */
+    protected function ensureFullVideoDownloaded(FootballMatch $match, MatchVideoUpload $videoUpload, string $tempDir): string
     {
         $localPath = $tempDir."/full-{$match->ulid}.mp4";
 
@@ -95,9 +102,35 @@ class GenerateMatchReel implements ShouldQueue
             return $localPath;
         }
 
-        $this->downloadFromS3($s3Path, $localPath);
+        // 1. S3 720p reels source (fastest, first 30 days)
+        if ($videoUpload->s3_reels_path && Storage::disk('s3')->exists($videoUpload->s3_reels_path)) {
+            $this->downloadFromS3($videoUpload->s3_reels_path, $localPath);
 
-        return $localPath;
+            return $localPath;
+        }
+
+        // 2. S3 legacy path (pre-migration videos)
+        if ($videoUpload->s3_path && Storage::disk('s3')->exists($videoUpload->s3_path)) {
+            $this->downloadFromS3($videoUpload->s3_path, $localPath);
+
+            return $localPath;
+        }
+
+        // 3. Drive 720p reels source (after S3 cleanup)
+        if ($videoUpload->drive_reels_file_id) {
+            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_reels_file_id, $localPath);
+
+            return $localPath;
+        }
+
+        // 4. Drive original (last resort)
+        if ($videoUpload->drive_file_id) {
+            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_file_id, $localPath);
+
+            return $localPath;
+        }
+
+        throw new RuntimeException('No se encontró ninguna fuente de video para generar el reel.');
     }
 
     protected function downloadFromS3(string $s3Path, string $localPath): void

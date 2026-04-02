@@ -152,6 +152,15 @@ class YouTubeService
         $youtube->playlistItems->insert('snippet', $item);
     }
 
+    /** Delete a video from YouTube. */
+    public function deleteVideo(string $videoId): void
+    {
+        $client = $this->authService->authenticatedClient();
+        $youtube = new YouTube($client);
+
+        $youtube->videos->delete($videoId);
+    }
+
     /** Check if YouTube is configured with a valid token. */
     public function isConfigured(): bool
     {

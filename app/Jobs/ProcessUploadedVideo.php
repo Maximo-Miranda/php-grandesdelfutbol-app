@@ -50,13 +50,15 @@ class ProcessUploadedVideo implements ShouldQueue
         $matchUlid = $match->ulid;
         $originalS3Path = $this->videoUpload->s3_path;
 
+        $driveFileId = $this->videoUpload->drive_file_id;
+
         Bus::batch([
-            new EncodeVideo($this->videoUpload),
+            new EncodeVideoTo720p($this->videoUpload),
         ])
             ->name("video-pipeline-match-{$matchId}")
             ->onQueue('video-processing')
             ->allowFailures()
-            ->finally(function () use ($videoUploadId, $matchId, $matchUlid, $originalS3Path) {
+            ->finally(function () use ($videoUploadId, $matchId, $matchUlid, $originalS3Path, $driveFileId) {
                 $videoUpload = MatchVideoUpload::find($videoUploadId);
                 $match = FootballMatch::find($matchId);
 
@@ -64,14 +66,29 @@ class ProcessUploadedVideo implements ShouldQueue
                     return;
                 }
 
-                // Point s3_path to the encoded file for playback; keep original for YouTube
-                $encodedPath = "videos/matches/{$matchUlid}/1080p.mp4";
+                // Point s3_path to the 720p reels source for playback fallback
+                $reelsPath = "videos/matches/{$matchUlid}/720p.mp4";
 
-                if ($originalS3Path !== $encodedPath && Storage::disk('s3')->exists($encodedPath)) {
+                if (Storage::disk('s3')->exists($reelsPath)) {
                     $videoUpload->update([
-                        's3_path' => $encodedPath,
-                        'original_s3_path' => $originalS3Path,
+                        's3_path' => $reelsPath,
                     ]);
+                }
+
+                // Clean up the S3 original temp file (Drive has the original)
+                if ($originalS3Path && $originalS3Path !== $reelsPath) {
+                    rescue(fn () => Storage::disk('s3')->delete($originalS3Path));
+                    $videoUpload->update(['original_s3_path' => null]);
+                }
+
+                // Share original on Drive publicly for embed player
+                if ($driveFileId) {
+                    try {
+                        app(GoogleDriveService::class)->shareFilePublicly($driveFileId);
+                        $videoUpload->update(['drive_shared_at' => now()]);
+                    } catch (Throwable $e) {
+                        report($e);
+                    }
                 }
 
                 // Determine final status — must always run
@@ -88,11 +105,6 @@ class ProcessUploadedVideo implements ShouldQueue
                         'status' => VideoUploadStatus::Failed,
                         'error_message' => 'El procesamiento del video falló. Puedes reintentar.',
                     ]);
-                }
-
-                // Clean up Google Drive file after encoding (non-critical)
-                if ($videoUpload->drive_file_id) {
-                    rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_file_id));
                 }
 
                 // Auto reels if match has finalized stats (non-critical)
