@@ -31,7 +31,6 @@ class CleanupMatchVideos extends Command
         $skipped = 0;
 
         foreach ($uploads as $upload) {
-            // Verify Drive has the 720p before deleting S3
             if (! $upload->drive_reels_file_id) {
                 $this->warn("  Saltado: {$upload->ulid} — no tiene 720p en Drive.");
                 $skipped++;
@@ -44,7 +43,6 @@ class CleanupMatchVideos extends Command
                 $this->line("  Eliminado S3: {$upload->s3_reels_path}");
             }
 
-            // Also clean up any original temp files
             if ($upload->original_s3_path && Storage::disk('s3')->exists($upload->original_s3_path)) {
                 Storage::disk('s3')->delete($upload->original_s3_path);
             }

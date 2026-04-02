@@ -10,6 +10,7 @@ use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -35,7 +36,6 @@ class ProcessUploadedVideo implements ShouldQueue
             return;
         }
 
-        // Transfer from Google Drive to S3 if this is a Drive-sourced upload
         if ($this->videoUpload->drive_file_id && ! $this->videoUpload->s3_path) {
             $this->transferFromDriveToS3($match->ulid);
         }
@@ -66,7 +66,6 @@ class ProcessUploadedVideo implements ShouldQueue
                     return;
                 }
 
-                // Point s3_path to the 720p reels source for playback fallback
                 $reelsPath = "videos/matches/{$matchUlid}/720p.mp4";
 
                 if (Storage::disk('s3')->exists($reelsPath)) {
@@ -75,23 +74,18 @@ class ProcessUploadedVideo implements ShouldQueue
                     ]);
                 }
 
-                // Clean up the S3 original temp file (Drive has the original)
                 if ($originalS3Path && $originalS3Path !== $reelsPath) {
                     rescue(fn () => Storage::disk('s3')->delete($originalS3Path));
                     $videoUpload->update(['original_s3_path' => null]);
                 }
 
-                // Share original on Drive publicly for embed player
                 if ($driveFileId) {
-                    try {
+                    rescue(function () use ($driveFileId, $videoUpload) {
                         app(GoogleDriveService::class)->shareFilePublicly($driveFileId);
                         $videoUpload->update(['drive_shared_at' => now()]);
-                    } catch (Throwable $e) {
-                        report($e);
-                    }
+                    });
                 }
 
-                // Determine final status — must always run
                 $videoUpload->refresh();
 
                 if ($videoUpload->best_resolution) {
@@ -107,23 +101,22 @@ class ProcessUploadedVideo implements ShouldQueue
                     ]);
                 }
 
-                // Auto reels if match has finalized stats (non-critical)
-                try {
-                    if ($match->stats_finalized_at && $videoUpload->best_resolution) {
-                        $hasQualifyingEvents = $match->events()
-                            ->where(function ($q) {
-                                $q->whereIn('event_type', ['goal', 'penalty_scored'])
-                                    ->orWhere('highlighted', true);
-                            })
-                            ->exists();
-
-                        if ($hasQualifyingEvents) {
-                            app(ReelService::class)->generateReelsForMatch($match);
-                        }
+                rescue(function () use ($match, $videoUpload) {
+                    if (! $match->stats_finalized_at || ! $videoUpload->best_resolution) {
+                        return;
                     }
-                } catch (Throwable $e) {
-                    report($e);
-                }
+
+                    $hasQualifyingEvents = $match->events()
+                        ->where(function ($q) {
+                            $q->whereIn('event_type', ['goal', 'penalty_scored'])
+                                ->orWhere('highlighted', true);
+                        })
+                        ->exists();
+
+                    if ($hasQualifyingEvents) {
+                        app(ReelService::class)->generateReelsForMatch($match);
+                    }
+                });
             })
             ->dispatch();
     }
@@ -138,9 +131,7 @@ class ProcessUploadedVideo implements ShouldQueue
         $driveService = app(GoogleDriveService::class);
 
         $tempDir = storage_path('app/temp/drive');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
+        File::ensureDirectoryExists($tempDir);
 
         $tempPath = "{$tempDir}/{$matchUlid}.mp4";
 

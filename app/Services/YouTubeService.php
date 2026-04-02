@@ -87,8 +87,7 @@ class YouTubeService
      */
     public function getProcessingStatus(string $videoId): string
     {
-        $client = $this->authService->authenticatedClient();
-        $youtube = new YouTube($client);
+        $youtube = $this->youtubeService();
 
         $response = $youtube->videos->listVideos('processingDetails', ['id' => $videoId]);
 
@@ -114,8 +113,7 @@ class YouTubeService
      */
     public function createPlaylist(string $title, string $description = ''): string
     {
-        $client = $this->authService->authenticatedClient();
-        $youtube = new YouTube($client);
+        $youtube = $this->youtubeService();
 
         $snippet = new PlaylistSnippet;
         $snippet->setTitle(mb_substr($title, 0, 150));
@@ -136,8 +134,7 @@ class YouTubeService
     /** Add a video to a YouTube playlist. */
     public function addToPlaylist(string $playlistId, string $videoId): void
     {
-        $client = $this->authService->authenticatedClient();
-        $youtube = new YouTube($client);
+        $youtube = $this->youtubeService();
 
         $snippet = new PlaylistItemSnippet;
         $snippet->setPlaylistId($playlistId);
@@ -155,15 +152,17 @@ class YouTubeService
     /** Delete a video from YouTube. */
     public function deleteVideo(string $videoId): void
     {
-        $client = $this->authService->authenticatedClient();
-        $youtube = new YouTube($client);
-
-        $youtube->videos->delete($videoId);
+        $this->youtubeService()->videos->delete($videoId);
     }
 
     /** Check if YouTube is configured with a valid token. */
     public function isConfigured(): bool
     {
         return $this->authService->isConfigured();
+    }
+
+    private function youtubeService(): YouTube
+    {
+        return new YouTube($this->authService->authenticatedClient());
     }
 }

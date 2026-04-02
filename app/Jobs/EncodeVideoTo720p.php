@@ -56,7 +56,6 @@ class EncodeVideoTo720p implements ShouldQueue
         $outputFile = $tempDir."/720p-{$match->ulid}.mp4";
         $s3Output = "videos/matches/{$match->ulid}/720p.mp4";
 
-        // Clean up stale download from a previous crashed attempt
         $this->cleanupFile($inputFile);
 
         try {
@@ -82,7 +81,6 @@ class EncodeVideoTo720p implements ShouldQueue
                 'best_resolution' => '720p',
             ]);
 
-            // Upload 720p to Google Drive for permanent storage (reels source after S3 cleanup)
             $this->uploadReelsSourceToDrive($outputFile, $match->ulid);
         } finally {
             $this->cleanupFile($inputFile);
@@ -107,7 +105,7 @@ class EncodeVideoTo720p implements ShouldQueue
             return;
         }
 
-        try {
+        rescue(function () use ($localPath, $matchUlid, $club) {
             $driveService = app(GoogleDriveService::class);
             $folderId = $driveService->ensureClubFolder($club);
 
@@ -117,15 +115,13 @@ class EncodeVideoTo720p implements ShouldQueue
                 $folderId,
             );
 
-            $this->videoUpload->update([
-                'drive_reels_file_id' => $driveFileId,
-            ]);
-        } catch (Throwable $e) {
-            // Non-critical: 720p stays in S3 for 30 days, Drive upload can be retried
-            report($e);
-        }
+            $this->videoUpload->update(['drive_reels_file_id' => $driveFileId]);
+        });
     }
 
+    /**
+     * @return array{video_height: int, video_codec: string, audio_codec: string|null, duration: int}
+     */
     private function getVideoProperties(string $filePath): array
     {
         $result = Process::timeout(30)->run([

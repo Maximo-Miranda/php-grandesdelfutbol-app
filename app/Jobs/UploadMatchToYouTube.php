@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 class UploadMatchToYouTube implements ShouldQueue
@@ -83,7 +84,6 @@ class UploadMatchToYouTube implements ShouldQueue
 
         $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
 
-        // Clean up stale temp file from a previous crashed attempt
         if (file_exists($tempFile)) {
             unlink($tempFile);
         }
@@ -105,7 +105,6 @@ class UploadMatchToYouTube implements ShouldQueue
             $quotaService->increment();
             $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
 
-            // Delete original from Drive — YouTube now has it
             $this->cleanupDriveOriginal();
         } finally {
             $lock->release();
@@ -137,7 +136,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
     private function addToClubPlaylist(YouTubeService $youtubeService, Club $club, string $videoId): void
     {
-        try {
+        rescue(function () use ($youtubeService, $club, $videoId) {
             if (! $club->youtube_playlist_id) {
                 $playlistId = $youtubeService->createPlaylist(
                     $club->name,
@@ -148,10 +147,7 @@ class UploadMatchToYouTube implements ShouldQueue
             }
 
             $youtubeService->addToPlaylist($club->youtube_playlist_id, $videoId);
-        } catch (Throwable $e) {
-            // Non-critical: video is uploaded, playlist is optional
-            report($e);
-        }
+        });
     }
 
     /**
@@ -171,7 +167,7 @@ class UploadMatchToYouTube implements ShouldQueue
         $stream = Storage::disk('s3')->readStream($s3Path);
 
         if (! $stream) {
-            throw new \RuntimeException('No se pudo leer el video de S3.');
+            throw new RuntimeException('No se pudo leer el video de S3.');
         }
 
         $local = fopen($tempFile, 'wb');
@@ -180,29 +176,20 @@ class UploadMatchToYouTube implements ShouldQueue
         fclose($stream);
     }
 
-    /**
-     * Delete the original video from Drive after successful YouTube upload.
-     *
-     * YouTube now has the original quality video, so the Drive copy is redundant.
-     * The 720p reels source (drive_reels_file_id) is kept for future reel generation.
-     */
     private function cleanupDriveOriginal(): void
     {
         if (! $this->videoUpload->drive_file_id) {
             return;
         }
 
-        try {
+        rescue(function () {
             app(GoogleDriveService::class)->deleteFile($this->videoUpload->drive_file_id);
 
             $this->videoUpload->update([
                 'drive_file_id' => null,
                 'drive_shared_at' => null,
             ]);
-        } catch (Throwable $e) {
-            // Non-critical: Drive file stays but doesn't affect YouTube playback
-            report($e);
-        }
+        });
     }
 
     private function buildDescription(FootballMatch $match, Club $club): string

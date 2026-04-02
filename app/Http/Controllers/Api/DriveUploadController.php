@@ -34,7 +34,6 @@ class DriveUploadController extends Controller
         $existingUpload = $match->videoUpload;
 
         if ($existingUpload) {
-            // Allow replacing stale uploads that never finished
             if ($existingUpload->status === VideoUploadStatus::Uploading) {
                 if ($existingUpload->drive_file_id) {
                     rescue(fn () => $this->driveService->deleteFile($existingUpload->drive_file_id));

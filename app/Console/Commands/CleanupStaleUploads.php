@@ -31,7 +31,6 @@ class CleanupStaleUploads extends Command
         $deleted = 0;
 
         foreach ($stale as $upload) {
-            // Clean up Drive file if it somehow completed partially
             if ($upload->drive_file_id) {
                 rescue(fn () => app(GoogleDriveService::class)->deleteFile($upload->drive_file_id));
             }

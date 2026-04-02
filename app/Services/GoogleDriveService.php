@@ -60,11 +60,6 @@ class GoogleDriveService
         $client = $this->authService->authenticatedClient();
         $httpClient = $client->authorize();
 
-        /**
-         * Initiate a resumable upload session via the Drive upload endpoint.
-         *
-         * @see https://developers.google.com/workspace/drive/api/guides/manage-uploads#resumable
-         */
         $response = $httpClient->request('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', [
             'headers' => [
                 'Content-Type' => 'application/json; charset=UTF-8',

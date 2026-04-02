@@ -57,7 +57,12 @@ class GenerateMatchReel implements ShouldQueue
             return;
         }
 
-        if (! $videoUpload->s3_reels_path && ! $videoUpload->s3_path && ! $videoUpload->drive_reels_file_id && ! $videoUpload->drive_file_id) {
+        $hasVideoSource = $videoUpload->s3_reels_path
+            || $videoUpload->s3_path
+            || $videoUpload->drive_reels_file_id
+            || $videoUpload->drive_file_id;
+
+        if (! $hasVideoSource) {
             $this->markFailed('No hay video disponible para generar el reel.');
 
             return;
@@ -225,7 +230,6 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    /** Called by Laravel when the job exhausts all retries or is killed by timeout. */
     public function failed(?Throwable $exception): void
     {
         $this->markFailed($exception?->getMessage() ?? 'El proceso fue interrumpido. Intenta de nuevo.');

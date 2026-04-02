@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\Storage;
 
 class MatchVideoUploadController extends Controller
 {
+    public function __construct(
+        private YouTubeService $youtubeService,
+        private GoogleDriveService $driveService,
+    ) {}
+
     /** Called after S3 multipart upload completes — registers the upload and dispatches pipeline. */
     public function store(StoreMatchVideoUploadRequest $request, Club $club, FootballMatch $match): JsonResponse
     {
@@ -42,7 +47,6 @@ class MatchVideoUploadController extends Controller
             'uploaded_at' => now(),
         ]);
 
-        // Dispatch the processing pipeline (FFmpeg encode → YouTube upload → reels)
         ProcessUploadedVideo::dispatch($videoUpload);
 
         return response()->json([
@@ -97,20 +101,17 @@ class MatchVideoUploadController extends Controller
             return response()->json(['error' => 'No hay video para eliminar.'], 404);
         }
 
-        // Clean up YouTube video
         if ($videoUpload->youtube_video_id) {
-            rescue(fn () => app(YouTubeService::class)->deleteVideo($videoUpload->youtube_video_id));
+            rescue(fn () => $this->youtubeService->deleteVideo($videoUpload->youtube_video_id));
         }
 
-        // Clean up Drive files
         if ($videoUpload->drive_file_id) {
-            rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_file_id));
+            rescue(fn () => $this->driveService->deleteFile($videoUpload->drive_file_id));
         }
         if ($videoUpload->drive_reels_file_id) {
-            rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_reels_file_id));
+            rescue(fn () => $this->driveService->deleteFile($videoUpload->drive_reels_file_id));
         }
 
-        // Clean up S3 files
         foreach (array_filter([$videoUpload->s3_path, $videoUpload->original_s3_path, $videoUpload->s3_reels_path]) as $path) {
             Storage::disk('s3')->delete($path);
         }

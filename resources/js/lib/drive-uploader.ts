@@ -55,34 +55,37 @@ function openDb(): Promise<IDBDatabase> {
     });
 }
 
-export async function savePendingUpload(upload: PendingUpload): Promise<void> {
+async function withStore<T>(
+    mode: IDBTransactionMode,
+    action: (store: IDBObjectStore) => IDBRequest | void,
+): Promise<T> {
     const db = await openDb();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put({ ...upload });
-        tx.oncomplete = () => resolve();
+        const tx = db.transaction(STORE_NAME, mode);
+        const result = action(tx.objectStore(STORE_NAME));
+        tx.oncomplete = () => resolve(result ? result.result : undefined as T);
         tx.onerror = () => reject(tx.error);
     });
 }
 
-export async function getPendingUpload(matchUlid: string): Promise<PendingUpload | undefined> {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const request = tx.objectStore(STORE_NAME).get(matchUlid);
-        request.onsuccess = () => resolve(request.result ?? undefined);
-        request.onerror = () => reject(request.error);
-    });
+export function savePendingUpload(upload: PendingUpload): Promise<void> {
+    return withStore('readwrite', (store) => store.put({ ...upload }));
 }
 
-export async function deletePendingUpload(matchUlid: string): Promise<void> {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(matchUlid);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
+export function getPendingUpload(matchUlid: string): Promise<PendingUpload | undefined> {
+    return withStore('readonly', (store) => store.get(matchUlid));
+}
+
+export function deletePendingUpload(matchUlid: string): Promise<void> {
+    return withStore('readwrite', (store) => store.delete(matchUlid));
+}
+
+// ── Range header parsing ─────────────────────────────────────────
+
+/** Extract the last byte position from a `Range: bytes=0-N` header. */
+function parseRangeEnd(rangeHeader: string | null): number | null {
+    const match = rangeHeader?.match(/bytes=\d+-(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
 }
 
 // ── Upload engine ──────────────────────────────────────────────────
@@ -116,16 +119,9 @@ function uploadChunk(
         xhr.setRequestHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
 
         xhr.onload = () => {
-            let rangeEnd = end;
-            if (xhr.status === 308) {
-                const range = xhr.getResponseHeader('Range');
-                if (range) {
-                    const match = range.match(/bytes=\d+-(\d+)/);
-                    if (match) {
-                        rangeEnd = parseInt(match[1], 10);
-                    }
-                }
-            }
+            const rangeEnd = (xhr.status === 308)
+                ? parseRangeEnd(xhr.getResponseHeader('Range')) ?? end
+                : end;
             resolve({ status: xhr.status, responseText: xhr.responseText, rangeEnd });
         };
 
@@ -165,16 +161,9 @@ export async function probeUploadStatus(
                     resolve({ complete: true, bytesUploaded: totalSize });
                 }
             } else if (xhr.status === 308) {
-                const range = xhr.getResponseHeader('Range');
-                if (range) {
-                    const match = range.match(/bytes=\d+-(\d+)/);
-                    if (match) {
-                        resolve({ complete: false, bytesUploaded: parseInt(match[1], 10) + 1 });
-                        return;
-                    }
-                }
+                const lastByte = parseRangeEnd(xhr.getResponseHeader('Range'));
                 // No Range header means no bytes received yet
-                resolve({ complete: false, bytesUploaded: 0 });
+                resolve({ complete: false, bytesUploaded: lastByte !== null ? lastByte + 1 : 0 });
             } else if (xhr.status === 404) {
                 reject(new Error('La sesión de subida ha expirado. Debes iniciar la subida de nuevo.'));
             } else {

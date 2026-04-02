@@ -152,15 +152,19 @@ function formatBytes(bytes: number): string {
 }
 
 
-async function selectFile() {
+function pickVideoFile(onFile: (file: File) => void) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
-
-    input.onchange = async () => {
+    input.onchange = () => {
         const file = input.files?.[0];
-        if (!file) return;
+        if (file) onFile(file);
+    };
+    input.click();
+}
 
+async function selectFile() {
+    pickVideoFile(async (file) => {
         if (file.size > 25 * 1073741824) {
             errorMessage.value = 'El archivo es demasiado grande. Maximo 25 GB.';
             return;
@@ -168,9 +172,7 @@ async function selectFile() {
 
         uploadedFilename.value = file.name;
         await startUpload(file);
-    };
-
-    input.click();
+    });
 }
 
 /**
@@ -178,13 +180,8 @@ async function selectFile() {
  * Validates that the file matches the pending upload (name + size).
  */
 function selectFileForResume() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'video/*';
-
-    input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file || !pendingDriveUpload.value) return;
+    pickVideoFile(async (file) => {
+        if (!pendingDriveUpload.value) return;
 
         if (file.name !== pendingDriveUpload.value.fileName || file.size !== pendingDriveUpload.value.fileSize) {
             errorMessage.value = `Selecciona el mismo archivo: "${pendingDriveUpload.value.fileName}" (${formatBytes(pendingDriveUpload.value.fileSize)})`;
@@ -193,9 +190,7 @@ function selectFileForResume() {
 
         errorMessage.value = '';
         await resumeDriveUpload(file);
-    };
-
-    input.click();
+    });
 }
 
 async function startUpload(file: File) {
@@ -233,6 +228,23 @@ function freshHeaders(): Record<string, string> {
     };
 }
 
+function jsonHeaders(): Record<string, string> {
+    return { ...freshHeaders(), 'Content-Type': 'application/json' };
+}
+
+function updateSpeed(bytesUploaded: number) {
+    const now = Date.now();
+    if (lastTime > 0 && now - lastTime > 500) {
+        const bytesDiff = bytesUploaded - lastLoaded;
+        const timeDiff = (now - lastTime) / 1000;
+        if (timeDiff > 0) {
+            speed.value = formatBytes(bytesDiff / timeDiff) + '/s';
+        }
+    }
+    lastLoaded = bytesUploaded;
+    lastTime = now;
+}
+
 async function fetchOrThrow(input: RequestInfo, init?: RequestInit): Promise<Response> {
     const res = await fetch(input, init);
 
@@ -249,7 +261,7 @@ async function fetchOrThrow(input: RequestInfo, init?: RequestInit): Promise<Res
 async function startDriveUpload(file: File) {
     const res = await fetchOrThrow(`${driveUploadBaseUrl.value}/init`, {
         method: 'POST',
-        headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         credentials: 'same-origin',
         body: JSON.stringify({
             filename: file.name,
@@ -291,7 +303,7 @@ async function resumeDriveUpload(file: File) {
         // Probe via backend to avoid CORS issues
         const probeRes = await fetchOrThrow(`${driveUploadBaseUrl.value}/probe`, {
             method: 'POST',
-            headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             credentials: 'same-origin',
             body: JSON.stringify({
                 session_uri: pendingDriveUpload.value.sessionUri,
@@ -337,17 +349,7 @@ async function executeDriveUpload(file: File, pending: PendingUpload) {
     await executeUpload(file, pending, {
         onProgress(bytesUploaded, totalBytes) {
             progress.value = Math.round((bytesUploaded / totalBytes) * 100);
-
-            const now = Date.now();
-            if (lastTime > 0 && now - lastTime > 500) {
-                const bytesDiff = bytesUploaded - lastLoaded;
-                const timeDiff = (now - lastTime) / 1000;
-                if (timeDiff > 0) {
-                    speed.value = formatBytes(bytesDiff / timeDiff) + '/s';
-                }
-            }
-            lastLoaded = bytesUploaded;
-            lastTime = now;
+            updateSpeed(bytesUploaded);
         },
 
         async onComplete(driveFileId) {
@@ -363,7 +365,7 @@ async function executeDriveUpload(file: File, pending: PendingUpload) {
         async onTokenRefresh() {
             const res = await fetchOrThrow(`/clubs/${props.clubUlid}/drive-upload/refresh-token`, {
                 method: 'POST',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
             });
             return await res.json();
@@ -372,7 +374,7 @@ async function executeDriveUpload(file: File, pending: PendingUpload) {
         async onProbeCompletion(sessionUri: string, totalSize: number) {
             const res = await fetchOrThrow(`${driveUploadBaseUrl.value}/probe`, {
                 method: 'POST',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
                 body: JSON.stringify({ session_uri: sessionUri, total_size: totalSize }),
             });
@@ -387,7 +389,7 @@ async function onDriveUploadComplete(driveFileId: string) {
     try {
         const res = await fetch(`${driveUploadBaseUrl.value}/complete`, {
             method: 'POST',
-            headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             credentials: 'same-origin',
             body: JSON.stringify({
                 drive_file_id: driveFileId,
@@ -448,7 +450,7 @@ function initUppy(file: File) {
         async createMultipartUpload(file) {
             const res = await fetchOrThrow('/s3/multipart', {
                 method: 'POST',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: file.name,
@@ -479,7 +481,7 @@ function initUppy(file: File) {
         async completeMultipartUpload(file, { uploadId, key, parts }) {
             const res = await fetchOrThrow(`/s3/multipart/${uploadId}/complete`, {
                 method: 'POST',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
                 body: JSON.stringify({ key, parts }),
             });
@@ -489,7 +491,7 @@ function initUppy(file: File) {
         async abortMultipartUpload(file, { uploadId, key }) {
             await fetch(`/s3/multipart/${uploadId}`, {
                 method: 'DELETE',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
                 body: JSON.stringify({ key }),
             });
@@ -500,16 +502,7 @@ function initUppy(file: File) {
         if (progressData.bytesTotal) {
             progress.value = Math.round((progressData.bytesUploaded / progressData.bytesTotal) * 100);
         }
-
-        const now = Date.now();
-        if (lastTime > 0 && now - lastTime > 500) {
-            const bytesDiff = progressData.bytesUploaded - lastLoaded;
-            const timeDiff = (now - lastTime) / 1000;
-            const bytesPerSec = bytesDiff / timeDiff;
-            speed.value = formatBytes(bytesPerSec) + '/s';
-        }
-        lastLoaded = progressData.bytesUploaded;
-        lastTime = now;
+        updateSpeed(progressData.bytesUploaded);
     });
 
     uppy.on('upload-success', async () => {
@@ -520,7 +513,7 @@ function initUppy(file: File) {
         try {
             const res = await fetch(videoUploadUrl.value, {
                 method: 'POST',
-                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                headers: jsonHeaders(),
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: file.name,

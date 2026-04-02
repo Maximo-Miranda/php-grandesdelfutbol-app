@@ -23,9 +23,9 @@ class YouTubeAuthController extends Controller
     {
         Gate::authorize('superAdmin');
 
-        $code = $request->string('code');
+        $code = $request->string('code')->toString();
 
-        if ($code->isEmpty()) {
+        if (empty($code)) {
             return redirect()->route('dashboard')->with('error', 'YouTube authorization was cancelled.');
         }
 
