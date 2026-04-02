@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('telescope:prune --hours=48')->daily()->withoutOverlapping()->onOneServer();
 Schedule::command('video-uploads:cleanup --hours=48')->daily()->withoutOverlapping()->onOneServer();
 Schedule::command('app:cleanup-match-videos --days=30')->weekly()->withoutOverlapping()->onOneServer();
+Schedule::command('app:cleanup-stale-uploads --days=7')->daily()->withoutOverlapping()->onOneServer();
