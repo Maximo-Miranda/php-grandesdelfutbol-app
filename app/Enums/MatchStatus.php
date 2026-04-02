@@ -9,6 +9,11 @@ enum MatchStatus: string
     case Completed = 'completed';
     case Cancelled = 'cancelled';
 
+    public function isFinished(): bool
+    {
+        return $this === self::Completed || $this === self::Cancelled;
+    }
+
     public function label(): string
     {
         return match ($this) {

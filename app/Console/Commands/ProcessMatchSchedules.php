@@ -16,14 +16,15 @@ class ProcessMatchSchedules extends Command
 
     protected $description = 'Auto-inicia partidos programados cuya hora ya pasó y auto-completa partidos iniciados por el sistema cuya duración ya terminó';
 
-    private MatchService $matchService;
-
     private const int AUTO_CANCEL_HOURS_BEFORE = 2;
 
-    public function handle(MatchService $matchService): int
+    public function __construct(private readonly MatchService $matchService)
     {
-        $this->matchService = $matchService;
+        parent::__construct();
+    }
 
+    public function handle(): int
+    {
         $cancelled = $this->autoCancelMatches();
         $started = $this->autoStartMatches();
         [$completed, $recreated] = $this->autoCompleteMatches();

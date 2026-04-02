@@ -68,7 +68,7 @@ class MatchService
 
     public function recreateIfRecurring(FootballMatch $match): ?FootballMatch
     {
-        if (! in_array($match->status, [MatchStatus::Completed, MatchStatus::Cancelled]) || ! $match->is_recurring) {
+        if (! $match->status->isFinished() || ! $match->is_recurring) {
             return null;
         }
 
