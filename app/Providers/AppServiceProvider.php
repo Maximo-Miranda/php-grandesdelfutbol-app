@@ -63,17 +63,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $testing = app()->runningUnitTests();
 
-        RateLimiter::for('google-api', function (Request $request) use ($testing) {
-            return $testing ? Limit::none() : Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
-        });
+        $limiters = [
+            'google-api' => 30,
+            'send-email' => 5,
+            'expensive-action' => 10,
+        ];
 
-        RateLimiter::for('send-email', function (Request $request) use ($testing) {
-            return $testing ? Limit::none() : Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
-        });
-
-        RateLimiter::for('expensive-action', function (Request $request) use ($testing) {
-            return $testing ? Limit::none() : Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
-        });
+        foreach ($limiters as $name => $maxAttempts) {
+            RateLimiter::for($name, function (Request $request) use ($testing, $maxAttempts) {
+                return $testing ? Limit::none() : Limit::perMinute($maxAttempts)->by($request->user()?->id ?: $request->ip());
+            });
+        }
 
         RateLimiter::for('public-form', function (Request $request) {
             return Limit::perMinute(3)->by($request->ip());

@@ -327,8 +327,7 @@ class GoogleDriveService
      */
     public function getStorageUsage(): array
     {
-        $client = $this->authService->authenticatedClient();
-        $drive = new Drive($client);
+        $drive = $this->driveService();
 
         $about = $drive->about->get(['fields' => 'storageQuota']);
         $quota = $about->getStorageQuota();

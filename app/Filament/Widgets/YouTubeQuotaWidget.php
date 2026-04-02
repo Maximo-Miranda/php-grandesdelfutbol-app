@@ -35,7 +35,7 @@ class YouTubeQuotaWidget extends BaseWidget
 
         $authUrl = route('youtube.authorize');
 
-        $stats = [
+        return [
             Stat::make('Google OAuth', $isConfigured ? 'Conectado' : 'No conectado')
                 ->description($isConfigured ? 'Click para re-autorizar' : 'Click para conectar cuenta')
                 ->descriptionIcon($isConfigured ? 'heroicon-m-check-circle' : 'heroicon-m-exclamation-triangle')
@@ -57,8 +57,6 @@ class YouTubeQuotaWidget extends BaseWidget
             Stat::make('Videos codificados', $totalEncoded)
                 ->description('Total con resolución lista'),
         ];
-
-        return $stats;
     }
 
     private function driveStorageStat(bool $isConfigured): Stat
