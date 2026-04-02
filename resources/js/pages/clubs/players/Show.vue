@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CalendarCheck, Pencil, ShieldAlert, Target, Trophy, SquareIcon } from 'lucide-vue-next';
+import { CalendarCheck, Handshake, Pencil, ShieldAlert, Target, Trophy, SquareIcon } from 'lucide-vue-next';
+import type { Component } from 'vue';
 import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
@@ -63,6 +64,22 @@ const playerStyle = computed(() => {
     if (fouls > goals) return { label: 'Aguerrido', color: 'bg-amber-500/15 text-amber-400' };
     return null;
 });
+
+type StatCard = {
+    icon: Component;
+    value: number;
+    label: string;
+    hoverBorder: string;
+    gradient: string;
+    iconColor: string;
+};
+
+const statCards = computed<StatCard[]>(() => [
+    { icon: Target, value: props.player.goals, label: 'Goles', hoverBorder: 'hover:border-primary/30', gradient: 'from-primary/5', iconColor: 'text-primary/60' },
+    { icon: Handshake, value: props.player.assists, label: 'Asistencias', hoverBorder: 'hover:border-emerald-500/30', gradient: 'from-emerald-500/5', iconColor: 'text-emerald-500/60' },
+    { icon: ShieldAlert, value: props.player.fouls, label: 'Faltas', hoverBorder: 'hover:border-primary/30', gradient: 'from-primary/5', iconColor: 'text-primary/60' },
+    { icon: Trophy, value: props.player.matches_played, label: 'Partidos', hoverBorder: 'hover:border-primary/30', gradient: 'from-primary/5', iconColor: 'text-primary/60' },
+]);
 </script>
 
 <template>
@@ -139,42 +156,24 @@ const playerStyle = computed(() => {
             </div>
 
             <!-- Main Stats -->
-            <div class="mb-4 grid grid-cols-3 gap-3">
-                <div class="group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-center transition-colors hover:border-primary/30">
-                    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div class="mb-4 grid grid-cols-4 gap-3">
+                <div
+                    v-for="stat in statCards"
+                    :key="stat.label"
+                    class="group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-center transition-colors"
+                    :class="stat.hoverBorder"
+                >
+                    <div
+                        class="absolute inset-0 bg-gradient-to-b to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+                        :class="stat.gradient"
+                    />
                     <div class="relative">
-                        <Target class="mx-auto mb-2 size-5 text-primary/60" />
+                        <component :is="stat.icon" class="mx-auto mb-2 size-5" :class="stat.iconColor" />
                         <div class="text-3xl font-extrabold tabular-nums text-foreground">
-                            {{ player.goals }}
+                            {{ stat.value }}
                         </div>
                         <div class="mt-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                            Goles
-                        </div>
-                    </div>
-                </div>
-
-                <div class="group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-center transition-colors hover:border-primary/30">
-                    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div class="relative">
-                        <ShieldAlert class="mx-auto mb-2 size-5 text-primary/60" />
-                        <div class="text-3xl font-extrabold tabular-nums text-foreground">
-                            {{ player.fouls }}
-                        </div>
-                        <div class="mt-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                            Faltas
-                        </div>
-                    </div>
-                </div>
-
-                <div class="group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-center transition-colors hover:border-primary/30">
-                    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div class="relative">
-                        <Trophy class="mx-auto mb-2 size-5 text-primary/60" />
-                        <div class="text-3xl font-extrabold tabular-nums text-foreground">
-                            {{ player.matches_played }}
-                        </div>
-                        <div class="mt-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                            Partidos
+                            {{ stat.label }}
                         </div>
                     </div>
                 </div>

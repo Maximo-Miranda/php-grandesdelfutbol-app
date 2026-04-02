@@ -31,22 +31,29 @@ class PlayerController extends Controller
         $user = request()->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
+        $baseQuery = fn () => $club->players()
+            ->with('user.playerProfile')
+            ->when($isAdmin, fn ($q) => $q->select('players.*')->addSelect([
+                'has_push' => PushSubscription::query()
+                    ->selectRaw('1')
+                    ->whereColumn('subscribable_id', 'players.user_id')
+                    ->where('subscribable_type', User::class)
+                    ->limit(1),
+            ]));
+
         return Inertia::render('clubs/players/Index', [
             'club' => $club,
             'isAdmin' => $isAdmin,
             'players' => Inertia::scroll(
-                fn () => $club->players()
-                    ->with('user.playerProfile')
-                    ->when($isAdmin, fn ($q) => $q->select('players.*')->addSelect([
-                        'has_push' => PushSubscription::query()
-                            ->selectRaw('1')
-                            ->whereColumn('subscribable_id', 'players.user_id')
-                            ->where('subscribable_type', User::class)
-                            ->limit(1),
-                    ]))
-                    ->orderByRaw('(COALESCE(goals, 0) + COALESCE(assists, 0)) DESC, COALESCE(goals, 0) DESC')
+                fn () => $baseQuery()
+                    ->where(fn ($q) => $q->whereNull('position')->orWhere('position', '!=', PlayerPosition::Gk))
+                    ->orderByRaw('goals DESC, matches_played ASC, assists DESC')
                     ->simplePaginate(20),
             ),
+            'goalkeepers' => fn () => $baseQuery()
+                ->where('position', PlayerPosition::Gk)
+                ->orderByRaw('saves DESC, matches_played ASC')
+                ->get(),
         ]);
     }
 

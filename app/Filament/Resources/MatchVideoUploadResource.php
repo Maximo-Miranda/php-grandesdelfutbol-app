@@ -4,7 +4,9 @@ namespace App\Filament\Resources;
 
 use App\Enums\VideoUploadStatus;
 use App\Filament\Resources\MatchVideoUploadResource\Pages;
+use App\Jobs\UploadMatchToYouTube;
 use App\Models\MatchVideoUpload;
+use App\Services\YouTubeQuotaService;
 use App\Support\YouTubeUrlParser;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -51,16 +53,18 @@ class MatchVideoUploadResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('youtube_video_id')
                     ->label('YouTube')
-                    ->formatStateUsing(function (MatchVideoUpload $record): string {
-                        if ($record->youtube_video_id) {
-                            return 'Subido';
-                        }
-
-                        if ($record->youtube_upload_requested_at) {
-                            return 'Pendiente';
-                        }
-
-                        return "\u{2014}";
+                    ->badge()
+                    ->color(fn (MatchVideoUpload $record): string => match (true) {
+                        $record->youtube_video_id !== null => 'success',
+                        $record->error_message !== null => 'danger',
+                        $record->youtube_upload_requested_at !== null => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (MatchVideoUpload $record): string => match (true) {
+                        $record->youtube_video_id !== null => 'Subido',
+                        $record->error_message !== null => 'Error',
+                        $record->youtube_upload_requested_at !== null => 'Subiendo...',
+                        default => "\u{2014}",
                     }),
                 TextColumn::make('encoded_at')
                     ->dateTime()
@@ -94,15 +98,19 @@ class MatchVideoUploadResource extends Resource
                     ->visible(fn (MatchVideoUpload $record): bool => $record->best_resolution !== null
                         && $record->youtube_video_id === null
                         && $record->youtube_upload_requested_at === null
+                        && $record->error_message === null
                     )
-                    ->action(function (MatchVideoUpload $record): void {
-                        $record->update(['youtube_upload_requested_at' => now()]);
-
-                        Notification::make()
-                            ->title('Subida a YouTube solicitada')
-                            ->success()
-                            ->send();
-                    }),
+                    ->action(fn (MatchVideoUpload $record) => static::dispatchYouTubeUpload($record, 'Subida a YouTube iniciada')),
+                Action::make('retry_youtube')
+                    ->label('Reintentar YouTube')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->visible(fn (MatchVideoUpload $record): bool => $record->best_resolution !== null
+                        && $record->youtube_video_id === null
+                        && $record->error_message !== null
+                    )
+                    ->action(fn (MatchVideoUpload $record) => static::dispatchYouTubeUpload($record, 'Reintento de subida a YouTube iniciado')),
                 Action::make('link_youtube')
                     ->icon('heroicon-o-link')
                     ->color('info')
@@ -139,23 +147,51 @@ class MatchVideoUploadResource extends Resource
             ])
             ->toolbarActions([
                 BulkAction::make('queue_youtube')
-                    ->label('Cola YouTube')
-                    ->icon('heroicon-o-queue-list')
+                    ->label('Subir a YouTube')
+                    ->icon('heroicon-o-arrow-up-tray')
                     ->requiresConfirmation()
                     ->deselectRecordsAfterCompletion()
                     ->action(function (Collection $records): void {
-                        $updated = $records
+                        $quotaService = app(YouTubeQuotaService::class);
+                        $available = $quotaService->availableSlots();
+
+                        if ($available <= 0) {
+                            Notification::make()
+                                ->title("Límite diario alcanzado ({$quotaService->quotaLabel()})")
+                                ->body('Ningún video fue enviado. Intenta mañana.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $eligible = $records
                             ->filter(fn (MatchVideoUpload $record): bool => $record->best_resolution !== null
                                 && $record->youtube_video_id === null
                                 && $record->youtube_upload_requested_at === null
-                            )
-                            ->each(fn (MatchVideoUpload $record) => $record->update([
+                            );
+
+                        $toDispatch = $eligible->take($available);
+                        $skipped = $eligible->count() - $toDispatch->count();
+
+                        $toDispatch->each(function (MatchVideoUpload $record): void {
+                            $record->update([
                                 'youtube_upload_requested_at' => now(),
-                            ]));
+                                'error_message' => null,
+                            ]);
+
+                            UploadMatchToYouTube::dispatch($record);
+                        });
+
+                        $message = "{$toDispatch->count()} video(s) enviados a YouTube";
+
+                        if ($skipped > 0) {
+                            $message .= ". {$skipped} no pudieron agregarse por límite de cuota diaria.";
+                        }
 
                         Notification::make()
-                            ->title("{$updated->count()} video(s) agregados a la cola de YouTube")
-                            ->success()
+                            ->title($message)
+                            ->color($skipped > 0 ? 'warning' : 'success')
                             ->send();
                     }),
             ])
@@ -167,5 +203,32 @@ class MatchVideoUploadResource extends Resource
         return [
             'index' => Pages\ListMatchVideoUploads::route('/'),
         ];
+    }
+
+    private static function dispatchYouTubeUpload(MatchVideoUpload $record, string $successTitle): void
+    {
+        $quotaService = app(YouTubeQuotaService::class);
+
+        if (! $quotaService->isQuotaAvailable()) {
+            Notification::make()
+                ->title("Límite diario de YouTube alcanzado ({$quotaService->quotaLabel()})")
+                ->body('Intenta mañana cuando se renueve la cuota.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $record->update([
+            'youtube_upload_requested_at' => now(),
+            'error_message' => null,
+        ]);
+
+        UploadMatchToYouTube::dispatch($record);
+
+        Notification::make()
+            ->title($successTitle)
+            ->success()
+            ->send();
     }
 }

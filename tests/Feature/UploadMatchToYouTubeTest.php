@@ -5,6 +5,7 @@ use App\Jobs\UploadMatchToYouTube;
 use App\Models\MatchVideoUpload;
 use App\Services\YouTubeService;
 use Google\Service\Exception;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\mock;
@@ -18,7 +19,7 @@ it('skips upload when youtube_video_id already exists', function () {
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldNotReceive('uploadVideo');
 
-    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+    new UploadMatchToYouTube($upload)->handle($youtubeMock);
 
     expect($upload->fresh()->youtube_video_id)->toBe('existing-id');
 });
@@ -84,7 +85,29 @@ it('sets status to ready with error message when youtube fails and video is enco
     $upload->refresh();
 
     expect($upload->status)->toBe(VideoUploadStatus::Ready)
-        ->and($upload->error_message)->toContain('límite diario de YouTube');
+        ->and($upload->error_message)->toContain('límite diario de YouTube')
+        ->and($upload->error_message)->toContain('Reintentar');
+});
+
+it('sets error message when daily limit is reached at job execution time', function () {
+    Cache::put('youtube-daily-uploads:'.now()->format('Y-m-d'), 6, now()->endOfDay());
+
+    $upload = MatchVideoUpload::factory()->ready()->create([
+        'best_resolution' => '1080p',
+        'youtube_video_id' => null,
+        's3_path' => 'videos/test/1080p.mp4',
+    ]);
+
+    $youtubeMock = mock(YouTubeService::class);
+    $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldNotReceive('uploadVideo');
+
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+
+    $upload->refresh();
+
+    expect($upload->youtube_video_id)->toBeNull()
+        ->and($upload->error_message)->toContain('Límite diario');
 });
 
 it('sets status to failed when youtube fails and video has no resolution', function () {

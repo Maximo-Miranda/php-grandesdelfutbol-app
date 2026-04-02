@@ -9,8 +9,8 @@ use App\Jobs\UploadMatchToYouTube;
 use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Services\YouTubeQuotaService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
@@ -50,7 +50,7 @@ class MatchVideoUploadController extends Controller
     }
 
     /** Retry YouTube upload for a video that already has S3 encoding but failed YouTube. */
-    public function retryYouTube(Club $club, FootballMatch $match): JsonResponse
+    public function retryYouTube(Club $club, FootballMatch $match, YouTubeQuotaService $quotaService): JsonResponse
     {
         Gate::authorize('superAdmin');
 
@@ -60,12 +60,9 @@ class MatchVideoUploadController extends Controller
             return response()->json(['error' => 'No hay video disponible para subir.'], 422);
         }
 
-        $cacheKey = 'youtube-daily-uploads:'.now()->format('Y-m-d');
-        $limit = config('youtube.daily_upload_limit', 6);
-
-        if ((int) Cache::get($cacheKey, 0) >= $limit) {
+        if (! $quotaService->isQuotaAvailable()) {
             return response()->json([
-                'error' => 'Se alcanzó el límite diario de subidas a YouTube. Se subirá automáticamente cuando haya cupo.',
+                'error' => "Límite diario de YouTube alcanzado ({$quotaService->quotaLabel()}). Intenta mañana.",
             ], 429);
         }
 

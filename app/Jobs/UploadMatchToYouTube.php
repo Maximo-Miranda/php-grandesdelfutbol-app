@@ -6,6 +6,7 @@ use App\Enums\VideoUploadStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
+use App\Services\YouTubeQuotaService;
 use App\Services\YouTubeService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,8 +34,10 @@ class UploadMatchToYouTube implements ShouldQueue
         $this->onQueue('video-processing');
     }
 
-    public function handle(YouTubeService $youtubeService): void
+    public function handle(YouTubeService $youtubeService, ?YouTubeQuotaService $quotaService = null): void
     {
+        $quotaService ??= app(YouTubeQuotaService::class);
+
         if ($this->batch()?->cancelled()) {
             return;
         }
@@ -49,7 +52,11 @@ class UploadMatchToYouTube implements ShouldQueue
             return;
         }
 
-        if ($this->isDailyLimitReached()) {
+        if (! $quotaService->isQuotaAvailable()) {
+            $this->videoUpload->update([
+                'error_message' => 'Límite diario de YouTube alcanzado al momento de procesar. Reintenta mañana.',
+            ]);
+
             return;
         }
 
@@ -100,7 +107,7 @@ class UploadMatchToYouTube implements ShouldQueue
                 'youtube_uploaded_at' => now(),
             ]);
 
-            $this->incrementDailyCounter();
+            $quotaService->increment();
             $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
         } finally {
             $lock->release();
@@ -117,7 +124,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
         $isQuotaExceeded = $exception && str_contains($exception->getMessage(), 'uploadLimitExceeded');
         $errorMessage = $isQuotaExceeded
-            ? 'Se alcanzó el límite diario de YouTube. Se reintentará automáticamente.'
+            ? 'Se alcanzó el límite diario de YouTube. Usa el botón Reintentar mañana.'
             : 'Error al subir a YouTube: '.mb_substr($exception?->getMessage() ?? 'Unknown', 0, 500);
 
         $this->videoUpload->refresh();
@@ -128,28 +135,6 @@ class UploadMatchToYouTube implements ShouldQueue
                 : VideoUploadStatus::Failed,
             'error_message' => $errorMessage,
         ]);
-    }
-
-    private function isDailyLimitReached(): bool
-    {
-        $limit = config('youtube.daily_upload_limit', 6);
-        $count = (int) Cache::get($this->dailyCacheKey(), 0);
-
-        return $count >= $limit;
-    }
-
-    private function incrementDailyCounter(): void
-    {
-        $key = $this->dailyCacheKey();
-        $ttl = (int) now()->diffInSeconds(now()->endOfDay());
-
-        Cache::add($key, 0, $ttl);
-        Cache::increment($key);
-    }
-
-    private function dailyCacheKey(): string
-    {
-        return 'youtube-daily-uploads:'.now()->format('Y-m-d');
     }
 
     private function addToClubPlaylist(YouTubeService $youtubeService, Club $club, string $videoId): void
