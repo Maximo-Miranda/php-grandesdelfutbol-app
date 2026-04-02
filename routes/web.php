@@ -44,7 +44,7 @@ Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class,
 Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');
 
 Route::post('video-service-request', [VideoServiceRequestController::class, 'store'])
-    ->middleware('throttle:3,1')
+    ->middleware('throttle:public-form')
     ->name('video-service-request.store');
 
 Route::middleware('guest')->group(function () {
@@ -68,7 +68,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('join/{slug}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
     Route::post('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'accept'])->name('invitations.accept');
     Route::post('email/verify-code', [EmailVerificationCodeController::class, 'verify'])->name('verification.verify-code');
-    Route::post('email/resend-code', [EmailVerificationCodeController::class, 'resend'])->name('verification.resend-code');
+    Route::post('email/resend-code', [EmailVerificationCodeController::class, 'resend'])->middleware('throttle:send-email')->name('verification.resend-code');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -90,7 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('clubs/{club}')->name('clubs.')->group(function () {
 
         Route::get('invite', [ClubInvitationController::class, 'create'])->name('invitations.create');
-        Route::post('invite', [ClubInvitationController::class, 'store'])->name('invitations.store');
+        Route::post('invite', [ClubInvitationController::class, 'store'])->middleware('throttle:send-email')->name('invitations.store');
 
         Route::get('members', [ClubMemberController::class, 'index'])->name('members.index');
         Route::patch('members/{member}/approve', [ClubMemberController::class, 'approve'])->name('members.approve');
@@ -127,16 +127,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('matches/{match}/video-upload', [MatchVideoUploadController::class, 'store'])->name('matches.videoUpload.store');
         Route::get('matches/{match}/video-upload', [MatchVideoUploadController::class, 'show'])->name('matches.videoUpload.show');
-        Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->name('matches.videoUpload.retryYouTube');
+        Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->middleware('throttle:expensive-action')->name('matches.videoUpload.retryYouTube');
         Route::post('matches/{match}/video-upload/share-link', [VideoShareController::class, 'generate'])->name('matches.videoUpload.shareLink');
         Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
 
-        Route::post('matches/{match}/drive-upload/init', [DriveUploadController::class, 'initUpload'])->name('matches.driveUpload.init');
-        Route::post('drive-upload/refresh-token', [DriveUploadController::class, 'refreshToken'])->name('driveUpload.refreshToken');
-        Route::post('matches/{match}/drive-upload/probe', [DriveUploadController::class, 'probeStatus'])->name('matches.driveUpload.probe');
-        Route::post('matches/{match}/drive-upload/complete', [DriveUploadController::class, 'completeUpload'])->name('matches.driveUpload.complete');
+        Route::post('matches/{match}/drive-upload/init', [DriveUploadController::class, 'initUpload'])->middleware('throttle:expensive-action')->name('matches.driveUpload.init');
+        Route::post('drive-upload/refresh-token', [DriveUploadController::class, 'refreshToken'])->middleware('throttle:google-api')->name('driveUpload.refreshToken');
+        Route::post('matches/{match}/drive-upload/probe', [DriveUploadController::class, 'probeStatus'])->middleware('throttle:google-api')->name('matches.driveUpload.probe');
+        Route::post('matches/{match}/drive-upload/complete', [DriveUploadController::class, 'completeUpload'])->middleware('throttle:expensive-action')->name('matches.driveUpload.complete');
 
-        Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->name('matches.reels.generate');
+        Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->middleware('throttle:expensive-action')->name('matches.reels.generate');
         Route::post('matches/{match}/reels', [MatchReelController::class, 'store'])->name('matches.reels.store');
         Route::post('matches/{match}/reels/request', [MatchReelController::class, 'request'])->name('matches.reels.request');
         Route::post('matches/{match}/reels/request-player', [MatchReelController::class, 'requestForPlayer'])->name('matches.reels.requestForPlayer');
@@ -146,7 +146,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('matches/{match}/reels/{reel}', [MatchReelController::class, 'destroy'])->name('matches.reels.destroy');
 
         Route::get('notifications', [ClubNotificationsController::class, 'show'])->name('notifications.show');
-        Route::post('notifications/test', [ClubNotificationsController::class, 'sendTest'])->name('notifications.test');
+        Route::post('notifications/test', [ClubNotificationsController::class, 'sendTest'])->middleware('throttle:send-email')->name('notifications.test');
     });
 
     Route::get('player-profile', [PlayerProfileController::class, 'edit'])->name('player-profile.edit');

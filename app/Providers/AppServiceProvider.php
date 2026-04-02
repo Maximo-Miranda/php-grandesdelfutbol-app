@@ -5,9 +5,12 @@ namespace App\Providers;
 use App\Services\ClubContext;
 use Aws\S3\S3Client;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -48,11 +51,33 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
 
         Gate::before(fn ($user) => $user->isSuperAdmin() ? true : null);
 
         Gate::define('superAdmin', fn ($user) => $user->isSuperAdmin());
         Gate::define('viewPulse', fn ($user) => $user->isSuperAdmin());
+    }
+
+    protected function configureRateLimiting(): void
+    {
+        $testing = app()->runningUnitTests();
+
+        RateLimiter::for('google-api', function (Request $request) use ($testing) {
+            return $testing ? Limit::none() : Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('send-email', function (Request $request) use ($testing) {
+            return $testing ? Limit::none() : Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('expensive-action', function (Request $request) use ($testing) {
+            return $testing ? Limit::none() : Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('public-form', function (Request $request) {
+            return Limit::perMinute(3)->by($request->ip());
+        });
     }
 
     protected function configureDefaults(): void

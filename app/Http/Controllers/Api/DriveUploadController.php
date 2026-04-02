@@ -10,7 +10,6 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleDriveService;
-use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -84,18 +83,9 @@ class DriveUploadController extends Controller
     }
 
     /** Return a fresh Google access token for the frontend to continue uploading. */
-    public function refreshToken(Request $request, Club $club): JsonResponse
+    public function refreshToken(Club $club): JsonResponse
     {
         Gate::authorize('viewAny', [FootballMatch::class, $club]);
-
-        if ($request->user() && ! app(RateLimiter::class)->attempt(
-            "drive-refresh-token:{$request->user()->id}",
-            30,
-            fn () => null,
-            60,
-        )) {
-            return response()->json(['error' => 'Demasiadas solicitudes.'], 429);
-        }
 
         $token = $this->authService->getAccessToken();
 
