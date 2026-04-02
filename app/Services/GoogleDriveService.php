@@ -31,10 +31,8 @@ class GoogleDriveService
 
         $drive = $this->driveService();
 
-        $rootFolderId = $this->findOrCreateFolder(
-            $drive,
-            config('youtube.drive.root_folder_name', 'Grandes del Futbol'),
-        );
+        $rootFolderId = config('youtube.drive.root_folder_id')
+            ?? $this->findOrCreateFolder($drive, config('youtube.drive.root_folder_name', 'Grandes del Futbol'));
 
         $clubFolderId = $this->findOrCreateFolder(
             $drive,
