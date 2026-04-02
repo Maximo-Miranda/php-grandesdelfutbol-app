@@ -34,7 +34,6 @@ class WaitForYouTubeProcessing implements ShouldQueue
             return;
         }
 
-        // Already ready — nothing to do
         if ($this->videoUpload->status === VideoUploadStatus::Ready) {
             return;
         }
