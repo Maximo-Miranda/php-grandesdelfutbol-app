@@ -14,13 +14,12 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    
     deletePendingUpload,
     executeUpload,
     getPendingUpload,
     savePendingUpload
 } from '@/lib/drive-uploader';
-import type {PendingUpload} from '@/lib/drive-uploader';
+import type { PendingUpload } from '@/lib/drive-uploader';
 import { getCsrfToken } from '@/lib/utils';
 
 type VideoUploadData = {
@@ -47,7 +46,6 @@ type Props = {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{ uploaded: [] }>();
-
 
 const status = ref<'idle' | 'uploading' | 'paused' | 'encoding' | 'ready' | 'failed' | 'resumable'>(
     props.existingUpload?.status === 'uploading' ? 'idle' : (props.existingUpload?.status ?? 'idle'),
@@ -145,7 +143,6 @@ function formatBytes(bytes: number): string {
     if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
     return (bytes / 1073741824).toFixed(2) + ' GB';
 }
-
 
 function pickVideoFile(onFile: (file: File) => void) {
     const input = document.createElement('input');
