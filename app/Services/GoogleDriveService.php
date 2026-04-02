@@ -55,17 +55,23 @@ class GoogleDriveService
      *
      * @see https://developers.google.com/workspace/drive/api/guides/manage-uploads#resumable
      */
-    public function createResumableSession(string $fileName, string $mimeType, int $fileSize, string $folderId): string
+    public function createResumableSession(string $fileName, string $mimeType, int $fileSize, string $folderId, ?string $origin = null): string
     {
         $client = $this->authService->authenticatedClient();
         $httpClient = $client->authorize();
 
+        $headers = [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type' => $mimeType,
+            'X-Upload-Content-Length' => (string) $fileSize,
+        ];
+
+        if ($origin) {
+            $headers['Origin'] = $origin;
+        }
+
         $response = $httpClient->request('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', [
-            'headers' => [
-                'Content-Type' => 'application/json; charset=UTF-8',
-                'X-Upload-Content-Type' => $mimeType,
-                'X-Upload-Content-Length' => (string) $fileSize,
-            ],
+            'headers' => $headers,
             'body' => json_encode([
                 'name' => $fileName,
                 'parents' => [$folderId],

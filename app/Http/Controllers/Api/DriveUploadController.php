@@ -55,6 +55,7 @@ class DriveUploadController extends Controller
             $validated['content_type'],
             (int) $validated['filesize'],
             $folderId,
+            $request->headers->get('Origin'),
         );
 
         $videoUpload = $match->videoUpload()->create([
