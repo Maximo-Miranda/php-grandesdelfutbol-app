@@ -901,7 +901,7 @@ onBeforeUnmount(() => {
                         </template>
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter class="gap-2 sm:gap-0">
+                <DialogFooter class="gap-2">
                     <Button variant="outline" @click="leavePageAnyway">
                         Salir de la pagina
                     </Button>
@@ -921,7 +921,7 @@ onBeforeUnmount(() => {
                         Se eliminara el video de este partido. Los reels generados se mantendran pero no se podran generar nuevos hasta subir otro video.
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter class="gap-2 sm:gap-0">
+                <DialogFooter class="gap-2">
                     <DialogClose as-child>
                         <Button variant="outline">Cancelar</Button>
                     </DialogClose>
