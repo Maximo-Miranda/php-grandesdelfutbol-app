@@ -13,19 +13,20 @@ use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\Player;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
 class MatchService
 {
-    private const GOAL_WEIGHT = 40;
+    private const int GOAL_WEIGHT = 40;
 
-    private const ASSIST_WEIGHT = 30;
+    private const int ASSIST_WEIGHT = 30;
 
-    private const EXPERIENCE_WEIGHT = 20;
+    private const int EXPERIENCE_WEIGHT = 20;
 
-    private const DISCIPLINE_WEIGHT = 10;
+    private const int DISCIPLINE_WEIGHT = 10;
 
-    private const EXPERIENCE_CAP_MATCHES = 40;
+    private const int EXPERIENCE_CAP_MATCHES = 40;
 
     public function createMatch(Club $club, array $data): FootballMatch
     {
@@ -33,7 +34,7 @@ class MatchService
         $isPast = $scheduledAt->isPast();
         $durationMinutes = $data['duration_minutes'] ?? 60;
 
-        return FootballMatch::query()->create([
+        $match = FootballMatch::query()->create([
             'club_id' => $club->id,
             'field_id' => $data['field_id'] ?? null,
             'title' => $data['title'],
@@ -52,7 +53,80 @@ class MatchService
             'team_b_name' => $data['team_b_name'] ?? 'Equipo B',
             'team_a_color' => $data['team_a_color'] ?? '#1a1a1a',
             'team_b_color' => $data['team_b_color'] ?? '#facc15',
+            'is_recurring' => $data['is_recurring'] ?? true,
+            'recurrence_days' => $data['recurrence_days'] ?? 8,
+            'auto_cancel' => $data['auto_cancel'] ?? true,
+            'min_players_required' => $data['min_players_required'] ?? ($data['max_players'] ?? 10),
         ]);
+
+        if ($isPast) {
+            $this->recreateIfRecurring($match);
+        }
+
+        return $match;
+    }
+
+    public function recreateIfRecurring(FootballMatch $match): ?FootballMatch
+    {
+        if ($match->status !== MatchStatus::Completed || ! $match->is_recurring) {
+            return null;
+        }
+
+        $claimed = FootballMatch::query()
+            ->where('id', $match->id)
+            ->whereNull('next_match_created_at')
+            ->update(['next_match_created_at' => now()]);
+
+        if ($claimed === 0) {
+            return null;
+        }
+
+        $newScheduledAt = $match->scheduled_at->copy()->addDays($match->recurrence_days);
+
+        while ($newScheduledAt->isPast()) {
+            $newScheduledAt = $newScheduledAt->addDays($match->recurrence_days);
+        }
+
+        return FootballMatch::query()->create([
+            'club_id' => $match->club_id,
+            'field_id' => $match->field_id,
+            'title' => $this->generateTitle($match, $newScheduledAt),
+            'scheduled_at' => $newScheduledAt,
+            'duration_minutes' => $match->duration_minutes,
+            'arrival_minutes' => $match->arrival_minutes,
+            'max_players' => $match->max_players,
+            'max_substitutes' => $match->max_substitutes,
+            'status' => MatchStatus::Upcoming,
+            'share_token' => Str::random(16),
+            'registration_opens_hours' => $match->registration_opens_hours,
+            'notes' => $match->notes,
+            'team_a_name' => $match->team_a_name,
+            'team_b_name' => $match->team_b_name,
+            'team_a_color' => $match->team_a_color,
+            'team_b_color' => $match->team_b_color,
+            'is_recurring' => true,
+            'recurrence_days' => $match->recurrence_days,
+            'auto_cancel' => $match->auto_cancel,
+            'min_players_required' => $match->min_players_required,
+        ]);
+    }
+
+    private function generateTitle(FootballMatch $match, CarbonImmutable $scheduledAt): string
+    {
+        $parts = ['Partido'];
+
+        $field = $match->field;
+        if ($field) {
+            $parts[] = $field->field_type->value;
+        }
+
+        $localDate = $scheduledAt->locale('es');
+        $dayLabel = mb_ucfirst(str_replace('.', '', $localDate->isoFormat('ddd')));
+        $monthLabel = mb_ucfirst(str_replace('.', '', $localDate->isoFormat('MMM')));
+
+        $parts[] = $dayLabel.' '.$scheduledAt->day.' '.$monthLabel;
+
+        return implode(' ', $parts);
     }
 
     public function registerPlayer(

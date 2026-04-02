@@ -13,8 +13,8 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('matches:process-schedules')->everyFiveMinutes();
-        $schedule->command('matches:notify-registration-open')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command('matches:process-schedules')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+        $schedule->command('matches:notify-registration-open')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
     })
     ->withRouting(

@@ -141,11 +141,9 @@ class UploadMatchToYouTube implements ShouldQueue
     private function incrementDailyCounter(): void
     {
         $key = $this->dailyCacheKey();
+        $ttl = (int) now()->diffInSeconds(now()->endOfDay());
 
-        if (! Cache::has($key)) {
-            Cache::put($key, 0, now()->endOfDay());
-        }
-
+        Cache::add($key, 0, $ttl);
         Cache::increment($key);
     }
 

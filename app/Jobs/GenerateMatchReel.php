@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,12 @@ use Throwable;
 class GenerateMatchReel implements ShouldQueue
 {
     use Batchable, Queueable;
+
+    /** @return array<int, object> */
+    public function middleware(): array
+    {
+        return [new WithoutOverlapping($this->reel->id)];
+    }
 
     public int $timeout = 900;
 

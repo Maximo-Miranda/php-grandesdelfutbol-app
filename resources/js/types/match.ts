@@ -48,6 +48,10 @@ export type FootballMatch = {
     team_b_name: string;
     team_a_color: string | null;
     team_b_color: string | null;
+    is_recurring: boolean;
+    recurrence_days: number;
+    auto_cancel: boolean;
+    min_players_required: number;
     club?: Club;
     field?: Field;
     attendances?: MatchAttendance[];

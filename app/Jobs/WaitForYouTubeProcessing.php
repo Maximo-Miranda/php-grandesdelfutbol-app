@@ -44,14 +44,19 @@ class WaitForYouTubeProcessing implements ShouldQueue
         Log::info("YouTube processing status for {$this->videoUpload->youtube_video_id}: {$status}");
 
         if ($status === 'succeeded') {
-            $this->videoUpload->update([
-                'status' => VideoUploadStatus::Ready,
-                'encoded_at' => now(),
-                'error_message' => null,
-            ]);
+            $affected = MatchVideoUpload::query()
+                ->where('id', $this->videoUpload->id)
+                ->where('status', '!=', VideoUploadStatus::Ready)
+                ->update([
+                    'status' => VideoUploadStatus::Ready,
+                    'encoded_at' => now(),
+                    'error_message' => null,
+                ]);
 
-            $this->cleanupOriginal();
-            $this->notifyClub();
+            if ($affected > 0) {
+                $this->cleanupOriginal();
+                $this->notifyClub();
+            }
 
             return;
         }

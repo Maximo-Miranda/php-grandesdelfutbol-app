@@ -18,7 +18,13 @@ export type MatchFormData = {
     team_b_name: string;
     team_a_color: string;
     team_b_color: string;
+    is_recurring: boolean;
+    recurrence_days: number;
+    auto_cancel: boolean;
+    min_players_required: number;
 };
+
+const recurrencePresets = ['8', '15', '30'];
 
 export const fieldTypeToPlayers: Record<string, number> = {
     '5v5': 10,
@@ -41,15 +47,16 @@ export const timeOptions = Array.from({ length: 48 }, (_, i) => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 });
 
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1).replace('.', '');
+}
+
 export function formatShortDate(dateStr: string): string {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    const weekday = date.toLocaleDateString('es', { weekday: 'short' });
-    const num = date.getDate();
-    const monthName = date.toLocaleDateString('es', { month: 'short' });
-    const dayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
-    const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1).replace('.', '');
-    return `${dayLabel} ${num} ${monthLabel}`;
+    const weekday = capitalize(date.toLocaleDateString('es', { weekday: 'short' }));
+    const monthName = capitalize(date.toLocaleDateString('es', { month: 'short' }));
+    return `${weekday} ${date.getDate()} ${monthName}`;
 }
 
 export function getDefaultDate(): string {
@@ -145,12 +152,21 @@ export function useMatchForm(options: UseMatchFormOptions) {
         registration_opens_hours: isEdit
             ? (match.registration_opens_hours ?? 24)
             : calcRegistrationHours(initialMaxPlayers),
-        notes: isEdit ? (match.notes ?? '') : '',
-        team_a_name: isEdit ? (match.team_a_name ?? 'Equipo A') : 'Equipo A',
-        team_b_name: isEdit ? (match.team_b_name ?? 'Equipo B') : 'Equipo B',
-        team_a_color: isEdit ? (match.team_a_color ?? '#1a1a1a') : '#1a1a1a',
-        team_b_color: isEdit ? (match.team_b_color ?? '#facc15') : '#facc15',
+        notes: match?.notes ?? '',
+        team_a_name: match?.team_a_name ?? 'Equipo A',
+        team_b_name: match?.team_b_name ?? 'Equipo B',
+        team_a_color: match?.team_a_color ?? '#1a1a1a',
+        team_b_color: match?.team_b_color ?? '#facc15',
+        is_recurring: match?.is_recurring ?? true,
+        recurrence_days: match?.recurrence_days ?? 8,
+        auto_cancel: match?.auto_cancel ?? true,
+        min_players_required: match?.min_players_required ?? initialMaxPlayers,
     });
+
+    // --- Recurrence ---
+    const selectedRecurrenceOption = ref(
+        isEdit && !recurrencePresets.includes(String(match.recurrence_days)) ? 'custom' : String(match?.recurrence_days ?? 8),
+    );
 
     // Initialize auto-title on create
     if (autoTitleOnInit) {
@@ -168,9 +184,17 @@ export function useMatchForm(options: UseMatchFormOptions) {
         form.field_id = resolveFieldId(label);
 
         const fieldType = resolveFieldType(label);
-        if (fieldType && fieldTypeToPlayers[fieldType]) {
-            form.max_players = fieldTypeToPlayers[fieldType];
-            form.registration_opens_hours = calcRegistrationHours(fieldTypeToPlayers[fieldType]);
+        const playerCount = fieldType ? fieldTypeToPlayers[fieldType] : undefined;
+        if (playerCount) {
+            form.max_players = playerCount;
+            form.registration_opens_hours = calcRegistrationHours(playerCount);
+            form.min_players_required = playerCount;
+        }
+    });
+
+    watch(() => form.max_players, (val) => {
+        if (form.min_players_required > val) {
+            form.min_players_required = val;
         }
     });
 
@@ -196,6 +220,12 @@ export function useMatchForm(options: UseMatchFormOptions) {
     watch(() => form.team_b_color, (hex) => {
         if (autoTeamB.value) {
             form.team_b_name = generatedTeamName(hex);
+        }
+    });
+
+    watch(selectedRecurrenceOption, (option) => {
+        if (option !== 'custom') {
+            form.recurrence_days = Number(option);
         }
     });
 
@@ -254,6 +284,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
         enableManualTeamName,
         enableAutoTeamName,
         isPastMatch,
+        selectedRecurrenceOption,
         resolveBeforeSubmit,
     };
 }

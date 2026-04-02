@@ -79,6 +79,11 @@ use Illuminate\Support\Collection;
  *
  * @property bool $auto_started
  * @property array<array-key, mixed>|null $applied_stats
+ * @property bool $is_recurring
+ * @property int $recurrence_days
+ * @property CarbonImmutable|null $next_match_created_at
+ * @property bool $auto_cancel
+ * @property int $min_players_required
  * @property-read MatchVideoUpload|null $videoUpload
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
@@ -127,6 +132,11 @@ class FootballMatch extends Model
         'team_b_name',
         'team_a_color',
         'team_b_color',
+        'is_recurring',
+        'recurrence_days',
+        'next_match_created_at',
+        'auto_cancel',
+        'min_players_required',
     ];
 
     protected function casts(): array
@@ -140,6 +150,11 @@ class FootballMatch extends Model
             'registration_notified_at' => 'immutable_datetime',
             'applied_stats' => 'array',
             'auto_started' => 'boolean',
+            'is_recurring' => 'boolean',
+            'recurrence_days' => 'integer',
+            'next_match_created_at' => 'immutable_datetime',
+            'auto_cancel' => 'boolean',
+            'min_players_required' => 'integer',
             'duration_minutes' => 'integer',
             'arrival_minutes' => 'integer',
             'max_players' => 'integer',

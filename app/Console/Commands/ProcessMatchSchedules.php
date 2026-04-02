@@ -2,9 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
 use App\Models\FootballMatch;
+use App\Notifications\MatchAutoCancelledNotification;
+use App\Services\MatchService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 
 class ProcessMatchSchedules extends Command
 {
@@ -12,14 +16,60 @@ class ProcessMatchSchedules extends Command
 
     protected $description = 'Auto-inicia partidos programados cuya hora ya pasó y auto-completa partidos iniciados por el sistema cuya duración ya terminó';
 
-    public function handle(): int
-    {
-        $started = $this->autoStartMatches();
-        $completed = $this->autoCompleteMatches();
+    private MatchService $matchService;
 
-        $this->info("Partidos iniciados: {$started}, completados: {$completed}");
+    private const int AUTO_CANCEL_HOURS_BEFORE = 2;
+
+    public function handle(MatchService $matchService): int
+    {
+        $this->matchService = $matchService;
+
+        $cancelled = $this->autoCancelMatches();
+        $started = $this->autoStartMatches();
+        [$completed, $recreated] = $this->autoCompleteMatches();
+
+        $this->info("Partidos cancelados: {$cancelled}, iniciados: {$started}, completados: {$completed}, recreados: {$recreated}");
 
         return self::SUCCESS;
+    }
+
+    private function autoCancelMatches(): int
+    {
+        $cancelWindow = now()->addHours(self::AUTO_CANCEL_HOURS_BEFORE);
+
+        $matches = FootballMatch::query()
+            ->where('status', MatchStatus::Upcoming)
+            ->where('auto_cancel', true)
+            ->where('scheduled_at', '<=', $cancelWindow)
+            ->where('scheduled_at', '>', now())
+            ->withCount(['attendances as confirmed_count' => function ($query) {
+                $query->where('status', AttendanceStatus::Confirmed);
+            }])
+            ->get()
+            ->filter(fn (FootballMatch $match) => $match->confirmed_count < $match->min_players_required);
+
+        $cancelled = 0;
+
+        foreach ($matches as $match) {
+            $affected = FootballMatch::query()
+                ->where('id', $match->id)
+                ->where('status', MatchStatus::Upcoming)
+                ->update(['status' => MatchStatus::Cancelled]);
+
+            if ($affected === 0) {
+                continue;
+            }
+
+            $cancelled++;
+            $match->status = MatchStatus::Cancelled;
+
+            $users = $match->confirmedAttendeeUsers();
+            if ($users->isNotEmpty()) {
+                Notification::send($users, new MatchAutoCancelledNotification($match));
+            }
+        }
+
+        return $cancelled;
     }
 
     private function autoStartMatches(): int
@@ -29,37 +79,62 @@ class ProcessMatchSchedules extends Command
             ->where('scheduled_at', '<=', now())
             ->get();
 
+        $started = 0;
+
         foreach ($matches as $match) {
-            $match->update([
-                'status' => MatchStatus::InProgress,
-                'auto_started' => true,
-                'started_at' => $match->scheduled_at,
-            ]);
+            $affected = FootballMatch::query()
+                ->where('id', $match->id)
+                ->where('status', MatchStatus::Upcoming)
+                ->update([
+                    'status' => MatchStatus::InProgress,
+                    'auto_started' => true,
+                    'started_at' => $match->scheduled_at,
+                ]);
+
+            if ($affected > 0) {
+                $started++;
+            }
         }
 
-        return $matches->count();
+        return $started;
     }
 
-    private function autoCompleteMatches(): int
+    /** @return array{int, int} */
+    private function autoCompleteMatches(): array
     {
         $matches = FootballMatch::query()
             ->where('status', MatchStatus::InProgress)
             ->where('auto_started', true)
             ->whereNotNull('started_at')
             ->get()
-            ->filter(function (FootballMatch $match) {
-                $endTime = $match->started_at->copy()->addMinutes($match->duration_minutes);
+            ->filter(fn (FootballMatch $match) => now()->gte(
+                $match->started_at->copy()->addMinutes($match->duration_minutes),
+            ));
 
-                return now()->gte($endTime);
-            });
+        $completed = 0;
+        $recreated = 0;
 
         foreach ($matches as $match) {
-            $match->update([
-                'status' => MatchStatus::Completed,
-                'ended_at' => $match->started_at->copy()->addMinutes($match->duration_minutes),
-            ]);
+            $affected = FootballMatch::query()
+                ->where('id', $match->id)
+                ->where('status', MatchStatus::InProgress)
+                ->update([
+                    'status' => MatchStatus::Completed,
+                    'ended_at' => $match->started_at->copy()->addMinutes($match->duration_minutes),
+                ]);
+
+            if ($affected === 0) {
+                continue;
+            }
+
+            $completed++;
+            $match->status = MatchStatus::Completed;
+
+            if ($this->matchService->recreateIfRecurring($match)) {
+                $recreated++;
+            }
         }
 
-        return $matches->count();
+        return [$completed, $recreated];
     }
 }

@@ -79,7 +79,7 @@ const props = defineProps<Props>();
 const base = `/clubs/${props.club.ulid}/matches`;
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clubs', href: '/clubs' },
+    { title: 'Clubes', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: base },
     { title: props.match.title, href: `${base}/${props.match.ulid}` },
@@ -961,10 +961,17 @@ async function shareReel(reel: MatchReel) {
                 </div>
 
                 <div class="relative text-center">
-                    <!-- Status -->
-                    <span class="inline-block rounded-full border border-blue-500/30 bg-blue-500/20 px-3 py-0.5 text-[10px] font-bold tracking-widest text-blue-300 uppercase">
-                        FINALIZADO
-                    </span>
+                    <!-- Status + Edit -->
+                    <div class="flex items-center justify-between">
+                        <span class="inline-block rounded-full border border-blue-500/30 bg-blue-500/20 px-3 py-0.5 text-[10px] font-bold tracking-widest text-blue-300 uppercase">
+                            FINALIZADO
+                        </span>
+                        <Link v-if="isAdmin" :href="`${base}/${match.ulid}/edit`">
+                            <Button variant="ghost" size="icon" class="size-8 text-zinc-400 hover:text-white">
+                                <Pencil class="size-4" />
+                            </Button>
+                        </Link>
+                    </div>
 
                     <p class="mt-2 text-sm font-medium text-zinc-400">{{ match.title }}</p>
 

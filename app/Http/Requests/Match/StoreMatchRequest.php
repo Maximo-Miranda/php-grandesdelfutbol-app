@@ -38,6 +38,10 @@ class StoreMatchRequest extends FormRequest
             'team_b_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_a_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
             'team_b_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
+            'is_recurring' => ['boolean'],
+            'recurrence_days' => ['required_if:is_recurring,true', 'integer', 'min:1', 'max:90'],
+            'auto_cancel' => ['boolean'],
+            'min_players_required' => ['required_if:auto_cancel,true', 'integer', 'min:2', 'max:50'],
         ];
     }
 
@@ -70,6 +74,12 @@ class StoreMatchRequest extends FormRequest
             'notes.max' => 'Las notas no pueden tener mas de :max caracteres.',
             'team_a_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
             'team_b_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
+            'recurrence_days.required_if' => 'Los días de recurrencia son obligatorios cuando se activa auto-recrear.',
+            'recurrence_days.min' => 'Mínimo :min día.',
+            'recurrence_days.max' => 'Máximo :max días.',
+            'min_players_required.required_if' => 'El mínimo de jugadores es obligatorio cuando se activa auto-cancelar.',
+            'min_players_required.min' => 'Mínimo :min jugadores.',
+            'min_players_required.max' => 'Máximo :max jugadores.',
         ];
     }
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Bell, Clock, Info, MapPin, Pencil, Plus, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Bell, Clock, Info, MapPin, Pencil, Plus, Repeat, ShieldX, Trophy, WandSparkles } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ const {
     enableManualTeamName,
     enableAutoTeamName,
     isPastMatch,
+    selectedRecurrenceOption,
     resolveBeforeSubmit,
 } = useMatchForm({
     venues: () => props.venues,
@@ -507,6 +509,75 @@ function submitExistingVenueField() {
                         rows="3"
                     />
                     <InputError :message="form.errors.notes" />
+                </div>
+
+                <!-- Recurrencia -->
+                <div class="grid gap-1.5">
+                    <Label>Recurrencia</Label>
+                    <p class="text-xs text-muted-foreground">
+                        Cuando el partido finalice, se creará automáticamente el siguiente.
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <Checkbox id="is_recurring" v-model="form.is_recurring" />
+                        <Label for="is_recurring" class="font-normal">Auto-recrear partido</Label>
+                    </div>
+                    <div v-if="form.is_recurring" class="mt-2 grid gap-1.5">
+                        <Label>Frecuencia</Label>
+                        <Select v-model="selectedRecurrenceOption">
+                            <SelectTrigger class="max-w-[250px]">
+                                <div class="flex items-center gap-2">
+                                    <Repeat class="size-4 text-muted-foreground" />
+                                    <SelectValue />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="8">Cada 8 días</SelectItem>
+                                <SelectItem value="15">Cada 15 días</SelectItem>
+                                <SelectItem value="30">Cada 30 días</SelectItem>
+                                <SelectItem value="custom">Personalizado</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div v-if="selectedRecurrenceOption === 'custom'" class="max-w-[200px]">
+                            <Input
+                                id="recurrence_days"
+                                v-model="form.recurrence_days"
+                                type="number"
+                                min="1"
+                                max="90"
+                                placeholder="Días"
+                            />
+                        </div>
+                        <InputError :message="form.errors.recurrence_days" />
+                    </div>
+                </div>
+
+                <!-- Auto-cancelar -->
+                <div class="grid gap-1.5">
+                    <Label>Auto-cancelar</Label>
+                    <p class="text-xs text-muted-foreground">
+                        Si no hay suficientes jugadores 2 horas antes, el partido se cancela y se notifica a los confirmados.
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <Checkbox id="auto_cancel" v-model="form.auto_cancel" />
+                        <Label for="auto_cancel" class="font-normal">Auto-cancelar por falta de jugadores</Label>
+                    </div>
+                    <div v-if="form.auto_cancel" class="mt-2 grid gap-1.5">
+                        <Label for="min_players_required">Mínimo de jugadores</Label>
+                        <div class="relative max-w-[200px]">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <ShieldX class="size-4 text-muted-foreground" />
+                            </div>
+                            <Input
+                                id="min_players_required"
+                                v-model="form.min_players_required"
+                                type="number"
+                                min="2"
+                                :max="form.max_players"
+                                class="pl-9"
+                            />
+                        </div>
+                        <InputError :message="form.errors.min_players_required" />
+                    </div>
                 </div>
 
                 <Separator />
