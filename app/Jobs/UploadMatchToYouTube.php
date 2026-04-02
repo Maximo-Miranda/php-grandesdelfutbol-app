@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -85,6 +86,7 @@ class UploadMatchToYouTube implements ShouldQueue
         $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
 
         File::delete($tempFile);
+        $startTime = microtime(true);
 
         try {
             $this->downloadVideoToTemp($tempFile);
@@ -102,8 +104,15 @@ class UploadMatchToYouTube implements ShouldQueue
 
             $quotaService->increment();
             $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
-
             $this->cleanupDriveOriginal();
+
+            Log::info('Video uploaded to YouTube', [
+                'match' => $match->ulid,
+                'youtube_id' => $youtubeVideoId,
+                'file_size_mb' => File::exists($tempFile) ? round(File::size($tempFile) / 1048576) : null,
+                'source' => $this->videoUpload->drive_file_id ? 'drive' : 's3',
+                'elapsed_seconds' => round(microtime(true) - $startTime, 1),
+            ]);
         } finally {
             $lock->release();
             File::delete($tempFile);

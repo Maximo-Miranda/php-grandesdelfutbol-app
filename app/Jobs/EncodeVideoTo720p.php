@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -57,6 +58,7 @@ class EncodeVideoTo720p implements ShouldQueue
         $s3Output = "videos/matches/{$match->ulid}/720p.mp4";
 
         $this->cleanupFile($inputFile);
+        $startTime = microtime(true);
 
         try {
             $this->downloadFromS3($this->videoUpload->s3_path, $inputFile);
@@ -67,21 +69,34 @@ class EncodeVideoTo720p implements ShouldQueue
                 $this->videoUpload->update(['duration_seconds' => $properties['duration']]);
             }
 
-            if ($this->shouldStreamCopy($properties)) {
+            $method = $this->shouldStreamCopy($properties) ? 'stream-copy' : 'encode';
+
+            if ($method === 'stream-copy') {
                 $this->streamCopy($inputFile, $outputFile, $properties);
             } else {
                 $this->encode($inputFile, $outputFile, $properties);
             }
 
-            $this->uploadToS3($outputFile, $s3Output);
+            if (! Storage::disk('s3')->exists($s3Output)) {
+                $this->uploadToS3($outputFile, $s3Output);
+            }
 
             $this->videoUpload->update([
                 's3_reels_path' => $s3Output,
-                's3_reels_uploaded_at' => now(),
+                's3_reels_uploaded_at' => $this->videoUpload->s3_reels_uploaded_at ?? now(),
                 'best_resolution' => '720p',
             ]);
 
             $this->uploadReelsSourceToDrive($outputFile, $match->ulid);
+
+            Log::info('Video encoded to 720p', [
+                'match' => $match->ulid,
+                'method' => $method,
+                'input_size_mb' => round(File::size($inputFile) / 1048576),
+                'output_size_mb' => File::exists($outputFile) ? round(File::size($outputFile) / 1048576) : null,
+                'duration_seconds' => $properties['duration'],
+                'elapsed_seconds' => round(microtime(true) - $startTime, 1),
+            ]);
         } finally {
             $this->cleanupFile($inputFile);
             $this->cleanupFile($outputFile);
@@ -99,6 +114,10 @@ class EncodeVideoTo720p implements ShouldQueue
 
     private function uploadReelsSourceToDrive(string $localPath, string $matchUlid): void
     {
+        if ($this->videoUpload->drive_reels_file_id) {
+            return;
+        }
+
         $club = $this->videoUpload->match?->club;
 
         if (! $club) {

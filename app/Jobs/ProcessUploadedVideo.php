@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -37,6 +38,7 @@ class ProcessUploadedVideo implements ShouldQueue
         }
 
         if ($this->videoUpload->drive_file_id && ! $this->videoUpload->s3_path) {
+            Log::info('Transferring video from Drive to S3', ['match' => $match->ulid]);
             $this->transferFromDriveToS3($match->ulid);
         }
 

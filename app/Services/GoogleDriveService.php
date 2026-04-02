@@ -320,6 +320,29 @@ class GoogleDriveService
         return $folder->getId();
     }
 
+    /**
+     * Get storage usage for the Google Drive account.
+     *
+     * @return array{used_bytes: int, total_bytes: int, used_percent: float}
+     */
+    public function getStorageUsage(): array
+    {
+        $client = $this->authService->authenticatedClient();
+        $drive = new Drive($client);
+
+        $about = $drive->about->get(['fields' => 'storageQuota']);
+        $quota = $about->getStorageQuota();
+
+        $used = (int) $quota->getUsage();
+        $total = (int) $quota->getLimit();
+
+        return [
+            'used_bytes' => $used,
+            'total_bytes' => $total,
+            'used_percent' => $total > 0 ? round(($used / $total) * 100, 1) : 0,
+        ];
+    }
+
     private function driveService(): Drive
     {
         return new Drive($this->authService->authenticatedClient());
