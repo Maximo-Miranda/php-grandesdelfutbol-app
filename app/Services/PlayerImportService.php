@@ -6,6 +6,7 @@ use App\Enums\PlayerPosition;
 use App\Models\Club;
 use App\Models\Player;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class PlayerImportService
@@ -17,7 +18,7 @@ class PlayerImportService
      */
     public function importFromCsv(Club $club, string $filePath): array
     {
-        if (! file_exists($filePath)) {
+        if (! File::exists($filePath)) {
             return ['imported' => 0, 'errors' => ['Archivo no encontrado']];
         }
 

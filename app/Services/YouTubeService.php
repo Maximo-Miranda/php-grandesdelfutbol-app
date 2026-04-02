@@ -13,6 +13,7 @@ use Google\Service\YouTube\ResourceId;
 use Google\Service\YouTube\Video;
 use Google\Service\YouTube\VideoSnippet;
 use Google\Service\YouTube\VideoStatus;
+use Illuminate\Support\Facades\File;
 use Psr\Http\Message\RequestInterface;
 use RuntimeException;
 
@@ -60,7 +61,7 @@ class YouTubeService
             self::CHUNK_SIZE,
         );
 
-        $media->setFileSize(filesize($filePath));
+        $media->setFileSize(File::size($filePath));
 
         $handle = fopen($filePath, 'rb');
         $uploadStatus = false;

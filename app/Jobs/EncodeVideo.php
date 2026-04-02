@@ -226,15 +226,15 @@ class EncodeVideo implements ShouldQueue
 
     private function validateOutput(string $outputFile): void
     {
-        if (! file_exists($outputFile) || filesize($outputFile) === 0) {
+        if (! File::exists($outputFile) || File::size($outputFile) === 0) {
             throw new RuntimeException('FFmpeg did not produce a valid output file.');
         }
     }
 
     private function cleanupFile(string $path): void
     {
-        if (file_exists($path)) {
-            unlink($path);
+        if (File::exists($path)) {
+            File::delete($path);
         }
     }
 

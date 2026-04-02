@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\File;
 
 class ViewClub extends ViewRecord
 {
@@ -32,7 +33,7 @@ class ViewClub extends ViewRecord
 
                     $result = $service->importFromCsv($this->record, $filePath);
 
-                    @unlink($filePath);
+                    File::delete($filePath);
 
                     if ($result['errors'] !== []) {
                         Notification::make()

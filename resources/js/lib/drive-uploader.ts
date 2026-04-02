@@ -191,7 +191,8 @@ export async function executeUpload(
     callbacks: DriveUploaderCallbacks,
     signal?: AbortSignal,
 ): Promise<void> {
-    let { bytesUploaded, accessToken, expiresAt, sessionUri } = pendingUpload;
+    let { bytesUploaded, accessToken, expiresAt } = pendingUpload;
+    const { sessionUri } = pendingUpload;
     const { fileSize } = pendingUpload;
 
     while (bytesUploaded < fileSize) {
@@ -207,7 +208,7 @@ export async function executeUpload(
                 pendingUpload.accessToken = accessToken;
                 pendingUpload.expiresAt = expiresAt;
                 await savePendingUpload(pendingUpload);
-            } catch (err) {
+            } catch {
                 callbacks.onError(new Error('No se pudo renovar el token de acceso.'));
                 return;
             }

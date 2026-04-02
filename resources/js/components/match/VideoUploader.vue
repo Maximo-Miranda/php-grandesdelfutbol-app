@@ -16,12 +16,13 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    type PendingUpload,
+    
     deletePendingUpload,
     executeUpload,
     getPendingUpload,
-    savePendingUpload,
+    savePendingUpload
 } from '@/lib/drive-uploader';
+import type {PendingUpload} from '@/lib/drive-uploader';
 import { getCsrfToken } from '@/lib/utils';
 
 type VideoUploadData = {

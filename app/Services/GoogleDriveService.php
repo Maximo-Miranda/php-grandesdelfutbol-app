@@ -152,7 +152,7 @@ class GoogleDriveService
             $chunkSize,
         );
 
-        $media->setFileSize(filesize($localPath));
+        $media->setFileSize(File::size($localPath));
 
         $handle = fopen($localPath, 'rb');
         $uploadStatus = false;

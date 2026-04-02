@@ -103,7 +103,7 @@ class GenerateMatchReel implements ShouldQueue
     {
         $localPath = $tempDir."/full-{$match->ulid}.mp4";
 
-        if (file_exists($localPath)) {
+        if (File::exists($localPath)) {
             return $localPath;
         }
 
@@ -176,7 +176,7 @@ class GenerateMatchReel implements ShouldQueue
     {
         $path = config('reels.watermark_path');
 
-        if (! config('reels.watermark_enabled') || ! $path || ! file_exists($path)) {
+        if (! config('reels.watermark_enabled') || ! $path || ! File::exists($path)) {
             return [];
         }
 
@@ -192,11 +192,11 @@ class GenerateMatchReel implements ShouldQueue
 
     protected function storeOutputAndComplete(string $outputFile): void
     {
-        if (! file_exists($outputFile)) {
+        if (! File::exists($outputFile)) {
             throw new RuntimeException('ffmpeg did not produce an output file.');
         }
 
-        $sizeBytes = filesize($outputFile);
+        $sizeBytes = File::size($outputFile);
         if ($sizeBytes < 10240) {
             throw new RuntimeException("ffmpeg output file too small ({$sizeBytes} bytes), likely corrupt.");
         }
@@ -212,8 +212,8 @@ class GenerateMatchReel implements ShouldQueue
 
     protected function cleanupFiles(string $outputFile, ?string $sourceVideo, ?FootballMatch $match): void
     {
-        if (file_exists($outputFile)) {
-            unlink($outputFile);
+        if (File::exists($outputFile)) {
+            File::delete($outputFile);
         }
 
         if (! $sourceVideo || ! $match) {
@@ -225,8 +225,8 @@ class GenerateMatchReel implements ShouldQueue
             ->where('id', '!=', $this->reel->id)
             ->exists();
 
-        if (! $hasPendingReels && file_exists($sourceVideo)) {
-            unlink($sourceVideo);
+        if (! $hasPendingReels && File::exists($sourceVideo)) {
+            File::delete($sourceVideo);
         }
     }
 
