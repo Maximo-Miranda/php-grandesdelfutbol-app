@@ -57,19 +57,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Upload Driver
-    |--------------------------------------------------------------------------
-    |
-    | Controls how videos are uploaded from the browser.
-    | "s3" uses the existing S3 multipart upload via Uppy.
-    | "drive" uses Google Drive resumable uploads for better mobile reliability.
-    |
-    */
-
-    'upload_driver' => env('UPLOAD_DRIVER', 's3'),
-
-    /*
-    |--------------------------------------------------------------------------
     | Google Drive
     |--------------------------------------------------------------------------
     |

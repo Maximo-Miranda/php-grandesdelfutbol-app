@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\DriveUploadController;
-use App\Http\Controllers\Api\S3MultipartController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubJoinController;
@@ -73,14 +72,6 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::prefix('s3/multipart')->group(function () {
-        Route::post('/', [S3MultipartController::class, 'create'])->name('s3.multipart.create');
-        Route::get('{uploadId}', [S3MultipartController::class, 'listParts'])->name('s3.multipart.listParts');
-        Route::get('{uploadId}/{partNumber}', [S3MultipartController::class, 'signPart'])->name('s3.multipart.signPart');
-        Route::post('{uploadId}/complete', [S3MultipartController::class, 'complete'])->name('s3.multipart.complete');
-        Route::delete('{uploadId}', [S3MultipartController::class, 'abort'])->name('s3.multipart.abort');
-    });
-
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('player-card', PlayerCardController::class)->name('player-card');
     Route::resource('clubs', ClubController::class);
@@ -125,7 +116,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/cancel', [MatchLifecycleController::class, 'cancel'])->name('matches.cancel');
         Route::post('matches/{match}/finalize-stats', [MatchLifecycleController::class, 'finalizeStats'])->name('matches.finalizeStats');
 
-        Route::post('matches/{match}/video-upload', [MatchVideoUploadController::class, 'store'])->name('matches.videoUpload.store');
         Route::get('matches/{match}/video-upload', [MatchVideoUploadController::class, 'show'])->name('matches.videoUpload.show');
         Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->middleware('throttle:expensive-action')->name('matches.videoUpload.retryYouTube');
         Route::post('matches/{match}/video-upload/share-link', [VideoShareController::class, 'generate'])->name('matches.videoUpload.shareLink');

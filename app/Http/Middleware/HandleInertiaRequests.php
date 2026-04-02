@@ -47,7 +47,6 @@ class HandleInertiaRequests extends Middleware
             },
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             'googleAuthEnabled' => config('services.google.enabled'),
-            'uploadDriver' => config('youtube.upload_driver', 's3'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

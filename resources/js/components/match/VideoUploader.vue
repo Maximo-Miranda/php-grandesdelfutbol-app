@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3';
-import AwsS3 from '@uppy/aws-s3';
-import Uppy from '@uppy/core';
+import { router } from '@inertiajs/vue3';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
@@ -50,8 +48,6 @@ type Props = {
 const props = defineProps<Props>();
 const emit = defineEmits<{ uploaded: [] }>();
 
-const page = usePage();
-const uploadDriver = computed(() => (page.props.uploadDriver as string) ?? 's3');
 
 const status = ref<'idle' | 'uploading' | 'paused' | 'encoding' | 'ready' | 'failed' | 'resumable'>(
     props.existingUpload?.status === 'uploading' ? 'idle' : (props.existingUpload?.status ?? 'idle'),
@@ -116,11 +112,9 @@ const uploadedFilename = ref(props.existingUpload?.original_filename ?? '');
 const videoUploadUrl = computed(() => `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`);
 const driveUploadBaseUrl = computed(() => `/clubs/${props.clubUlid}/matches/${props.matchUlid}/drive-upload`);
 
-let uppy: Uppy | null = null;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let lastLoaded = 0;
 let lastTime = 0;
-let lastS3Key: string | null = null;
 
 const STATUS_LABELS: Record<string, string> = {
     idle: 'Sin video',
@@ -210,11 +204,7 @@ async function startUpload(file: File) {
             }).catch(() => {});
         }
 
-        if (uploadDriver.value === 'drive') {
-            await startDriveUpload(file);
-        } else {
-            initUppy(file);
-        }
+        await startDriveUpload(file);
     } catch (err: any) {
         status.value = 'failed';
         errorMessage.value = err.message || 'Error al iniciar la subida.';
@@ -421,167 +411,24 @@ async function discardPendingUpload() {
     errorMessage.value = '';
 }
 
-// ── S3 Upload (Uppy) ──────────────────────────────────────────
-
-function initUppy(file: File) {
-    uppy = new Uppy({
-        restrictions: {
-            maxFileSize: 25 * 1073741824,
-            allowedFileTypes: ['video/*'],
-            maxNumberOfFiles: 1,
-        },
-        autoProceed: true,
-    });
-
-    // @ts-expect-error Uppy types require getUploadParameters but it's not needed for multipart-only uploads
-    uppy.use(AwsS3, {
-        shouldUseMultipart: (file) => (file.size ?? 0) > 100 * 1024 * 1024,
-
-        getChunkSize(file) {
-            const size = file.size ?? 0;
-            const MB = 1024 * 1024;
-
-            // Target ~100 parts to keep request count manageable
-            const calculated = Math.ceil(size / 100);
-
-            // Minimum 10MB, maximum 100MB per part
-            return Math.min(Math.max(calculated, 10 * MB), 100 * MB);
-        },
-
-        async createMultipartUpload(file) {
-            const res = await fetchOrThrow('/s3/multipart', {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    filename: file.name,
-                    content_type: file.type || 'video/mp4',
-                }),
-            });
-            const data = await res.json();
-            lastS3Key = data.key;
-            return data;
-        },
-
-        async signPart(file, { uploadId, key, partNumber }) {
-            const res = await fetchOrThrow(
-                `/s3/multipart/${uploadId}/${partNumber}?key=${encodeURIComponent(key)}`,
-                { credentials: 'same-origin', headers: freshHeaders() },
-            );
-            return await res.json();
-        },
-
-        async listParts(file, { uploadId, key }) {
-            const res = await fetchOrThrow(
-                `/s3/multipart/${uploadId}?key=${encodeURIComponent(key)}`,
-                { credentials: 'same-origin', headers: freshHeaders() },
-            );
-            return await res.json();
-        },
-
-        async completeMultipartUpload(file, { uploadId, key, parts }) {
-            const res = await fetchOrThrow(`/s3/multipart/${uploadId}/complete`, {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({ key, parts }),
-            });
-            return await res.json();
-        },
-
-        async abortMultipartUpload(file, { uploadId, key }) {
-            await fetch(`/s3/multipart/${uploadId}`, {
-                method: 'DELETE',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({ key }),
-            });
-        },
-    });
-
-    uppy.on('upload-progress', (_file, progressData) => {
-        if (progressData.bytesTotal) {
-            progress.value = Math.round((progressData.bytesUploaded / progressData.bytesTotal) * 100);
-        }
-        updateSpeed(progressData.bytesUploaded);
-    });
-
-    uppy.on('upload-success', async () => {
-        stopNavigationGuard();
-
-        const s3Key = lastS3Key;
-
-        try {
-            const res = await fetch(videoUploadUrl.value, {
-                method: 'POST',
-                headers: jsonHeaders(),
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    filename: file.name,
-                    filesize: file.size,
-                    s3_key: s3Key,
-                }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Error al registrar el video.');
-            }
-
-            status.value = 'encoding';
-            startPolling();
-        } catch (err: any) {
-            status.value = 'failed';
-            errorMessage.value = err.message || 'Error al registrar el video.';
-        }
-    });
-
-    uppy.on('upload-error', (_file, error) => {
-        status.value = 'failed';
-        errorMessage.value = error?.message || 'Error durante la subida.';
-    });
-
-    uppy.addFile({
-        name: file.name,
-        type: file.type,
-        data: file,
-    });
-}
-
-// ── Shared controls ────────────────────────────────────────────
+// ── Controls ───────────────────────────────────────────────────
 
 function pauseUpload() {
-    if (uploadDriver.value === 'drive') {
-        driveAbortController?.abort();
-        driveAbortController = null;
-        status.value = 'paused';
-    } else if (uppy) {
-        uppy.pauseAll();
-        status.value = 'paused';
-    }
+    driveAbortController?.abort();
+    driveAbortController = null;
+    status.value = 'paused';
 }
 
 function unpauseUpload() {
-    if (uploadDriver.value === 'drive') {
-        // For Drive, pause is equivalent to stopping — user must re-select file to resume
-        // This is a simplified version; a full implementation would require keeping the File reference
-        status.value = 'resumable';
-    } else if (uppy) {
-        uppy.resumeAll();
-        status.value = 'uploading';
-    }
+    // For Drive, pause is equivalent to stopping — user must re-select file to resume
+    status.value = 'resumable';
 }
 
 async function cancelUpload() {
-    if (uploadDriver.value === 'drive') {
-        driveAbortController?.abort();
-        driveAbortController = null;
-        await deletePendingUpload(props.matchUlid);
-        pendingDriveUpload.value = null;
-    } else if (uppy) {
-        uppy.cancelAll();
-        uppy = null;
-    }
+    driveAbortController?.abort();
+    driveAbortController = null;
+    await deletePendingUpload(props.matchUlid);
+    pendingDriveUpload.value = null;
 
     status.value = 'idle';
     progress.value = 0;
@@ -668,13 +515,8 @@ function stopPolling() {
 async function leavePageAnyway() {
     showUploadingWarning.value = false;
 
-    if (uploadDriver.value === 'drive') {
-        driveAbortController?.abort();
-        driveAbortController = null;
-    } else if (uppy) {
-        uppy.cancelAll();
-        uppy = null;
-    }
+    driveAbortController?.abort();
+    driveAbortController = null;
 
     stopNavigationGuard();
 
@@ -703,7 +545,7 @@ onMounted(async () => {
     }
 
     // Check for pending Drive upload to resume
-    if (uploadDriver.value === 'drive' && status.value === 'idle') {
+    if (status.value === 'idle') {
         try {
             const pending = await getPendingUpload(props.matchUlid);
             if (pending) {
@@ -724,10 +566,6 @@ onBeforeUnmount(() => {
     stopNavigationGuard();
     driveAbortController?.abort();
     driveAbortController = null;
-    if (uppy) {
-        uppy.cancelAll();
-        uppy = null;
-    }
 });
 </script>
 
@@ -887,12 +725,7 @@ onBeforeUnmount(() => {
                 <DialogHeader>
                     <DialogTitle>Video subiendo</DialogTitle>
                     <DialogDescription>
-                        <template v-if="uploadDriver === 'drive'">
-                            Se esta subiendo un video. Si sales de esta pagina podras retomar la subida despues seleccionando el mismo archivo.
-                        </template>
-                        <template v-else>
-                            Se esta subiendo un video. Si sales de esta pagina la subida se cancelara y tendras que empezar de nuevo.
-                        </template>
+                        Se esta subiendo un video. Si sales de esta pagina podras retomar la subida despues seleccionando el mismo archivo.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">

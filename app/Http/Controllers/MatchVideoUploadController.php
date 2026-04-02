@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\VideoUploadStatus;
-use App\Http\Requests\Match\StoreMatchVideoUploadRequest;
-use App\Jobs\ProcessUploadedVideo;
 use App\Jobs\UploadMatchToYouTube;
 use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
@@ -22,37 +19,6 @@ class MatchVideoUploadController extends Controller
         private YouTubeService $youtubeService,
         private GoogleDriveService $driveService,
     ) {}
-
-    /** Called after S3 multipart upload completes — registers the upload and dispatches pipeline. */
-    public function store(StoreMatchVideoUploadRequest $request, Club $club, FootballMatch $match): JsonResponse
-    {
-        $existingUpload = $match->videoUpload;
-
-        if ($existingUpload) {
-            if ($existingUpload->status === VideoUploadStatus::Uploading) {
-                $existingUpload->delete();
-            } else {
-                return response()->json(['error' => 'Este partido ya tiene un video.'], 422);
-            }
-        }
-
-        $validated = $request->validated();
-
-        $videoUpload = $match->videoUpload()->create([
-            'uploaded_by' => $request->user()->id,
-            'status' => VideoUploadStatus::Encoding,
-            'original_filename' => $validated['filename'],
-            'original_size_bytes' => $validated['filesize'],
-            's3_path' => $validated['s3_key'],
-            'uploaded_at' => now(),
-        ]);
-
-        ProcessUploadedVideo::dispatch($videoUpload);
-
-        return response()->json([
-            'video_upload' => $videoUpload,
-        ]);
-    }
 
     public function show(Club $club, FootballMatch $match): JsonResponse
     {
