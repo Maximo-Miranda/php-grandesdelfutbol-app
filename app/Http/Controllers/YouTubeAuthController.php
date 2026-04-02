@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\YouTubeService;
+use App\Services\GoogleAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -10,13 +10,13 @@ use Illuminate\Support\Facades\Log;
 
 class YouTubeAuthController extends Controller
 {
-    public function __construct(private YouTubeService $youtubeService) {}
+    public function __construct(private GoogleAuthService $authService) {}
 
     public function redirect(Request $request): RedirectResponse
     {
         Gate::authorize('superAdmin');
 
-        return redirect()->away($this->youtubeService->getAuthUrl());
+        return redirect()->away($this->authService->getAuthUrl());
     }
 
     public function callback(Request $request): RedirectResponse
@@ -30,10 +30,10 @@ class YouTubeAuthController extends Controller
         }
 
         try {
-            $this->youtubeService->handleCallback($code);
-            Log::info('YouTube token saved successfully');
+            $this->authService->handleCallback($code);
+            Log::info('Google OAuth token saved successfully (YouTube + Drive)');
         } catch (\Throwable $e) {
-            Log::error('YouTube callback failed', ['error' => $e->getMessage()]);
+            Log::error('Google OAuth callback failed', ['error' => $e->getMessage()]);
 
             return redirect()->route('dashboard')->with('error', 'YouTube authorization failed: '.$e->getMessage());
         }

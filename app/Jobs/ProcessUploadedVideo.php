@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\VideoUploadStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
+use App\Services\GoogleDriveService;
 use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +31,16 @@ class ProcessUploadedVideo implements ShouldQueue
     {
         $match = $this->videoUpload->match;
 
-        if (! $match || ! $this->videoUpload->s3_path) {
+        if (! $match) {
+            return;
+        }
+
+        // Transfer from Google Drive to S3 if this is a Drive-sourced upload
+        if ($this->videoUpload->drive_file_id && ! $this->videoUpload->s3_path) {
+            $this->transferFromDriveToS3($match->ulid);
+        }
+
+        if (! $this->videoUpload->s3_path) {
             return;
         }
 
@@ -80,6 +90,11 @@ class ProcessUploadedVideo implements ShouldQueue
                     ]);
                 }
 
+                // Clean up Google Drive file after encoding (non-critical)
+                if ($videoUpload->drive_file_id) {
+                    rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_file_id));
+                }
+
                 // Auto reels if match has finalized stats (non-critical)
                 try {
                     if ($match->stats_finalized_at && $videoUpload->best_resolution) {
@@ -99,6 +114,39 @@ class ProcessUploadedVideo implements ShouldQueue
                 }
             })
             ->dispatch();
+    }
+
+    /**
+     * Download a video from Google Drive and upload it to S3.
+     *
+     * This bridges the Drive upload with the existing S3-based encoding pipeline.
+     */
+    private function transferFromDriveToS3(string $matchUlid): void
+    {
+        $driveService = app(GoogleDriveService::class);
+
+        $tempDir = storage_path('app/temp/drive');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempPath = "{$tempDir}/{$matchUlid}.mp4";
+
+        try {
+            $driveService->downloadFile($this->videoUpload->drive_file_id, $tempPath);
+
+            $s3Key = "uploads/{$matchUlid}/original.mp4";
+            Storage::disk('s3')->put($s3Key, fopen($tempPath, 'rb'));
+
+            $this->videoUpload->update([
+                's3_path' => $s3Key,
+                'original_s3_path' => $s3Key,
+            ]);
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
     }
 
     public function failed(?Throwable $exception): void

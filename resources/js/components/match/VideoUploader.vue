@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import AwsS3 from '@uppy/aws-s3';
 import Uppy from '@uppy/core';
-import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, Trash2, Upload, X } from 'lucide-vue-next';
+import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    type PendingUpload,
+    deletePendingUpload,
+    executeUpload,
+    getPendingUpload,
+    savePendingUpload,
+} from '@/lib/drive-uploader';
 import { getCsrfToken } from '@/lib/utils';
 
 type VideoUploadData = {
@@ -40,7 +47,10 @@ type Props = {
 const props = defineProps<Props>();
 const emit = defineEmits<{ uploaded: [] }>();
 
-const status = ref<'idle' | 'uploading' | 'paused' | 'encoding' | 'ready' | 'failed'>(
+const page = usePage();
+const uploadDriver = computed(() => (page.props.uploadDriver as string) ?? 's3');
+
+const status = ref<'idle' | 'uploading' | 'paused' | 'encoding' | 'ready' | 'failed' | 'resumable'>(
     props.existingUpload?.status === 'uploading' ? 'idle' : (props.existingUpload?.status ?? 'idle'),
 );
 const progress = ref(0);
@@ -48,8 +58,14 @@ const speed = ref('');
 const errorMessage = ref(props.existingUpload?.error_message ?? '');
 const showDeleteConfirm = ref(false);
 const showUploadingWarning = ref(false);
+const pendingVisitUrl = ref<string | null>(null);
 let removeInertiaListener: (() => void) | null = null;
+let bypassNavigationGuard = false;
 let wakeLock: WakeLockSentinel | null = null;
+
+// Drive-specific state
+const pendingDriveUpload = ref<PendingUpload | null>(null);
+let driveAbortController: AbortController | null = null;
 
 async function requestWakeLock() {
     try {
@@ -72,8 +88,13 @@ function startNavigationGuard() {
     window.addEventListener('beforeunload', onBeforeUnloadHandler);
     requestWakeLock();
     removeInertiaListener = router.on('before', (event) => {
+        if (bypassNavigationGuard) {
+            bypassNavigationGuard = false;
+            return;
+        }
         if (status.value === 'uploading' || status.value === 'paused') {
             event.preventDefault();
+            pendingVisitUrl.value = event.detail.visit.url.href;
             showUploadingWarning.value = true;
             return false;
         }
@@ -90,6 +111,7 @@ function stopNavigationGuard() {
 }
 const uploadedFilename = ref(props.existingUpload?.original_filename ?? '');
 const videoUploadUrl = computed(() => `/clubs/${props.clubUlid}/matches/${props.matchUlid}/video-upload`);
+const driveUploadBaseUrl = computed(() => `/clubs/${props.clubUlid}/matches/${props.matchUlid}/drive-upload`);
 
 let uppy: Uppy | null = null;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -104,6 +126,7 @@ const STATUS_LABELS: Record<string, string> = {
     encoding: 'Procesando video...',
     ready: 'Video listo',
     failed: 'Error',
+    resumable: 'Subida pendiente',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -113,6 +136,7 @@ const STATUS_COLORS: Record<string, string> = {
     encoding: 'text-amber-400',
     ready: 'text-emerald-400',
     failed: 'text-red-400',
+    resumable: 'text-blue-400',
 };
 
 const statusLabel = computed(() => STATUS_LABELS[status.value] ?? '');
@@ -147,6 +171,31 @@ async function selectFile() {
     input.click();
 }
 
+/**
+ * Select a file to resume a pending Drive upload.
+ * Validates that the file matches the pending upload (name + size).
+ */
+function selectFileForResume() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/*';
+
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file || !pendingDriveUpload.value) return;
+
+        if (file.name !== pendingDriveUpload.value.fileName || file.size !== pendingDriveUpload.value.fileSize) {
+            errorMessage.value = `Selecciona el mismo archivo: "${pendingDriveUpload.value.fileName}" (${formatBytes(pendingDriveUpload.value.fileSize)})`;
+            return;
+        }
+
+        errorMessage.value = '';
+        await resumeDriveUpload(file);
+    };
+
+    input.click();
+}
+
 async function startUpload(file: File) {
     status.value = 'uploading';
     progress.value = 0;
@@ -163,10 +212,15 @@ async function startUpload(file: File) {
             }).catch(() => {});
         }
 
-        initUppy(file);
+        if (uploadDriver.value === 'drive') {
+            await startDriveUpload(file);
+        } else {
+            initUppy(file);
+        }
     } catch (err: any) {
         status.value = 'failed';
         errorMessage.value = err.message || 'Error al iniciar la subida.';
+        stopNavigationGuard();
     }
 }
 
@@ -187,6 +241,182 @@ async function fetchOrThrow(input: RequestInfo, init?: RequestInit): Promise<Res
 
     return res;
 }
+
+// ── Google Drive Upload ────────────────────────────────────────
+
+async function startDriveUpload(file: File) {
+    const res = await fetchOrThrow(`${driveUploadBaseUrl.value}/init`, {
+        method: 'POST',
+        headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            filename: file.name,
+            filesize: file.size,
+            content_type: file.type || 'video/mp4',
+        }),
+    });
+
+    const data = await res.json();
+
+    const pending: PendingUpload = {
+        matchUlid: props.matchUlid,
+        sessionUri: data.session_uri,
+        accessToken: data.access_token,
+        expiresAt: data.expires_at,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'video/mp4',
+        bytesUploaded: 0,
+        uploadUlid: data.upload_ulid,
+        createdAt: Date.now(),
+    };
+
+    await savePendingUpload(pending);
+    pendingDriveUpload.value = pending;
+    driveAbortController = new AbortController();
+
+    await executeDriveUpload(file, pending);
+}
+
+async function resumeDriveUpload(file: File) {
+    if (!pendingDriveUpload.value) return;
+
+    status.value = 'uploading';
+    errorMessage.value = '';
+    startNavigationGuard();
+
+    try {
+        // Probe via backend to avoid CORS issues
+        const probeRes = await fetchOrThrow(`${driveUploadBaseUrl.value}/probe`, {
+            method: 'POST',
+            headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                session_uri: pendingDriveUpload.value.sessionUri,
+                total_size: pendingDriveUpload.value.fileSize,
+            }),
+        });
+
+        const probeResult = await probeRes.json();
+
+        if (probeResult.complete) {
+            await onDriveUploadComplete(probeResult.drive_file_id!);
+            return;
+        }
+
+        // Update token and progress from backend response
+        pendingDriveUpload.value.bytesUploaded = probeResult.bytes_uploaded;
+        pendingDriveUpload.value.accessToken = probeResult.access_token;
+        pendingDriveUpload.value.expiresAt = probeResult.expires_at;
+        await savePendingUpload(pendingDriveUpload.value);
+        driveAbortController = new AbortController();
+
+        await executeDriveUpload(file, pendingDriveUpload.value);
+    } catch (err: any) {
+        stopNavigationGuard();
+
+        // If session expired, clean up and reset to idle so user can start fresh
+        if (err.message?.includes('expirado') || err.message?.includes('expired')) {
+            await deletePendingUpload(props.matchUlid);
+            pendingDriveUpload.value = null;
+            status.value = 'idle';
+            errorMessage.value = '';
+        } else {
+            status.value = 'failed';
+            errorMessage.value = err.message || 'Error al reanudar la subida.';
+        }
+    }
+}
+
+async function executeDriveUpload(file: File, pending: PendingUpload) {
+    lastLoaded = pending.bytesUploaded;
+    lastTime = Date.now();
+
+    await executeUpload(file, pending, {
+        onProgress(bytesUploaded, totalBytes) {
+            progress.value = Math.round((bytesUploaded / totalBytes) * 100);
+
+            const now = Date.now();
+            if (lastTime > 0 && now - lastTime > 500) {
+                const bytesDiff = bytesUploaded - lastLoaded;
+                const timeDiff = (now - lastTime) / 1000;
+                if (timeDiff > 0) {
+                    speed.value = formatBytes(bytesDiff / timeDiff) + '/s';
+                }
+            }
+            lastLoaded = bytesUploaded;
+            lastTime = now;
+        },
+
+        async onComplete(driveFileId) {
+            await onDriveUploadComplete(driveFileId);
+        },
+
+        onError(error) {
+            status.value = 'failed';
+            errorMessage.value = error.message;
+            stopNavigationGuard();
+        },
+
+        async onTokenRefresh() {
+            const res = await fetchOrThrow(`/clubs/${props.clubUlid}/drive-upload/refresh-token`, {
+                method: 'POST',
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+            });
+            return await res.json();
+        },
+
+        async onProbeCompletion(sessionUri: string, totalSize: number) {
+            const res = await fetchOrThrow(`${driveUploadBaseUrl.value}/probe`, {
+                method: 'POST',
+                headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ session_uri: sessionUri, total_size: totalSize }),
+            });
+            return await res.json();
+        },
+    }, driveAbortController?.signal);
+}
+
+async function onDriveUploadComplete(driveFileId: string) {
+    stopNavigationGuard();
+
+    try {
+        const res = await fetch(`${driveUploadBaseUrl.value}/complete`, {
+            method: 'POST',
+            headers: { ...freshHeaders(), 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                drive_file_id: driveFileId,
+                upload_ulid: pendingDriveUpload.value?.uploadUlid,
+            }),
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Error al registrar el video.');
+        }
+
+        status.value = 'encoding';
+        pendingDriveUpload.value = null;
+        startPolling();
+    } catch (err: any) {
+        status.value = 'failed';
+        errorMessage.value = err.message || 'Error al registrar el video.';
+    }
+}
+
+async function discardPendingUpload() {
+    if (pendingDriveUpload.value) {
+        await deletePendingUpload(props.matchUlid);
+        pendingDriveUpload.value = null;
+    }
+    status.value = 'idle';
+    errorMessage.value = '';
+}
+
+// ── S3 Upload (Uppy) ──────────────────────────────────────────
 
 function initUppy(file: File) {
     uppy = new Uppy({
@@ -322,22 +552,37 @@ function initUppy(file: File) {
     });
 }
 
+// ── Shared controls ────────────────────────────────────────────
+
 function pauseUpload() {
-    if (uppy) {
+    if (uploadDriver.value === 'drive') {
+        driveAbortController?.abort();
+        driveAbortController = null;
+        status.value = 'paused';
+    } else if (uppy) {
         uppy.pauseAll();
         status.value = 'paused';
     }
 }
 
 function unpauseUpload() {
-    if (uppy) {
+    if (uploadDriver.value === 'drive') {
+        // For Drive, pause is equivalent to stopping — user must re-select file to resume
+        // This is a simplified version; a full implementation would require keeping the File reference
+        status.value = 'resumable';
+    } else if (uppy) {
         uppy.resumeAll();
         status.value = 'uploading';
     }
 }
 
 async function cancelUpload() {
-    if (uppy) {
+    if (uploadDriver.value === 'drive') {
+        driveAbortController?.abort();
+        driveAbortController = null;
+        await deletePendingUpload(props.matchUlid);
+        pendingDriveUpload.value = null;
+    } else if (uppy) {
         uppy.cancelAll();
         uppy = null;
     }
@@ -421,6 +666,26 @@ function stopPolling() {
     }
 }
 
+async function leavePageAnyway() {
+    showUploadingWarning.value = false;
+
+    if (uploadDriver.value === 'drive') {
+        driveAbortController?.abort();
+        driveAbortController = null;
+    } else if (uppy) {
+        uppy.cancelAll();
+        uppy = null;
+    }
+
+    stopNavigationGuard();
+
+    if (pendingVisitUrl.value) {
+        bypassNavigationGuard = true;
+        router.visit(pendingVisitUrl.value);
+        pendingVisitUrl.value = null;
+    }
+}
+
 function onBeforeUnloadHandler(e: BeforeUnloadEvent) {
     e.preventDefault();
 }
@@ -431,11 +696,26 @@ function onVisibilityChange() {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     if (status.value === 'encoding') {
         startPolling();
+    }
+
+    // Check for pending Drive upload to resume
+    if (uploadDriver.value === 'drive' && status.value === 'idle') {
+        try {
+            const pending = await getPendingUpload(props.matchUlid);
+            if (pending) {
+                pendingDriveUpload.value = pending;
+                uploadedFilename.value = pending.fileName;
+                progress.value = Math.round((pending.bytesUploaded / pending.fileSize) * 100);
+                status.value = 'resumable';
+            }
+        } catch {
+            // IndexedDB not available — continue normally
+        }
     }
 });
 
@@ -443,6 +723,8 @@ onBeforeUnmount(() => {
     document.removeEventListener('visibilitychange', onVisibilityChange);
     stopPolling();
     stopNavigationGuard();
+    driveAbortController?.abort();
+    driveAbortController = null;
     if (uppy) {
         uppy.cancelAll();
         uppy = null;
@@ -461,6 +743,38 @@ onBeforeUnmount(() => {
                 Seleccionar video
             </Button>
             <p class="mt-2 text-xs text-muted-foreground">Maximo 25 GB. Formatos: MP4, MOV, AVI, MKV</p>
+        </div>
+
+        <!-- Resumable: Pending Drive upload found -->
+        <div v-else-if="status === 'resumable'" class="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+            <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm font-medium text-blue-400">Subida pendiente</span>
+                <span class="text-xs text-muted-foreground">{{ uploadedFilename }}</span>
+            </div>
+
+            <!-- Progress bar showing previous progress -->
+            <div class="mb-2 h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div class="h-full rounded-full bg-blue-500/50 transition-all duration-300" :style="{ width: `${progress}%` }" />
+            </div>
+
+            <p class="mb-3 text-xs text-muted-foreground">
+                Progreso anterior: {{ progress }}% ({{ pendingDriveUpload ? formatBytes(pendingDriveUpload.bytesUploaded) : '' }} de
+                {{ pendingDriveUpload ? formatBytes(pendingDriveUpload.fileSize) : '' }}).
+                Selecciona el mismo archivo para continuar.
+            </p>
+
+            <p v-if="errorMessage" class="mb-2 text-xs text-red-400">{{ errorMessage }}</p>
+
+            <div class="flex gap-2">
+                <Button type="button" variant="outline" size="sm" class="gap-1.5" @click="selectFileForResume">
+                    <RotateCcw class="size-3.5" />
+                    Continuar subida
+                </Button>
+                <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="discardPendingUpload">
+                    <X class="size-3.5" />
+                    Descartar
+                </Button>
+            </div>
         </div>
 
         <!-- Uploading / Paused -->
@@ -574,12 +888,20 @@ onBeforeUnmount(() => {
                 <DialogHeader>
                     <DialogTitle>Video subiendo</DialogTitle>
                     <DialogDescription>
-                        Se esta subiendo un video. Si sales de esta pagina la subida se cancelara y tendras que empezar de nuevo.
+                        <template v-if="uploadDriver === 'drive'">
+                            Se esta subiendo un video. Si sales de esta pagina podras retomar la subida despues seleccionando el mismo archivo.
+                        </template>
+                        <template v-else>
+                            Se esta subiendo un video. Si sales de esta pagina la subida se cancelara y tendras que empezar de nuevo.
+                        </template>
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter>
+                <DialogFooter class="gap-2 sm:gap-0">
+                    <Button variant="outline" @click="leavePageAnyway">
+                        Salir de la pagina
+                    </Button>
                     <DialogClose as-child>
-                        <Button class="w-full">Entendido, me quedo</Button>
+                        <Button>Continuar subida</Button>
                     </DialogClose>
                 </DialogFooter>
             </DialogContent>

@@ -57,6 +57,7 @@ class MatchVideoUpload extends Model
         'youtube_upload_requested_at',
         's3_path',
         'original_s3_path',
+        'drive_file_id',
         'best_resolution',
     ];
 

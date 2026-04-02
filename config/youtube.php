@@ -55,4 +55,34 @@ return [
 
     'video_share_hours' => (int) env('VIDEO_SHARE_HOURS', 24),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Upload Driver
+    |--------------------------------------------------------------------------
+    |
+    | Controls how videos are uploaded from the browser.
+    | "s3" uses the existing S3 multipart upload via Uppy.
+    | "drive" uses Google Drive resumable uploads for better mobile reliability.
+    |
+    */
+
+    'upload_driver' => env('UPLOAD_DRIVER', 's3'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Google Drive
+    |--------------------------------------------------------------------------
+    |
+    | Google Drive is used as an intermediary for video uploads. Files are
+    | uploaded directly from the browser to Drive, then downloaded by the
+    | server for encoding and YouTube upload. Requires the drive.file scope
+    | on the same OAuth token used for YouTube.
+    |
+    */
+
+    'drive' => [
+        'root_folder_name' => env('DRIVE_ROOT_FOLDER_NAME', 'Grandes del Futbol'),
+        'chunk_size_mb' => (int) env('DRIVE_UPLOAD_CHUNK_SIZE_MB', 10),
+    ],
+
 ];

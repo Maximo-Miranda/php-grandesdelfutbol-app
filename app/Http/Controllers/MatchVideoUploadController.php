@@ -9,6 +9,7 @@ use App\Jobs\UploadMatchToYouTube;
 use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Services\GoogleDriveService;
 use App\Services\YouTubeQuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -19,8 +20,14 @@ class MatchVideoUploadController extends Controller
     /** Called after S3 multipart upload completes — registers the upload and dispatches pipeline. */
     public function store(StoreMatchVideoUploadRequest $request, Club $club, FootballMatch $match): JsonResponse
     {
-        if ($match->videoUpload()->exists()) {
-            return response()->json(['error' => 'Este partido ya tiene un video.'], 422);
+        $existingUpload = $match->videoUpload;
+
+        if ($existingUpload) {
+            if ($existingUpload->status === VideoUploadStatus::Uploading) {
+                $existingUpload->delete();
+            } else {
+                return response()->json(['error' => 'Este partido ya tiene un video.'], 422);
+            }
         }
 
         $validated = $request->validated();
@@ -94,6 +101,10 @@ class MatchVideoUploadController extends Controller
                 'warning' => 'Este video no se ha subido a YouTube. Si lo eliminas, se perderá permanentemente.',
                 'requires_force' => true,
             ], 409);
+        }
+
+        if ($videoUpload->drive_file_id) {
+            rescue(fn () => app(GoogleDriveService::class)->deleteFile($videoUpload->drive_file_id));
         }
 
         if ($videoUpload->s3_path) {

@@ -73,6 +73,7 @@ class Club extends Model
         'is_invite_active',
         'requires_approval',
         'youtube_playlist_id',
+        'google_drive_folder_id',
     ];
 
     public static function generateUniqueSlug(string $name): string

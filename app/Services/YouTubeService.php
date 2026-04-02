@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\YouTubeToken;
-use Google\Client as GoogleClient;
 use Google\Http\MediaFileUpload;
 use Google\Service\YouTube;
 use Google\Service\YouTube\Playlist;
@@ -22,30 +20,7 @@ class YouTubeService
 {
     private const int CHUNK_SIZE = 16 * 1024 * 1024;
 
-    /** Get the Google OAuth authorization URL. */
-    public function getAuthUrl(): string
-    {
-        $client = $this->baseClient();
-        $client->setAccessType('offline');
-        $client->setPrompt('consent');
-        $client->addScope(YouTube::YOUTUBE);
-
-        return $client->createAuthUrl();
-    }
-
-    /** Exchange an authorization code for tokens and store them. */
-    public function handleCallback(string $code): void
-    {
-        $client = $this->baseClient();
-        $token = $client->fetchAccessTokenWithAuthCode($code);
-
-        if (isset($token['error'])) {
-            throw new RuntimeException("YouTube OAuth error: {$token['error_description']}");
-        }
-
-        YouTubeToken::query()->delete();
-        YouTubeToken::create(['token' => $token]);
-    }
+    public function __construct(private GoogleAuthService $authService) {}
 
     /**
      * Upload a video to YouTube using resumable upload.
@@ -55,7 +30,7 @@ class YouTubeService
      */
     public function uploadVideo(string $filePath, string $title, string $description, array $tags = []): string
     {
-        $client = $this->client();
+        $client = $this->authService->authenticatedClient();
         $client->setDefer(true);
 
         $youtube = new YouTube($client);
@@ -112,7 +87,7 @@ class YouTubeService
      */
     public function getProcessingStatus(string $videoId): string
     {
-        $client = $this->client();
+        $client = $this->authService->authenticatedClient();
         $youtube = new YouTube($client);
 
         $response = $youtube->videos->listVideos('processingDetails', ['id' => $videoId]);
@@ -139,7 +114,7 @@ class YouTubeService
      */
     public function createPlaylist(string $title, string $description = ''): string
     {
-        $client = $this->client();
+        $client = $this->authService->authenticatedClient();
         $youtube = new YouTube($client);
 
         $snippet = new PlaylistSnippet;
@@ -161,7 +136,7 @@ class YouTubeService
     /** Add a video to a YouTube playlist. */
     public function addToPlaylist(string $playlistId, string $videoId): void
     {
-        $client = $this->client();
+        $client = $this->authService->authenticatedClient();
         $youtube = new YouTube($client);
 
         $snippet = new PlaylistItemSnippet;
@@ -180,49 +155,6 @@ class YouTubeService
     /** Check if YouTube is configured with a valid token. */
     public function isConfigured(): bool
     {
-        return YouTubeToken::current() !== null;
-    }
-
-    /** Build an authenticated Google Client with auto-refresh. */
-    private function client(): GoogleClient
-    {
-        $client = $this->baseClient();
-
-        $tokenRecord = YouTubeToken::current();
-
-        if (! $tokenRecord) {
-            throw new RuntimeException('YouTube no está configurado. Autoriza la cuenta en /admin/youtube/authorize.');
-        }
-
-        $client->setAccessToken($tokenRecord->token);
-
-        if ($client->isAccessTokenExpired()) {
-            $refreshToken = $client->getRefreshToken();
-
-            if (! $refreshToken) {
-                throw new RuntimeException('YouTube refresh token no disponible. Re-autoriza la cuenta.');
-            }
-
-            $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
-
-            if (isset($newToken['error'])) {
-                throw new RuntimeException("YouTube token refresh failed: {$newToken['error_description']}");
-            }
-
-            $tokenRecord->update(['token' => $client->getAccessToken()]);
-        }
-
-        return $client;
-    }
-
-    /** Build a base Google Client without tokens. */
-    private function baseClient(): GoogleClient
-    {
-        $client = new GoogleClient;
-        $client->setClientId(config('youtube.client_id'));
-        $client->setClientSecret(config('youtube.client_secret'));
-        $client->setRedirectUri(config('youtube.redirect_uri'));
-
-        return $client;
+        return $this->authService->isConfigured();
     }
 }

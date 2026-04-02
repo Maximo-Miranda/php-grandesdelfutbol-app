@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DriveUploadController;
 use App\Http\Controllers\Api\S3MultipartController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
@@ -129,6 +130,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->name('matches.videoUpload.retryYouTube');
         Route::post('matches/{match}/video-upload/share-link', [VideoShareController::class, 'generate'])->name('matches.videoUpload.shareLink');
         Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
+
+        Route::post('matches/{match}/drive-upload/init', [DriveUploadController::class, 'initUpload'])->name('matches.driveUpload.init');
+        Route::post('drive-upload/refresh-token', [DriveUploadController::class, 'refreshToken'])->name('driveUpload.refreshToken');
+        Route::post('matches/{match}/drive-upload/probe', [DriveUploadController::class, 'probeStatus'])->name('matches.driveUpload.probe');
+        Route::post('matches/{match}/drive-upload/complete', [DriveUploadController::class, 'completeUpload'])->name('matches.driveUpload.complete');
 
         Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->name('matches.reels.generate');
         Route::post('matches/{match}/reels', [MatchReelController::class, 'store'])->name('matches.reels.store');

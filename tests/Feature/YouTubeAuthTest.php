@@ -2,7 +2,7 @@
 
 use App\Models\User;
 use App\Models\YouTubeToken;
-use App\Services\YouTubeService;
+use App\Services\GoogleAuthService;
 
 use function Pest\Laravel\mock;
 
@@ -19,7 +19,7 @@ it('redirects super admin to google oauth', function () {
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
-    mock(YouTubeService::class)
+    mock(GoogleAuthService::class)
         ->shouldReceive('getAuthUrl')
         ->once()
         ->andReturn('https://accounts.google.com/o/oauth2/auth?test=1');
@@ -42,7 +42,7 @@ it('handles youtube oauth callback and stores token', function () {
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
-    mock(YouTubeService::class)
+    mock(GoogleAuthService::class)
         ->shouldReceive('handleCallback')
         ->with('test-auth-code')
         ->once();
@@ -69,7 +69,7 @@ it('handles youtube callback failure gracefully', function () {
 
     $user = User::factory()->create(['email' => 'admin@test.com']);
 
-    mock(YouTubeService::class)
+    mock(GoogleAuthService::class)
         ->shouldReceive('handleCallback')
         ->andThrow(new RuntimeException('OAuth failed'));
 
@@ -90,16 +90,16 @@ it('creates and retrieves youtube token', function () {
         ->and($token->token['refresh_token'])->toBe('refresh');
 });
 
-it('reports youtube as configured when token exists', function () {
+it('reports google as configured when token exists', function () {
     YouTubeToken::create(['token' => ['access_token' => 'test']]);
 
-    $service = new YouTubeService;
+    $service = new GoogleAuthService;
 
     expect($service->isConfigured())->toBeTrue();
 });
 
-it('reports youtube as not configured when no token', function () {
-    $service = new YouTubeService;
+it('reports google as not configured when no token', function () {
+    $service = new GoogleAuthService;
 
     expect($service->isConfigured())->toBeFalse();
 });
