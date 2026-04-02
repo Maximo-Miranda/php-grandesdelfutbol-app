@@ -84,9 +84,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
         $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
 
-        if (file_exists($tempFile)) {
-            unlink($tempFile);
-        }
+        File::delete($tempFile);
 
         try {
             $this->downloadVideoToTemp($tempFile);
@@ -108,10 +106,7 @@ class UploadMatchToYouTube implements ShouldQueue
             $this->cleanupDriveOriginal();
         } finally {
             $lock->release();
-
-            if (file_exists($tempFile)) {
-                unlink($tempFile);
-            }
+            File::delete($tempFile);
         }
     }
 

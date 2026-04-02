@@ -146,9 +146,7 @@ class ProcessUploadedVideo implements ShouldQueue
                 'original_s3_path' => $s3Key,
             ]);
         } finally {
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
-            }
+            File::delete($tempPath);
         }
     }
 

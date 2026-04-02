@@ -7,6 +7,7 @@ use Google\Http\MediaFileUpload;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\Permission;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -57,11 +58,9 @@ class GoogleDriveService
      */
     public function createResumableSession(string $fileName, string $mimeType, int $fileSize, string $folderId, ?string $origin = null): string
     {
-        $client = $this->authService->authenticatedClient();
-        $httpClient = $client->authorize();
+        $token = $this->authService->getAccessToken();
 
         $headers = [
-            'Content-Type' => 'application/json; charset=UTF-8',
             'X-Upload-Content-Type' => $mimeType,
             'X-Upload-Content-Length' => (string) $fileSize,
         ];
@@ -70,18 +69,17 @@ class GoogleDriveService
             $headers['Origin'] = $origin;
         }
 
-        $response = $httpClient->request('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', [
-            'headers' => $headers,
-            'body' => json_encode([
+        $response = Http::withToken($token['access_token'])
+            ->withHeaders($headers)
+            ->post('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', [
                 'name' => $fileName,
                 'parents' => [$folderId],
-            ]),
-        ]);
+            ]);
 
-        $sessionUri = $response->getHeaderLine('Location');
+        $sessionUri = $response->header('Location');
 
         if (empty($sessionUri)) {
-            throw new RuntimeException('Failed to create Google Drive resumable upload session. Status: '.$response->getStatusCode());
+            throw new RuntimeException('Failed to create Google Drive resumable upload session. Status: '.$response->status());
         }
 
         return $sessionUri;
@@ -103,10 +101,7 @@ class GoogleDriveService
             'alt' => 'media',
         ])->getBody();
 
-        $directory = dirname($localPath);
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
+        File::ensureDirectoryExists(dirname($localPath));
 
         $handle = fopen($localPath, 'wb');
 
