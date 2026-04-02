@@ -91,6 +91,9 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'El partido ya fue modificado por otro proceso.');
         }
 
+        $match->status = MatchStatus::Cancelled;
+        $this->matchService->recreateIfRecurring($match);
+
         return back()->with('success', 'Partido cancelado.');
     }
 

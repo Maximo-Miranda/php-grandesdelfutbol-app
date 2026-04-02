@@ -63,6 +63,8 @@ class ProcessMatchSchedules extends Command
             $cancelled++;
             $match->status = MatchStatus::Cancelled;
 
+            $this->matchService->recreateIfRecurring($match);
+
             $users = $match->confirmedAttendeeUsers();
             if ($users->isNotEmpty()) {
                 Notification::send($users, new MatchAutoCancelledNotification($match));

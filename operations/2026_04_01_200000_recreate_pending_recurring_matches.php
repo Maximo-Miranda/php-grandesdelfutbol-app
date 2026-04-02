@@ -1,8 +1,6 @@
 <?php
 
-use App\Enums\MatchStatus;
 use App\Models\FootballMatch;
-use App\Services\MatchService;
 use TimoKoerber\LaravelOneTimeOperations\OneTimeOperation;
 
 return new class extends OneTimeOperation
@@ -10,17 +8,14 @@ return new class extends OneTimeOperation
     protected bool $async = false;
 
     /**
-     * Recreate next match for completed recurring matches that were
-     * completed before the recurrence feature was deployed.
+     * Disable recurrence and auto-cancel on all existing matches so the
+     * features only apply to matches created after this deployment.
      */
     public function process(): void
     {
-        $matchService = app(MatchService::class);
-
-        FootballMatch::query()
-            ->where('status', MatchStatus::Completed)
-            ->where('is_recurring', true)
-            ->whereNull('next_match_created_at')
-            ->each(fn (FootballMatch $match) => $matchService->recreateIfRecurring($match));
+        FootballMatch::query()->update([
+            'is_recurring' => false,
+            'auto_cancel' => false,
+        ]);
     }
 };

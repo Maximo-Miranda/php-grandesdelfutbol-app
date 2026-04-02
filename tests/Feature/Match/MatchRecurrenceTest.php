@@ -80,13 +80,14 @@ test('manual completion recreates recurring match', function () {
         ->and($newMatch->recurrence_days)->toBe(15);
 });
 
-test('cancelled match does not recreate', function () {
+test('cancelled non-recurring match does not recreate', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
 
-    $match = FootballMatch::factory()->recurring()->create([
+    $match = FootballMatch::factory()->create([
         'club_id' => $club->id,
+        'is_recurring' => false,
         'status' => MatchStatus::Upcoming,
         'scheduled_at' => now()->addMinutes(10),
     ]);

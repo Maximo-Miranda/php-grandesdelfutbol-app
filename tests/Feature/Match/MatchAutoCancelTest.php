@@ -150,6 +150,63 @@ test('auto-cancel runs before auto-start so cancelled matches are not started', 
     expect($match->refresh()->status)->toBe(MatchStatus::Cancelled);
 });
 
+test('auto-cancelled recurring match recreates next occurrence', function () {
+    Notification::fake();
+
+    $club = Club::factory()->create();
+    $match = FootballMatch::factory()->recurring(7)->create([
+        'club_id' => $club->id,
+        'status' => MatchStatus::Upcoming,
+        'auto_cancel' => true,
+        'min_players_required' => 10,
+        'scheduled_at' => now()->addMinutes(60),
+    ]);
+
+    $this->artisan('matches:process-schedules')->assertSuccessful();
+
+    expect($match->refresh()->status)->toBe(MatchStatus::Cancelled)
+        ->and($match->next_match_created_at)->not->toBeNull();
+
+    $nextMatch = FootballMatch::query()
+        ->where('club_id', $club->id)
+        ->where('status', MatchStatus::Upcoming)
+        ->where('id', '!=', $match->id)
+        ->first();
+
+    expect($nextMatch)->not->toBeNull()
+        ->and($nextMatch->is_recurring)->toBeTrue()
+        ->and($nextMatch->recurrence_days)->toBe(7)
+        ->and($nextMatch->auto_cancel)->toBeTrue();
+});
+
+test('manual cancel of recurring match recreates next occurrence', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $match = FootballMatch::factory()->recurring(8)->create([
+        'club_id' => $club->id,
+        'status' => MatchStatus::Upcoming,
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.cancel', [$club, $match]))
+        ->assertRedirect();
+
+    expect($match->refresh()->status)->toBe(MatchStatus::Cancelled)
+        ->and($match->next_match_created_at)->not->toBeNull();
+
+    $nextMatch = FootballMatch::query()
+        ->where('club_id', $club->id)
+        ->where('status', MatchStatus::Upcoming)
+        ->where('id', '!=', $match->id)
+        ->first();
+
+    expect($nextMatch)->not->toBeNull()
+        ->and($nextMatch->is_recurring)->toBeTrue();
+});
+
 test('create and update persist auto_cancel fields', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
