@@ -204,11 +204,7 @@ class UploadMatchToYouTube implements ShouldQueue
                 'drive_shared_at' => null,
             ]);
         } catch (Throwable $e) {
-            Log::warning('Failed to cleanup Drive original', [
-                'upload' => $this->videoUpload->ulid,
-                'drive_file_id' => $this->videoUpload->drive_file_id,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
         }
     }
 
