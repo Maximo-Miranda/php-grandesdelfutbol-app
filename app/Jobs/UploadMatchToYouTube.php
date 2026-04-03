@@ -144,7 +144,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
     private function createClubPlaylist(YouTubeService $youtubeService, Club $club): void
     {
-        if ($club->youtube_playlist_id) {
+        if ($club->youtube_playlist_id && $youtubeService->playlistExists($club->youtube_playlist_id)) {
             return;
         }
 
@@ -169,11 +169,6 @@ class UploadMatchToYouTube implements ShouldQueue
         $youtubeService->addToPlaylist($club->youtube_playlist_id, $this->videoUpload->youtube_video_id);
     }
 
-    /**
-     * Download the original video to a temp file.
-     *
-     * Prefers Google Drive (original quality), falls back to S3 for pre-migration videos.
-     */
     private function downloadVideoToTemp(string $tempFile): void
     {
         if ($this->videoUpload->drive_file_id) {
@@ -201,14 +196,16 @@ class UploadMatchToYouTube implements ShouldQueue
             return;
         }
 
-        rescue(function () {
+        try {
             app(GoogleDriveService::class)->deleteFile($this->videoUpload->drive_file_id);
 
             $this->videoUpload->update([
                 'drive_file_id' => null,
                 'drive_shared_at' => null,
             ]);
-        });
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function buildDescription(FootballMatch $match, Club $club): string

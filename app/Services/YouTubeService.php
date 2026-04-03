@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Google\Http\MediaFileUpload;
-use Google\Service\Exception;
 use Google\Service\YouTube;
 use Google\Service\YouTube\Playlist;
 use Google\Service\YouTube\PlaylistItem;
@@ -24,9 +23,6 @@ class YouTubeService
 
     public function __construct(private readonly GoogleAuthService $authService) {}
 
-    /**
-     * @throws Exception
-     */
     public function uploadVideo(string $filePath, string $title, string $description, array $tags = []): string
     {
         $client = $this->authService->authenticatedClient();
@@ -100,11 +96,6 @@ class YouTubeService
         return $processingDetails->getProcessingStatus() ?? 'unknown';
     }
 
-    /**
-     * Create a YouTube playlist.
-     *
-     * @return string The playlist ID
-     */
     public function createPlaylist(string $title, string $description = ''): string
     {
         $youtube = $this->youtubeService();
@@ -125,7 +116,15 @@ class YouTubeService
         return $response->getId();
     }
 
-    /** Add a video to a YouTube playlist. */
+    public function playlistExists(string $playlistId): bool
+    {
+        $youtube = $this->youtubeService();
+
+        $response = $youtube->playlists->listPlaylists('id', ['id' => $playlistId]);
+
+        return count($response->getItems()) > 0;
+    }
+
     public function addToPlaylist(string $playlistId, string $videoId): void
     {
         $youtube = $this->youtubeService();
@@ -143,13 +142,11 @@ class YouTubeService
         $youtube->playlistItems->insert('snippet', $item);
     }
 
-    /** Delete a video from YouTube. */
     public function deleteVideo(string $videoId): void
     {
         $this->youtubeService()->videos->delete($videoId);
     }
 
-    /** Check if YouTube is configured with a valid token. */
     public function isConfigured(): bool
     {
         return $this->authService->isConfigured();

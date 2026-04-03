@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PlayerPosition;
 use App\Models\Club;
 use App\Models\ClubMember;
 use App\Models\FootballMatch;
@@ -126,7 +127,7 @@ test('player index returns display_name from nickname', function () {
 
     $playerUser = User::factory()->create();
     PlayerProfile::factory()->create(['user_id' => $playerUser->id, 'nickname' => 'Speedy']);
-    Player::factory()->create(['club_id' => $club->id, 'user_id' => $playerUser->id, 'name' => 'John Fast']);
+    Player::factory()->create(['club_id' => $club->id, 'user_id' => $playerUser->id, 'name' => 'John Fast', 'position' => PlayerPosition::Cm]);
 
     $this->actingAs($user)
         ->get(route('clubs.players.index', $club))
