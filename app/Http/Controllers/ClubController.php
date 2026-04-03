@@ -15,6 +15,7 @@ use App\Models\FootballMatch;
 use App\Services\AttachmentService;
 use App\Services\ClubContext;
 use App\Services\ClubService;
+use App\Services\GoogleDriveService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -175,10 +176,16 @@ class ClubController extends Controller
 
     public function update(UpdateClubRequest $request, Club $club): RedirectResponse
     {
+        $nameChanged = $request->validated('name') !== $club->name;
+
         $club->update($request->safe()->except('logo'));
 
         if ($request->hasFile('logo')) {
             $this->attachmentService->upload($club, $request->file('logo'), AttachmentCollection::Logo);
+        }
+
+        if ($nameChanged && $club->google_drive_folder_id) {
+            rescue(fn () => app(GoogleDriveService::class)->rename($club->google_drive_folder_id, $club->name));
         }
 
         return redirect()->route('clubs.show', $club);

@@ -118,6 +118,16 @@ class GoogleDriveService
         $drive->files->delete($fileId);
     }
 
+    /** Rename a file or folder in Google Drive (both use the files resource). */
+    public function rename(string $fileId, string $newName): void
+    {
+        $drive = $this->driveService();
+
+        $file = new DriveFile(['name' => $newName]);
+
+        $drive->files->update($fileId, $file);
+    }
+
     /**
      * Upload a local file to Google Drive using resumable chunked upload.
      *
