@@ -31,6 +31,13 @@ class CleanupMatchVideos extends Command
         $skipped = 0;
 
         foreach ($uploads as $upload) {
+            if (! $upload->youtube_video_id) {
+                $this->warn("  Saltado: {$upload->ulid} — no tiene video en YouTube.");
+                $skipped++;
+
+                continue;
+            }
+
             if (! $upload->drive_reels_file_id) {
                 $this->warn("  Saltado: {$upload->ulid} — no tiene 720p en Drive.");
                 $skipped++;
