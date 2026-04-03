@@ -27,6 +27,22 @@ declare module '@inertiajs/core' {
     }
 }
 
+interface Window {
+    YT: {
+        Player: new (elementId: string, config: Record<string, unknown>) => {
+            destroy(): void;
+            seekTo(seconds: number, allowSeekAhead: boolean): void;
+            getCurrentTime(): number;
+            getDuration(): number;
+            getPlaybackRate(): number;
+            setPlaybackRate(rate: number): void;
+            playVideo(): void;
+            pauseVideo(): void;
+            loadVideoById(videoId: string): void;
+        };
+    };
+}
+
 declare module 'vue' {
     interface ComponentCustomProperties {
         $inertia: typeof Router;

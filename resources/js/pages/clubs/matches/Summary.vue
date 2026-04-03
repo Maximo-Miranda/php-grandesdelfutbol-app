@@ -50,6 +50,7 @@ import MinuteSecondInput from '@/components/match/MinuteSecondInput.vue';
 import PlayerSelector from '@/components/match/PlayerSelector.vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
+import YouTubePlayer from '@/components/match/YouTubePlayer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -200,6 +201,7 @@ function deleteMatch() {
 // --- Video Upload state ---
 const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+const youtubeVideoId = computed(() => props.match.video_upload?.youtube_video_id ?? null);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
 const driveViewUrl = computed(() => {
     const fileId = props.match.video_upload?.drive_file_id;
@@ -1029,8 +1031,12 @@ async function shareReel(reel: MatchReel) {
             </div>
 
             <!-- ===== VIDEO DEL PARTIDO ===== -->
-            <div v-if="hasVideoReady && videoEmbedUrl && !isFullscreen" class="mt-4">
-                <div class="aspect-video w-full overflow-hidden rounded-xl border border-border">
+            <div v-if="hasVideoReady && (youtubeVideoId || videoEmbedUrl) && !isFullscreen" class="mt-4">
+                <!-- YouTube player with advanced controls -->
+                <YouTubePlayer v-if="youtubeVideoId" :video-id="youtubeVideoId" />
+
+                <!-- Drive embed fallback (no advanced controls) -->
+                <div v-else-if="videoEmbedUrl" class="aspect-video w-full overflow-hidden rounded-xl border border-border">
                     <iframe
                         :src="videoEmbedUrl"
                         class="h-full w-full"

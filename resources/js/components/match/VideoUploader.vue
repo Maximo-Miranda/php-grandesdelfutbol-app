@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
+import YouTubePlayer from '@/components/match/YouTubePlayer.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -672,21 +673,22 @@ onBeforeUnmount(() => {
                 <span class="text-xs text-muted-foreground">{{ uploadedFilename }}</span>
             </div>
 
-            <!-- Video player: YouTube > Drive embed > S3 fallback -->
-            <div v-if="props.existingUpload?.embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
+            <!-- YouTube player with advanced controls -->
+            <YouTubePlayer v-if="props.existingUpload?.youtube_video_id" :video-id="props.existingUpload.youtube_video_id" />
+
+            <!-- Drive embed fallback -->
+            <div v-else-if="props.existingUpload?.drive_embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
                 <iframe
-                    :src="props.existingUpload.embed_url"
+                    :src="props.existingUpload.drive_embed_url"
                     class="h-full w-full"
                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen
                 />
             </div>
-            <!-- S3 fallback player (first 30 days, no YouTube/Drive embed) -->
-            <template v-else>
-                <VideoPlayer v-if="props.s3VideoUrl" :src="props.s3VideoUrl" />
-                <div class="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
-                    <span class="text-xs text-muted-foreground">Video disponible desde la plataforma</span>
-                </div>
+
+            <!-- S3 fallback player -->
+            <template v-else-if="props.s3VideoUrl">
+                <VideoPlayer :src="props.s3VideoUrl" />
             </template>
 
             <Button type="button" variant="ghost" size="sm" class="gap-1.5 text-destructive hover:text-destructive" @click="showDeleteConfirm = true">
