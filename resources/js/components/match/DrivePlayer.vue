@@ -143,12 +143,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="wrapperRef" class="flex flex-col" :class="isFullscreen ? 'fixed inset-0 z-50 h-screen justify-center bg-black' : ''">
-        <div class="aspect-video w-full overflow-hidden" :class="isFullscreen ? '' : 'rounded-xl border border-border'">
+    <div ref="wrapperRef" class="flex flex-col" :class="isFullscreen ? 'fixed inset-0 z-[60] flex flex-col bg-black' : ''">
+        <div :class="isFullscreen ? 'flex-1 min-h-0' : 'aspect-video w-full overflow-hidden rounded-xl border border-border'">
             <video
                 ref="videoRef"
                 :src="streamUrl"
                 class="h-full w-full"
+                :class="isFullscreen ? 'object-contain' : ''"
                 controls
                 preload="metadata"
                 playsinline
@@ -160,7 +161,7 @@ onBeforeUnmount(() => {
 
         <div
             v-if="isReady"
-            class="flex items-center justify-between px-3 py-1.5"
+            class="flex shrink-0 items-center justify-between px-3 py-1.5"
             :class="isFullscreen
                 ? 'bg-black/80 text-white'
                 : 'mt-2 rounded-lg border border-border bg-muted/30'
