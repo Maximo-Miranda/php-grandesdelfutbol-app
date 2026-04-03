@@ -107,15 +107,29 @@ function cycleSpeed() {
 async function toggleFullscreen() {
     if (!wrapperRef.value) return;
 
-    if (document.fullscreenElement) {
-        await document.exitFullscreen();
+    if (!isFullscreen.value) {
+        try {
+            await wrapperRef.value.requestFullscreen?.();
+            await (screen.orientation as any)?.lock?.('landscape').catch(() => {});
+        } catch { /* iOS doesn't support Fullscreen API */ }
+        isFullscreen.value = true;
     } else {
-        await wrapperRef.value.requestFullscreen();
+        try {
+            screen.orientation?.unlock?.();
+            if (document.fullscreenElement) {
+                await document.exitFullscreen?.();
+            }
+        } catch { /* ignore */ }
+        isFullscreen.value = false;
     }
 }
 
 function onFullscreenChange() {
-    isFullscreen.value = !!document.fullscreenElement;
+    const nativeFullscreen = !!document.fullscreenElement;
+    if (!nativeFullscreen && isFullscreen.value) {
+        isFullscreen.value = false;
+        screen.orientation?.unlock?.();
+    }
 }
 
 onMounted(() => {
@@ -129,7 +143,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="wrapperRef" class="flex flex-col" :class="isFullscreen ? 'h-screen justify-center bg-black' : ''">
+    <div ref="wrapperRef" class="flex flex-col" :class="isFullscreen ? 'fixed inset-0 z-50 h-screen justify-center bg-black' : ''">
         <div class="aspect-video w-full overflow-hidden" :class="isFullscreen ? '' : 'rounded-xl border border-border'">
             <video
                 ref="videoRef"
