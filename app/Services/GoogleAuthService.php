@@ -10,12 +10,6 @@ use RuntimeException;
 
 class GoogleAuthService
 {
-    /**
-     * Build a base Google Client without tokens.
-     *
-     * Uses the same OAuth credentials as YouTube since both services
-     * share the same Google Cloud project.
-     */
     public function baseClient(): GoogleClient
     {
         $client = new GoogleClient;
@@ -26,12 +20,6 @@ class GoogleAuthService
         return $client;
     }
 
-    /**
-     * Build an authenticated Google Client with auto-refresh.
-     *
-     * Loads the stored OAuth token and refreshes it automatically
-     * when expired. Updates the stored token after refresh.
-     */
     public function authenticatedClient(): GoogleClient
     {
         $client = $this->baseClient();
@@ -63,12 +51,6 @@ class GoogleAuthService
         return $client;
     }
 
-    /**
-     * Get the Google OAuth authorization URL.
-     *
-     * Requests both YouTube and Drive scopes so a single authorization
-     * grants access to both services.
-     */
     public function getAuthUrl(): string
     {
         $client = $this->baseClient();
@@ -80,7 +62,6 @@ class GoogleAuthService
         return $client->createAuthUrl();
     }
 
-    /** Exchange an authorization code for tokens and store them. */
     public function handleCallback(string $code): void
     {
         $client = $this->baseClient();
@@ -94,17 +75,12 @@ class GoogleAuthService
         YouTubeToken::create(['token' => $token]);
     }
 
-    /** Check if Google is configured with a valid token. */
     public function isConfigured(): bool
     {
         return YouTubeToken::current() !== null;
     }
 
-    /**
-     * Get the current valid access token for frontend use.
-     *
-     * @return array{access_token: string, expires_at: int}
-     */
+    /** @return array{access_token: string, expires_at: int} */
     public function getAccessToken(): array
     {
         $client = $this->authenticatedClient();
