@@ -1090,10 +1090,10 @@ async function shareReel(reel: MatchReel) {
                 </div>
 
                 <!-- Hint when using Drive embed (Drive may still be processing) -->
-                <div v-if="!youtubeVideoId && videoEmbedUrl && !videoStreamUrl" class="mt-1.5 text-xs text-muted-foreground">
+                <div v-if="!youtubeVideoId && videoEmbedUrl && !isAdmin" class="mt-1.5 text-xs text-muted-foreground">
                     Si el video no se reproduce, espera unos minutos mientras se termina de procesar.
                 </div>
-                <div v-else-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div v-if="isAdmin && hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     Pendiente de subir a YouTube
                 </div>
                 <div class="mt-2 flex items-center justify-between">
