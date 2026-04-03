@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, Gauge, Maximize, Minimize } from 'lucide-vue-next';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
@@ -14,6 +14,7 @@ const duration = ref('0:00');
 const playbackRate = ref(1);
 const isReady = ref(false);
 const isFullscreen = ref(false);
+const fsButtonClass = computed(() => isFullscreen.value ? 'text-white hover:text-white hover:bg-white/20' : '');
 
 let player: any = null;
 let timeInterval: ReturnType<typeof setInterval> | null = null;
@@ -29,20 +30,30 @@ function formatTime(seconds: number): string {
 function loadYouTubeApi(): Promise<void> {
     if (window.YT?.Player) return Promise.resolve();
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('YouTube API load timeout')), 10000);
+
         if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
             const check = setInterval(() => {
                 if (window.YT?.Player) {
                     clearInterval(check);
+                    clearTimeout(timeout);
                     resolve();
                 }
             }, 100);
             return;
         }
 
-        (window as any).onYouTubeIframeAPIReady = resolve;
+        (window as any).onYouTubeIframeAPIReady = () => {
+            clearTimeout(timeout);
+            resolve();
+        };
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
+        tag.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Failed to load YouTube API'));
+        };
         document.head.appendChild(tag);
     });
 }
@@ -85,9 +96,9 @@ function stopTimeTracking() {
 }
 
 function seekRelative(seconds: number) {
-    if (!player?.getCurrentTime) return;
-    const time = player.getCurrentTime() + seconds;
-    player.seekTo(Math.max(0, time), true);
+    if (!player?.getCurrentTime || !player?.getDuration) return;
+    const target = player.getCurrentTime() + seconds;
+    player.seekTo(Math.max(0, Math.min(target, player.getDuration())), true);
 }
 
 function cycleSpeed() {
@@ -111,7 +122,25 @@ function onFullscreenChange() {
     isFullscreen.value = !!document.fullscreenElement;
 }
 
-watch(() => props.videoId, async (newId) => {
+function onKeydown(e: KeyboardEvent) {
+    if (!isReady.value || !isFullscreen.value) return;
+
+    switch (e.key) {
+        case 'ArrowLeft':
+            seekRelative(-10);
+            e.preventDefault();
+            break;
+        case 'ArrowRight':
+            seekRelative(10);
+            e.preventDefault();
+            break;
+        case 'Escape':
+            if (document.fullscreenElement) document.exitFullscreen();
+            break;
+    }
+}
+
+watch(() => props.videoId, (newId) => {
     if (player?.loadVideoById) {
         player.loadVideoById(newId);
     }
@@ -119,12 +148,19 @@ watch(() => props.videoId, async (newId) => {
 
 onMounted(async () => {
     document.addEventListener('fullscreenchange', onFullscreenChange);
-    await loadYouTubeApi();
-    initPlayer();
+    document.addEventListener('keydown', onKeydown);
+
+    try {
+        await loadYouTubeApi();
+        initPlayer();
+    } catch {
+        // YouTube API failed to load — player won't initialize, iframe stays empty
+    }
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('fullscreenchange', onFullscreenChange);
+    document.removeEventListener('keydown', onKeydown);
     stopTimeTracking();
     player?.destroy();
     player = null;
@@ -137,7 +173,6 @@ onBeforeUnmount(() => {
             <div :id="containerId" class="h-full w-full" />
         </div>
 
-        <!-- Controls — visible in both normal and fullscreen -->
         <div
             v-if="isReady"
             class="flex items-center justify-between px-3 py-1.5"
@@ -151,19 +186,19 @@ onBeforeUnmount(() => {
             </span>
 
             <div class="flex items-center gap-1">
-                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="isFullscreen ? 'text-white hover:text-white hover:bg-white/20' : ''" @click="seekRelative(-10)">
+                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="seekRelative(-10)">
                     <ChevronLeft class="size-3.5" />
                     10s
                 </Button>
-                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="isFullscreen ? 'text-white hover:text-white hover:bg-white/20' : ''" @click="seekRelative(10)">
+                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="seekRelative(10)">
                     10s
                     <ChevronRight class="size-3.5" />
                 </Button>
-                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="isFullscreen ? 'text-white hover:text-white hover:bg-white/20' : ''" @click="cycleSpeed">
+                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="cycleSpeed">
                     <Gauge class="size-3.5" />
                     {{ playbackRate }}x
                 </Button>
-                <Button type="button" variant="ghost" size="sm" class="h-7 px-2" :class="isFullscreen ? 'text-white hover:text-white hover:bg-white/20' : ''" @click="toggleFullscreen">
+                <Button type="button" variant="ghost" size="sm" class="h-7 px-2" :class="fsButtonClass" @click="toggleFullscreen">
                     <Minimize v-if="isFullscreen" class="size-3.5" />
                     <Maximize v-else class="size-3.5" />
                 </Button>
