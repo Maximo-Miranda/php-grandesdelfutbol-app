@@ -2,10 +2,20 @@
 import { ChevronLeft, ChevronRight, Gauge, Maximize, Minimize } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useVideoSync } from '@/composables/useVideoSync';
 
 const props = defineProps<{
     videoId: string;
+    matchUlid?: string;
 }>();
+
+const videoSync = props.matchUlid ? useVideoSync(props.matchUlid, 'producer') : null;
+let remotePause = false;
+
+videoSync?.onPauseRequested(() => {
+    remotePause = true;
+    player?.pauseVideo();
+});
 
 const containerId = `yt-player-${props.videoId}`;
 const wrapperRef = ref<HTMLElement | null>(null);
@@ -14,6 +24,7 @@ const duration = ref('0:00');
 const playbackRate = ref(1);
 const isReady = ref(false);
 const isFullscreen = ref(false);
+const isPlaying = ref(false);
 const fsButtonClass = computed(() => isFullscreen.value ? 'text-white hover:text-white hover:bg-white/20' : '');
 
 let player: any = null;
@@ -75,6 +86,22 @@ function initPlayer() {
                 duration.value = formatTime(player.getDuration());
                 startTimeTracking();
             },
+            onStateChange: (event: { data: number }) => {
+                isPlaying.value = event.data === 1;
+
+                if (remotePause) {
+                    remotePause = false;
+                    return;
+                }
+
+                if (player?.getCurrentTime && videoSync) {
+                    if (isPlaying.value) {
+                        videoSync.claimControl(player.getCurrentTime());
+                    } else {
+                        videoSync.sendUpdate(player.getCurrentTime(), false);
+                    }
+                }
+            },
         },
     });
 }
@@ -83,7 +110,11 @@ function startTimeTracking() {
     stopTimeTracking();
     timeInterval = setInterval(() => {
         if (player?.getCurrentTime) {
-            currentTime.value = formatTime(player.getCurrentTime());
+            const seconds = player.getCurrentTime();
+            currentTime.value = formatTime(seconds);
+            if (isPlaying.value) {
+                videoSync?.sendUpdate(seconds, true);
+            }
         }
     }, 500);
 }

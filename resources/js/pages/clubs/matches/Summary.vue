@@ -67,6 +67,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useVideoSync } from '@/composables/useVideoSync';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil } from '@/lib/match-events';
 import { formatDate, formatTime, formatEventTime, getCsrfToken } from '@/lib/utils';
@@ -359,6 +360,23 @@ const subOutPlayerName = ref('');
 const minute = ref(0);
 const second = ref(0);
 const submitting = ref(false);
+
+// Video ↔ Events sync
+const videoSync = youtubeVideoId.value ? useVideoSync(props.match.ulid, 'consumer') : null;
+const videoSyncEnabled = ref(!!videoSync);
+const timeFrozen = ref(false);
+
+if (videoSync) {
+    watch(
+        [() => videoSync.syncedMinute.value, () => videoSync.syncedSecond.value],
+        ([newMin, newSec]) => {
+            if (videoSyncEnabled.value && !timeFrozen.value) {
+                minute.value = newMin;
+                second.value = newSec;
+            }
+        },
+    );
+}
 const lastRecorded = ref<{ player: string; event: string; minute: number; second: number } | null>(null);
 const deletingEventUlid = ref<string | null>(null);
 const deletingEventLabel = ref('');
@@ -380,6 +398,7 @@ async function toggleFullscreen() {
             await (screen.orientation as any)?.lock?.('landscape').catch(() => {});
         } catch { /* ignore — iOS doesn't support Fullscreen API */ }
         isFullscreen.value = true;
+        nextTick(() => window.scrollTo({ top: 0 }));
     } else {
         try {
             screen.orientation?.unlock?.();
@@ -410,6 +429,7 @@ onUnmounted(() => {
 
 // --- Unified event flow ---
 function onEventSelected(eventType: string) {
+    timeFrozen.value = true;
     const scope = eventScopes[eventType] ?? 'player';
 
     if (scope === 'neutral') {
@@ -646,11 +666,13 @@ function cancelPendingEvent() {
     pendingEventType.value = null;
     subOutPlayerId.value = null;
     subOutPlayerName.value = '';
+    timeFrozen.value = false;
 }
 
 // --- Auto-scroll for events tab ---
 const actionPanelRef = ref<HTMLElement | null>(null);
 const eventGridRef = ref<HTMLElement | null>(null);
+const timeBarRef = ref<HTMLElement | null>(null);
 
 function smoothScrollTo(el: HTMLElement | null) {
     if (!el) return;
@@ -660,16 +682,22 @@ function smoothScrollTo(el: HTMLElement | null) {
 }
 
 function scrollToAction() {
-    nextTick(() => smoothScrollTo(actionPanelRef.value ?? eventGridRef.value));
+    if (isFullscreen.value) return;
+    nextTick(() => smoothScrollTo(timeBarRef.value ?? actionPanelRef.value ?? eventGridRef.value));
 }
 
 function scrollToGrid() {
-    nextTick(() => smoothScrollTo(eventGridRef.value));
+    if (isFullscreen.value) return;
+    nextTick(() => smoothScrollTo(timeBarRef.value ?? eventGridRef.value));
 }
 
 watch(pendingEventType, (val) => {
-    if (val) scrollToAction();
-    else scrollToGrid();
+    if (val) {
+        scrollToAction();
+    } else {
+        timeFrozen.value = false;
+        scrollToGrid();
+    }
 });
 
 watch(subOutPlayerId, (val) => {
@@ -1033,7 +1061,7 @@ async function shareReel(reel: MatchReel) {
             <!-- ===== VIDEO DEL PARTIDO ===== -->
             <div v-if="hasVideoReady && (youtubeVideoId || videoEmbedUrl) && !isFullscreen" class="mt-4">
                 <!-- YouTube player with advanced controls -->
-                <YouTubePlayer v-if="youtubeVideoId" :video-id="youtubeVideoId" />
+                <YouTubePlayer v-if="youtubeVideoId" :video-id="youtubeVideoId" :match-ulid="match.ulid" />
 
                 <!-- Drive embed fallback (no advanced controls) -->
                 <div v-else-if="videoEmbedUrl" class="aspect-video w-full overflow-hidden rounded-xl border border-border">
@@ -1514,13 +1542,28 @@ async function shareReel(reel: MatchReel) {
                         </Button>
                     </div>
 
-                    <!-- Event type grid + MinuteSecondInput -->
+                    <!-- Event type grid + MinuteSecondInput (sticky) -->
                     <div>
-                        <div class="mb-2 flex items-center justify-between">
-                            <h3 v-if="!pendingEventType" class="text-xs font-extrabold tracking-widest text-muted-foreground uppercase">
-                                Registrar evento
-                            </h3>
-                            <div v-else></div>
+                        <div ref="timeBarRef" class="sticky top-0 z-10 mb-2 flex items-center justify-between rounded-lg bg-background/95 py-2 backdrop-blur-sm">
+                            <div class="flex items-center gap-2">
+                                <h3 v-if="!pendingEventType" class="text-xs font-extrabold tracking-widest text-muted-foreground uppercase">
+                                    Registrar evento
+                                </h3>
+                                <button
+                                    v-if="videoSync"
+                                    class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors"
+                                    :class="videoSyncEnabled
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                        : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/30'"
+                                    @click="videoSyncEnabled = !videoSyncEnabled"
+                                >
+                                    <span
+                                        class="size-1.5 rounded-full"
+                                        :class="videoSyncEnabled && videoSync.isPlaying.value ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'"
+                                    />
+                                    {{ videoSyncEnabled ? (timeFrozen ? 'Capturado' : 'Sincronizado') : 'Manual' }}
+                                </button>
+                            </div>
                             <MinuteSecondInput
                                 v-model:minute="minute"
                                 v-model:second="second"
