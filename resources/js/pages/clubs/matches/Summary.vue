@@ -609,9 +609,10 @@ function executeDeleteEvent() {
     if (!deletingEventUlid.value) return;
     router.delete(`${base}/${props.match.ulid}/events/${deletingEventUlid.value}`, {
         preserveScroll: true,
-        onFinish: () => {
+        onSuccess: () => {
             showDeleteEventDialog.value = false;
             deletingEventUlid.value = null;
+            deletingEventLabel.value = '';
         },
     });
 }

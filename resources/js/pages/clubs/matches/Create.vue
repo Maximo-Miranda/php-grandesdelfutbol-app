@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Bell, Clock, Info, MapPin, Pencil, Plus, Repeat, ShieldX, Trophy, WandSparkles } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,10 @@ function openDialog() {
     venueForm.field_type = '7v7';
     venueForm.surface_type = 'sintetico';
     showVenueDialog.value = true;
+    nextTick(() => {
+        venueForm.field_name = generatedFieldName.value;
+        fieldForm.name = generatedFieldName.value;
+    });
 }
 
 const surfaceOptions = [
