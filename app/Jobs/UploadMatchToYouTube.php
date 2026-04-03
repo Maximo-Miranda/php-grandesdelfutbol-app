@@ -144,7 +144,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
     private function createClubPlaylist(YouTubeService $youtubeService, Club $club): void
     {
-        if ($club->youtube_playlist_id) {
+        if ($club->youtube_playlist_id && $youtubeService->playlistExists($club->youtube_playlist_id)) {
             return;
         }
 

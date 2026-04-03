@@ -125,6 +125,16 @@ class YouTubeService
         return $response->getId();
     }
 
+    /** Check if a YouTube playlist exists. */
+    public function playlistExists(string $playlistId): bool
+    {
+        $youtube = $this->youtubeService();
+
+        $response = $youtube->playlists->listPlaylists('id', ['id' => $playlistId]);
+
+        return count($response->getItems()) > 0;
+    }
+
     /** Add a video to a YouTube playlist. */
     public function addToPlaylist(string $playlistId, string $videoId): void
     {

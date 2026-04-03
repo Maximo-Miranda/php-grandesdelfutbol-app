@@ -21,11 +21,12 @@ it('skips upload but adds to playlist when youtube_video_id already exists', fun
 
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldNotReceive('uploadVideo');
+    $youtubeMock->shouldReceive('playlistExists')->with('pl-existing')->andReturn(true);
     $youtubeMock->shouldReceive('addToPlaylist')
         ->once()
         ->with('pl-existing', 'existing-id');
 
-    new UploadMatchToYouTube($upload)->handle($youtubeMock);
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
 
     expect($upload->fresh()->youtube_video_id)->toBe('existing-id');
 });
@@ -56,6 +57,7 @@ it('downloads from s3 and uploads to youtube', function () {
 
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('playlistExists')->andReturn(false);
     $youtubeMock->shouldReceive('createPlaylist')->andReturn('pl-id');
     $youtubeMock->shouldReceive('addToPlaylist');
     $youtubeMock->shouldReceive('uploadVideo')
@@ -84,6 +86,7 @@ it('creates playlist and adds video when club has no playlist', function () {
 
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('playlistExists')->andReturn(true);
     $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-video-123');
     $youtubeMock->shouldReceive('createPlaylist')
         ->once()
@@ -112,6 +115,7 @@ it('adds video to existing playlist when club already has one', function () {
 
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('playlistExists')->with('pl-existing')->andReturn(true);
     $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-video-456');
     $youtubeMock->shouldNotReceive('createPlaylist');
     $youtubeMock->shouldReceive('addToPlaylist')
@@ -121,6 +125,36 @@ it('adds video to existing playlist when club already has one', function () {
     (new UploadMatchToYouTube($upload))->handle($youtubeMock);
 
     expect($club->fresh()->youtube_playlist_id)->toBe('pl-existing');
+});
+
+it('recreates playlist when stored playlist was deleted from youtube', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('uploads/test.mp4', 'fake-video-content');
+
+    $upload = MatchVideoUpload::factory()->create([
+        'youtube_video_id' => null,
+        's3_path' => 'uploads/test.mp4',
+    ]);
+
+    $club = $upload->match->club;
+    $club->update(['youtube_playlist_id' => 'pl-deleted-from-youtube']);
+
+    $youtubeMock = mock(YouTubeService::class);
+    $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('playlistExists')->with('pl-deleted-from-youtube')->andReturn(false);
+    $youtubeMock->shouldReceive('playlistExists')->with('pl-recreated')->andReturn(true);
+    $youtubeMock->shouldReceive('createPlaylist')
+        ->once()
+        ->with($club->name, "Partidos de {$club->name} - Grandes del Futbol")
+        ->andReturn('pl-recreated');
+    $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-video-789');
+    $youtubeMock->shouldReceive('addToPlaylist')
+        ->once()
+        ->with('pl-recreated', 'yt-video-789');
+
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+
+    expect($club->fresh()->youtube_playlist_id)->toBe('pl-recreated');
 });
 
 it('is dispatched on video-processing queue', function () {
