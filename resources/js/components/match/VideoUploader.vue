@@ -656,16 +656,7 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <!-- Encoding with video available -->
-        <div v-else-if="status === 'encoding' && videoData?.video_stream_url" class="space-y-3">
-            <DrivePlayer :stream-url="videoData.video_stream_url" :match-ulid="props.matchUlid" />
-            <div class="flex items-center gap-2 text-xs text-amber-400">
-                <Loader2 class="size-3 animate-spin" />
-                Video disponible. Generando version 720p para reels...
-            </div>
-        </div>
-
-        <!-- Encoding without video -->
+        <!-- Encoding -->
         <div v-else-if="status === 'encoding'" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
             <div class="flex items-center gap-3">
                 <Loader2 class="size-5 animate-spin text-amber-400" />

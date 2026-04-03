@@ -365,9 +365,8 @@ const minute = ref(0);
 const second = ref(0);
 const submitting = ref(false);
 
-// Video ↔ Events sync
-const hasVideoPlayer = youtubeVideoId.value || videoStreamUrl.value;
-const videoSync = hasVideoPlayer ? useVideoSync(props.match.ulid, 'consumer') : null;
+// Video ↔ Events sync (consumer created early so it's ready when a player appears post-encoding)
+const videoSync = props.match.video_upload ? useVideoSync(props.match.ulid, 'consumer') : null;
 const videoSyncEnabled = ref(!!videoSync);
 const timeFrozen = ref(false);
 
@@ -1073,17 +1072,26 @@ async function shareReel(reel: MatchReel) {
                     <iframe :src="`https://www.youtube.com/embed/${youtubeVideoId}`" class="h-full w-full" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
                 </div>
 
-                <!-- Drive HTML5 player with sync (admin only) -->
+                <!-- Drive HTML5 player with sync (admin only, post-encoding) -->
                 <DrivePlayer v-else-if="videoStreamUrl && isAdmin" :stream-url="videoStreamUrl" :match-ulid="match.ulid" />
+                <!-- Encoding message for admins (no player until video is optimized) -->
+                <div v-else-if="isAdmin && hasVideoEncoding" class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                    <div class="flex items-center gap-3">
+                        <Loader2 class="size-5 shrink-0 animate-spin text-amber-400" />
+                        <div>
+                            <p class="text-sm font-medium text-amber-400">Optimizando video...</p>
+                            <p class="text-xs text-muted-foreground">Estamos generando una version optimizada del video para cargar estadisticas y generar reels. Esto puede tomar varios minutos.</p>
+                        </div>
+                    </div>
+                </div>
                 <!-- Drive embed for non-admins -->
                 <div v-else-if="videoEmbedUrl" class="aspect-video w-full overflow-hidden rounded-xl border border-border">
                     <iframe :src="videoEmbedUrl" class="h-full w-full" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
                 </div>
 
-                <!-- Status indicators -->
-                <div v-if="hasVideoEncoding" class="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400">
-                    <Loader2 class="size-3 animate-spin" />
-                    Video disponible. Generando version 720p para reels...
+                <!-- Hint when using Drive embed (Drive may still be processing) -->
+                <div v-if="!youtubeVideoId && videoEmbedUrl && !videoStreamUrl" class="mt-1.5 text-xs text-muted-foreground">
+                    Si el video no se reproduce, espera unos minutos mientras se termina de procesar.
                 </div>
                 <div v-else-if="hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     Pendiente de subir a YouTube
@@ -1562,7 +1570,7 @@ async function shareReel(reel: MatchReel) {
                                     Registrar evento
                                 </h3>
                                 <button
-                                    v-if="videoSync"
+                                    v-if="videoSync && (youtubeVideoId || videoStreamUrl)"
                                     class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors"
                                     :class="videoSyncEnabled
                                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
