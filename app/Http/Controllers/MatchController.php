@@ -206,8 +206,12 @@ class MatchController extends Controller
     {
         $videoUpload = $match->videoUpload;
 
-        if ($videoUpload?->s3_path) {
-            $videoUpload->setAttribute('drive_stream_url', Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addMinutes(30)));
+        $s3VideoUrl = $videoUpload?->s3_path && $videoUpload->best_resolution
+            ? Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addHour())
+            : null;
+
+        if ($s3VideoUrl) {
+            $videoUpload->setAttribute('video_stream_url', $s3VideoUrl);
         }
 
         return [
@@ -221,9 +225,7 @@ class MatchController extends Controller
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
-            's3VideoUrl' => $videoUpload?->best_resolution && ! $videoUpload->youtube_video_id
-                ? Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addMinutes(30))
-                : null,
+            's3VideoUrl' => $s3VideoUrl && ! $videoUpload->youtube_video_id ? $s3VideoUrl : null,
         ];
     }
 }

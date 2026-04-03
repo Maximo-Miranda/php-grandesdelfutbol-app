@@ -207,8 +207,7 @@ const hasVideoAvailable = computed(() => hasVideoReady.value || hasVideoEncoding
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
 const youtubeVideoId = computed(() => props.match.video_upload?.youtube_video_id ?? null);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
-const driveStreamUrl = computed(() => props.match.video_upload?.drive_stream_url ?? null);
-const canEditEvents = computed(() => !!youtubeVideoId.value || !!driveStreamUrl.value);
+const videoStreamUrl = computed(() => props.match.video_upload?.video_stream_url ?? null);
 const driveViewUrl = computed(() => {
     const fileId = props.match.video_upload?.drive_file_id;
     return fileId ? `https://drive.google.com/file/d/${fileId}/view` : null;
@@ -367,7 +366,7 @@ const second = ref(0);
 const submitting = ref(false);
 
 // Video ↔ Events sync
-const hasVideoPlayer = youtubeVideoId.value || driveStreamUrl.value;
+const hasVideoPlayer = youtubeVideoId.value || videoStreamUrl.value;
 const videoSync = hasVideoPlayer ? useVideoSync(props.match.ulid, 'consumer') : null;
 const videoSyncEnabled = ref(!!videoSync);
 const timeFrozen = ref(false);
@@ -1066,7 +1065,7 @@ async function shareReel(reel: MatchReel) {
             </div>
 
             <!-- ===== VIDEO DEL PARTIDO ===== -->
-            <div v-if="hasVideoAvailable && (youtubeVideoId || driveStreamUrl || videoEmbedUrl) && !isFullscreen" class="mt-4">
+            <div v-if="hasVideoAvailable && (youtubeVideoId || videoStreamUrl || videoEmbedUrl) && !isFullscreen" class="mt-4">
                 <!-- YouTube player with advanced controls (admin sync) -->
                 <YouTubePlayer v-if="youtubeVideoId && isAdmin" :video-id="youtubeVideoId" :match-ulid="match.ulid" />
                 <!-- YouTube embed for non-admins -->
@@ -1075,7 +1074,7 @@ async function shareReel(reel: MatchReel) {
                 </div>
 
                 <!-- Drive HTML5 player with sync (admin only) -->
-                <DrivePlayer v-else-if="driveStreamUrl && isAdmin" :stream-url="driveStreamUrl" :match-ulid="match.ulid" />
+                <DrivePlayer v-else-if="videoStreamUrl && isAdmin" :stream-url="videoStreamUrl" :match-ulid="match.ulid" />
                 <!-- Drive embed for non-admins -->
                 <div v-else-if="videoEmbedUrl" class="aspect-video w-full overflow-hidden rounded-xl border border-border">
                     <iframe :src="videoEmbedUrl" class="h-full w-full" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
@@ -1302,10 +1301,9 @@ async function shareReel(reel: MatchReel) {
                     Resumen
                 </button>
                 <button
-                    :disabled="!canEditEvents"
                     class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors"
-                    :class="!canEditEvents ? 'opacity-40 cursor-not-allowed text-muted-foreground' : activeTab === 'eventos' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
-                    @click="canEditEvents && (activeTab = 'eventos')"
+                    :class="activeTab === 'eventos' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent'"
+                    @click="activeTab = 'eventos'"
                 >
                     <Pencil class="size-3.5 shrink-0" />
                     Eventos

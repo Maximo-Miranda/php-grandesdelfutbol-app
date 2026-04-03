@@ -657,8 +657,8 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Encoding with video available -->
-        <div v-else-if="status === 'encoding' && videoData?.drive_stream_url" class="space-y-3">
-            <DrivePlayer :stream-url="videoData.drive_stream_url" :match-ulid="props.matchUlid" />
+        <div v-else-if="status === 'encoding' && videoData?.video_stream_url" class="space-y-3">
+            <DrivePlayer :stream-url="videoData.video_stream_url" :match-ulid="props.matchUlid" />
             <div class="flex items-center gap-2 text-xs text-amber-400">
                 <Loader2 class="size-3 animate-spin" />
                 Video disponible. Generando version 720p para reels...
@@ -692,7 +692,7 @@ onBeforeUnmount(() => {
             <YouTubePlayer v-if="videoData?.youtube_video_id" :video-id="videoData.youtube_video_id" :match-ulid="props.matchUlid" />
 
             <!-- Drive HTML5 player with sync -->
-            <DrivePlayer v-else-if="videoData?.drive_stream_url" :stream-url="videoData.drive_stream_url" :match-ulid="props.matchUlid" />
+            <DrivePlayer v-else-if="videoData?.video_stream_url" :stream-url="videoData.video_stream_url" :match-ulid="props.matchUlid" />
 
             <!-- S3 fallback player -->
             <template v-else-if="props.s3VideoUrl">

@@ -21,6 +21,9 @@ export type MatchVideoUpload = {
     youtube_video_id?: string | null;
     youtube_url?: string | null;
     youtube_embed_url?: string | null;
+    drive_file_id?: string | null;
+    drive_embed_url?: string | null;
+    video_stream_url?: string | null;
     bunny_deleted_at?: string | null;
 };
 

@@ -27,7 +27,7 @@ class MatchVideoUploadController extends Controller
         $data = $videoUpload?->toArray();
 
         if ($data && $videoUpload->s3_path) {
-            $data['drive_stream_url'] = Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addMinutes(30));
+            $data['video_stream_url'] = Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addHour());
         }
 
         return response()->json([
