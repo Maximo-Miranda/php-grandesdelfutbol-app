@@ -47,7 +47,10 @@ class UploadMatchToYouTube implements ShouldQueue
 
         $this->videoUpload->refresh();
 
+        // On retry, the video may already be on YouTube but not yet in the playlist.
         if ($this->videoUpload->youtube_video_id) {
+            $this->addVideoToClubPlaylist($youtubeService);
+
             return;
         }
 
@@ -89,6 +92,7 @@ class UploadMatchToYouTube implements ShouldQueue
         $startTime = microtime(true);
 
         try {
+            $this->createClubPlaylist($youtubeService, $club);
             $this->downloadVideoToTemp($tempFile);
 
             $title = "{$match->title} - {$club->name}";
@@ -103,7 +107,7 @@ class UploadMatchToYouTube implements ShouldQueue
             ]);
 
             $quotaService->increment();
-            $this->addToClubPlaylist($youtubeService, $club, $youtubeVideoId);
+            $this->addVideoToClubPlaylist($youtubeService);
             $this->cleanupDriveOriginal();
 
             Log::info('Video uploaded to YouTube', [
@@ -138,20 +142,31 @@ class UploadMatchToYouTube implements ShouldQueue
         ]);
     }
 
-    private function addToClubPlaylist(YouTubeService $youtubeService, Club $club, string $videoId): void
+    private function createClubPlaylist(YouTubeService $youtubeService, Club $club): void
     {
-        rescue(function () use ($youtubeService, $club, $videoId) {
-            if (! $club->youtube_playlist_id) {
-                $playlistId = $youtubeService->createPlaylist(
-                    $club->name,
-                    "Partidos de {$club->name} - Grandes del Futbol",
-                );
+        if ($club->youtube_playlist_id) {
+            return;
+        }
 
-                $club->update(['youtube_playlist_id' => $playlistId]);
-            }
+        $club->youtube_playlist_id = $youtubeService->createPlaylist(
+            $club->name,
+            "Partidos de {$club->name} - Grandes del Futbol",
+        );
 
-            $youtubeService->addToPlaylist($club->youtube_playlist_id, $videoId);
-        });
+        $club->save();
+    }
+
+    private function addVideoToClubPlaylist(YouTubeService $youtubeService): void
+    {
+        $match = $this->videoUpload->match;
+        $club = $match?->club;
+
+        if (! $club || ! $this->videoUpload->youtube_video_id) {
+            return;
+        }
+
+        $this->createClubPlaylist($youtubeService, $club);
+        $youtubeService->addToPlaylist($club->youtube_playlist_id, $this->videoUpload->youtube_video_id);
     }
 
     /**

@@ -10,14 +10,20 @@ use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\mock;
 
-it('skips upload when youtube_video_id already exists', function () {
+it('skips upload but adds to playlist when youtube_video_id already exists', function () {
     $upload = MatchVideoUpload::factory()->create([
         'youtube_video_id' => 'existing-id',
         's3_path' => 'uploads/test.mp4',
     ]);
 
+    $club = $upload->match->club;
+    $club->update(['youtube_playlist_id' => 'pl-existing']);
+
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldNotReceive('uploadVideo');
+    $youtubeMock->shouldReceive('addToPlaylist')
+        ->once()
+        ->with('pl-existing', 'existing-id');
 
     new UploadMatchToYouTube($upload)->handle($youtubeMock);
 
@@ -50,6 +56,8 @@ it('downloads from s3 and uploads to youtube', function () {
 
     $youtubeMock = mock(YouTubeService::class);
     $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('createPlaylist')->andReturn('pl-id');
+    $youtubeMock->shouldReceive('addToPlaylist');
     $youtubeMock->shouldReceive('uploadVideo')
         ->once()
         ->andReturn('yt-new-video-id');
@@ -60,6 +68,59 @@ it('downloads from s3 and uploads to youtube', function () {
 
     expect($upload->youtube_video_id)->toBe('yt-new-video-id')
         ->and($upload->youtube_uploaded_at)->not->toBeNull();
+});
+
+it('creates playlist and adds video when club has no playlist', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('uploads/test.mp4', 'fake-video-content');
+
+    $upload = MatchVideoUpload::factory()->create([
+        'youtube_video_id' => null,
+        's3_path' => 'uploads/test.mp4',
+    ]);
+
+    $club = $upload->match->club;
+    $club->update(['youtube_playlist_id' => null]);
+
+    $youtubeMock = mock(YouTubeService::class);
+    $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-video-123');
+    $youtubeMock->shouldReceive('createPlaylist')
+        ->once()
+        ->with($club->name, "Partidos de {$club->name} - Grandes del Futbol")
+        ->andReturn('pl-new-playlist');
+    $youtubeMock->shouldReceive('addToPlaylist')
+        ->once()
+        ->with('pl-new-playlist', 'yt-video-123');
+
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+
+    expect($club->fresh()->youtube_playlist_id)->toBe('pl-new-playlist');
+});
+
+it('adds video to existing playlist when club already has one', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('uploads/test.mp4', 'fake-video-content');
+
+    $upload = MatchVideoUpload::factory()->create([
+        'youtube_video_id' => null,
+        's3_path' => 'uploads/test.mp4',
+    ]);
+
+    $club = $upload->match->club;
+    $club->update(['youtube_playlist_id' => 'pl-existing']);
+
+    $youtubeMock = mock(YouTubeService::class);
+    $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-video-456');
+    $youtubeMock->shouldNotReceive('createPlaylist');
+    $youtubeMock->shouldReceive('addToPlaylist')
+        ->once()
+        ->with('pl-existing', 'yt-video-456');
+
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+
+    expect($club->fresh()->youtube_playlist_id)->toBe('pl-existing');
 });
 
 it('is dispatched on video-processing queue', function () {

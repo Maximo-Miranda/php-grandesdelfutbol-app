@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Google\Http\MediaFileUpload;
+use Google\Service\Exception;
 use Google\Service\YouTube;
 use Google\Service\YouTube\Playlist;
 use Google\Service\YouTube\PlaylistItem;
@@ -21,13 +22,10 @@ class YouTubeService
 {
     private const int CHUNK_SIZE = 16 * 1024 * 1024;
 
-    public function __construct(private GoogleAuthService $authService) {}
+    public function __construct(private readonly GoogleAuthService $authService) {}
 
     /**
-     * Upload a video to YouTube using resumable upload.
-     *
-     * @param  array<string>  $tags
-     * @return string The YouTube video ID
+     * @throws Exception
      */
     public function uploadVideo(string $filePath, string $title, string $description, array $tags = []): string
     {
@@ -81,11 +79,6 @@ class YouTubeService
         return $uploadStatus->getId();
     }
 
-    /**
-     * Check the processing status of a YouTube video.
-     *
-     * @return string 'processing', 'succeeded', 'failed', 'terminated', or 'unknown'
-     */
     public function getProcessingStatus(string $videoId): string
     {
         $youtube = $this->youtubeService();
