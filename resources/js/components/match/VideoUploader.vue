@@ -2,6 +2,7 @@
 import { router } from '@inertiajs/vue3';
 import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import DrivePlayer from '@/components/match/DrivePlayer.vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import YouTubePlayer from '@/components/match/YouTubePlayer.vue';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const status = ref<'idle' | 'uploading' | 'paused' | 'encoding' | 'ready' | 'fai
 const progress = ref(0);
 const speed = ref('');
 const errorMessage = ref(props.existingUpload?.error_message ?? '');
+const videoData = ref<VideoUploadData | null>(props.existingUpload ?? null);
 const showDeleteConfirm = ref(false);
 const showUploadingWarning = ref(false);
 const pendingVisitUrl = ref<string | null>(null);
@@ -470,6 +472,10 @@ async function fetchAndSyncStatus(): Promise<void> {
     });
     const data = await response.json();
 
+    if (data.video_upload) {
+        videoData.value = data.video_upload;
+    }
+
     if (data.video_upload?.status === 'ready') {
         status.value = 'ready';
         stopPolling();
@@ -650,7 +656,16 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <!-- Encoding -->
+        <!-- Encoding with video available -->
+        <div v-else-if="status === 'encoding' && videoData?.drive_stream_url" class="space-y-3">
+            <DrivePlayer :stream-url="videoData.drive_stream_url" :match-ulid="props.matchUlid" />
+            <div class="flex items-center gap-2 text-xs text-amber-400">
+                <Loader2 class="size-3 animate-spin" />
+                Video disponible. Generando version 720p para reels...
+            </div>
+        </div>
+
+        <!-- Encoding without video -->
         <div v-else-if="status === 'encoding'" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
             <div class="flex items-center gap-3">
                 <Loader2 class="size-5 animate-spin text-amber-400" />
@@ -674,17 +689,10 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- YouTube player with advanced controls -->
-            <YouTubePlayer v-if="props.existingUpload?.youtube_video_id" :video-id="props.existingUpload.youtube_video_id" />
+            <YouTubePlayer v-if="videoData?.youtube_video_id" :video-id="videoData.youtube_video_id" :match-ulid="props.matchUlid" />
 
-            <!-- Drive embed fallback -->
-            <div v-else-if="props.existingUpload?.drive_embed_url" class="aspect-video w-full overflow-hidden rounded-lg border border-border">
-                <iframe
-                    :src="props.existingUpload.drive_embed_url"
-                    class="h-full w-full"
-                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                />
-            </div>
+            <!-- Drive HTML5 player with sync -->
+            <DrivePlayer v-else-if="videoData?.drive_stream_url" :stream-url="videoData.drive_stream_url" :match-ulid="props.matchUlid" />
 
             <!-- S3 fallback player -->
             <template v-else-if="props.s3VideoUrl">

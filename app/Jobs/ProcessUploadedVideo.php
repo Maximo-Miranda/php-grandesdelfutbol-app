@@ -81,7 +81,7 @@ class ProcessUploadedVideo implements ShouldQueue
                     $videoUpload->update(['original_s3_path' => null]);
                 }
 
-                if ($driveFileId) {
+                if ($driveFileId && ! $videoUpload->drive_shared_at) {
                     rescue(function () use ($driveFileId, $videoUpload) {
                         app(GoogleDriveService::class)->shareFilePublicly($driveFileId);
                         $videoUpload->update(['drive_shared_at' => now()]);

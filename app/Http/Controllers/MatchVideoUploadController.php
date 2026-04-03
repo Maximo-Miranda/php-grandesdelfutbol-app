@@ -22,8 +22,16 @@ class MatchVideoUploadController extends Controller
 
     public function show(Club $club, FootballMatch $match): JsonResponse
     {
+        $videoUpload = $match->videoUpload;
+
+        $data = $videoUpload?->toArray();
+
+        if ($data && $videoUpload->s3_path) {
+            $data['drive_stream_url'] = Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addMinutes(30));
+        }
+
         return response()->json([
-            'video_upload' => $match->videoUpload,
+            'video_upload' => $data,
         ]);
     }
 

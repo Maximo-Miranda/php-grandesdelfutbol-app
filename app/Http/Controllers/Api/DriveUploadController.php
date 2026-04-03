@@ -159,6 +159,11 @@ class DriveUploadController extends Controller
             'status' => VideoUploadStatus::Encoding,
         ]);
 
+        rescue(function () use ($validated, $videoUpload) {
+            $this->driveService->shareFilePublicly($validated['drive_file_id']);
+            $videoUpload->update(['drive_shared_at' => now()]);
+        });
+
         ProcessUploadedVideo::dispatch($videoUpload);
 
         Log::info('Drive upload completed, processing started', [

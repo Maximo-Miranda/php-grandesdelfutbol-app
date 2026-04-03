@@ -28,6 +28,7 @@ use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\VideoServiceRequestController;
 use App\Http\Controllers\VideoShareController;
+use App\Http\Controllers\VideoStreamController;
 use App\Http\Controllers\YouTubeAuthController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -120,6 +121,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('matches/{match}/video-upload/retry-youtube', [MatchVideoUploadController::class, 'retryYouTube'])->middleware('throttle:expensive-action')->name('matches.videoUpload.retryYouTube');
         Route::post('matches/{match}/video-upload/share-link', [VideoShareController::class, 'generate'])->name('matches.videoUpload.shareLink');
         Route::delete('matches/{match}/video-upload', [MatchVideoUploadController::class, 'destroy'])->name('matches.videoUpload.destroy');
+        Route::get('matches/{match}/video-stream', [VideoStreamController::class, 'stream'])->name('matches.videoStream');
 
         Route::post('matches/{match}/drive-upload/init', [DriveUploadController::class, 'initUpload'])->middleware('throttle:expensive-action')->name('matches.driveUpload.init');
         Route::post('drive-upload/refresh-token', [DriveUploadController::class, 'refreshToken'])->middleware('throttle:google-api')->name('driveUpload.refreshToken');

@@ -84,6 +84,16 @@ class GoogleDriveService
     }
 
     /**
+     * Get a streamable body for a Drive file (for proxied video streaming).
+     */
+    public function streamFileContent(string $fileId): StreamInterface
+    {
+        $drive = $this->driveService();
+
+        return $drive->files->get($fileId, ['alt' => 'media'])->getBody();
+    }
+
+    /**
      * Download a file from Google Drive to a local path.
      *
      * Uses streaming to avoid loading the entire file into memory.
