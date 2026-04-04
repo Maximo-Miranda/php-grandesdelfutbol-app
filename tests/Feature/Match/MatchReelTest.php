@@ -170,6 +170,47 @@ test('admin can delete a reel', function () {
     $this->assertDatabaseMissing('match_reels', ['id' => $reel->id]);
 });
 
+test('player owner can delete their own auto-generated reel', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $player = Player::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $reel = MatchReel::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'source' => ReelSource::Auto,
+        'requested_by' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.matches.reels.destroy', [$club, $match, $reel]))
+        ->assertRedirect();
+
+    $this->assertDatabaseMissing('match_reels', ['id' => $reel->id]);
+});
+
+test('player cannot delete reel belonging to another player', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $otherPlayer = Player::factory()->create(['club_id' => $club->id, 'user_id' => $otherUser->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    $reel = MatchReel::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $otherPlayer->id,
+        'source' => ReelSource::Auto,
+        'requested_by' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->delete(route('clubs.matches.reels.destroy', [$club, $match, $reel]))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('match_reels', ['id' => $reel->id]);
+});
+
 test('reel model has correct relationships', function () {
     $match = FootballMatch::factory()->create();
     $player = Player::factory()->create(['club_id' => $match->club_id]);
