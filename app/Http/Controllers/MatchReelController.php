@@ -87,7 +87,12 @@ class MatchReelController extends Controller
     {
         $user = $request->user();
 
-        abort_unless($club->isAdminOrOwner($user) || $reel->requested_by === $user->id, 403);
+        abort_unless(
+            $club->isAdminOrOwner($user)
+            || $reel->requested_by === $user->id
+            || $reel->player?->user_id === $user->id,
+            403,
+        );
 
         $reel->clearMediaCollection('reel');
         $reel->delete();
