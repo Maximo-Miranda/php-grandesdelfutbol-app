@@ -5,6 +5,7 @@ import {
     Film,
     Home,
     MapPin,
+    Newspaper,
     Settings,
     Shield,
     Users,
@@ -36,6 +37,7 @@ const currentClub = computed(() => page.props.currentClub);
 const globalNavItems: NavItem[] = [
     { title: 'Mis Clubes', href: '/clubs', icon: Shield },
     { title: 'Mis Jugadas', href: '/player-card', icon: Film },
+    { title: 'Noticias', href: '/news', icon: Newspaper },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {

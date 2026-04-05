@@ -48,6 +48,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property-read int|null $players_count
  * @property-read Collection<int, SocialAccount> $socialAccounts
  * @property-read int|null $social_accounts_count
+ * @property-read UserNewsPreference|null $newsPreference
  *
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
@@ -151,6 +152,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
+    }
+
+    public function newsPreference(): HasOne
+    {
+        return $this->hasOne(UserNewsPreference::class);
     }
 
     public function hasSocialAccount(string $provider): bool

@@ -25,6 +25,23 @@ export function formatDateTime(dateStr: string): string {
     return new Date(dateStr).toLocaleString('es', { timeZone: APP_TIMEZONE });
 }
 
+export function formatTimeAgo(dateStr: string): string {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 60) {
+        return `hace ${diffMin}m`;
+    }
+
+    const diffHours = Math.floor(diffMin / 60);
+
+    if (diffHours < 24) {
+        return `hace ${diffHours}h`;
+    }
+
+    return `hace ${Math.floor(diffHours / 24)}d`;
+}
+
 export function formatEventTime(minute: number, second: number): string {
     return `${minute}:${String(second).padStart(2, '0')}`;
 }

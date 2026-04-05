@@ -4,4 +4,5 @@ export * from './match';
 export * from './navigation';
 export * from './player';
 export * from './ui';
+export * from './news';
 export * from './venue';

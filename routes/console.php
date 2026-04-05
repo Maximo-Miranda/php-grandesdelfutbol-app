@@ -12,3 +12,5 @@ Schedule::command('telescope:prune --hours=48')->daily()->withoutOverlapping()->
 Schedule::command('video-uploads:cleanup --hours=48')->daily()->withoutOverlapping()->onOneServer();
 Schedule::command('app:cleanup-match-videos --days=30')->weekly()->withoutOverlapping()->onOneServer();
 Schedule::command('app:cleanup-stale-uploads --days=7')->daily()->withoutOverlapping()->onOneServer();
+Schedule::command('news:fetch')->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
+Schedule::command('news:cleanup --days=7')->weekly()->withoutOverlapping()->onOneServer();

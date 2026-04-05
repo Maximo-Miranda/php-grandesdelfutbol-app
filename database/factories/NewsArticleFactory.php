@@ -1,0 +1,76 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Enums\NewsContentType;
+use App\Models\NewsArticle;
+use App\Models\NewsSource;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
+
+/**
+ * @extends Factory<NewsArticle>
+ */
+class NewsArticleFactory extends Factory
+{
+    public function definition(): array
+    {
+        return [
+            'ulid' => (string) Str::ulid(),
+            'news_source_id' => NewsSource::factory(),
+            'external_id' => fake()->uuid(),
+            'title' => fake()->sentence(8),
+            'snippet' => fake()->paragraph(2),
+            'image_url' => fake()->imageUrl(800, 400),
+            'original_url' => fake()->url(),
+            'author' => fake()->name(),
+            'content_type' => NewsContentType::Article,
+            'is_breaking' => false,
+            'story_group_id' => (string) Str::uuid(),
+            'published_at' => fake()->dateTimeBetween('-3 days', 'now'),
+        ];
+    }
+
+    public function breaking(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_breaking' => true,
+        ]);
+    }
+
+    public function videoHighlight(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'content_type' => NewsContentType::VideoHighlight,
+            'video_embed_url' => fake()->url(),
+        ]);
+    }
+
+    public function withCompetitions(array $competitions): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'competitions' => $competitions,
+        ]);
+    }
+
+    public function withTeams(array $teams): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'teams' => $teams,
+        ]);
+    }
+
+    public function withTopics(array $topics): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'topics' => $topics,
+        ]);
+    }
+
+    public function old(int $days = 5): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'published_at' => now()->subDays($days),
+        ]);
+    }
+}

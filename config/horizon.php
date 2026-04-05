@@ -33,6 +33,7 @@ return [
         'redis:notifications' => 60,
         'redis:video-processing' => 600,
         'redis:reels' => 300,
+        'redis:news-fetching' => 120,
     ],
 
     /*
@@ -140,6 +141,21 @@ return [
             'timeout' => 900,
             'nice' => 0,
         ],
+
+        'supervisor-news' => [
+            'connection' => 'redis',
+            'queue' => ['news-fetching'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'size',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'maxTime' => 3600,
+            'maxJobs' => 500,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -161,6 +177,13 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+
+            'supervisor-news' => [
+                'minProcesses' => 1,
+                'maxProcesses' => 2,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
         ],
 
         'local' => [
@@ -173,6 +196,10 @@ return [
             ],
 
             'supervisor-reels' => [
+                'maxProcesses' => 1,
+            ],
+
+            'supervisor-news' => [
                 'maxProcesses' => 1,
             ],
         ],

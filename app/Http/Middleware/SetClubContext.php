@@ -98,6 +98,7 @@ readonly class SetClubContext
             'password.*',
             'youtube.*',
             'video-service-request.*',
+            'news.*',
         );
     }
 }
