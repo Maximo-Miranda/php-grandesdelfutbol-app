@@ -103,15 +103,13 @@ class NewsFeedService
      */
     private function toggleInteraction(User $user, NewsArticle $article, NewsInteractionType $type): bool
     {
-        $existing = NewsArticleInteraction::query()
+        $deleted = NewsArticleInteraction::query()
             ->where('user_id', $user->id)
             ->where('news_article_id', $article->id)
             ->where('type', $type)
-            ->first();
+            ->delete();
 
-        if ($existing) {
-            $existing->delete();
-
+        if ($deleted > 0) {
             return false;
         }
 
@@ -170,10 +168,6 @@ class NewsFeedService
 
     public static function categoryExists(string $category): bool
     {
-        if ($category === 'all') {
-            return true;
-        }
-
         $dictionary = NewsDictionaryEntry::getDictionary();
 
         foreach (array_keys(self::CATEGORY_COLUMN_MAP) as $type) {
@@ -235,9 +229,14 @@ class NewsFeedService
      */
     private function deduplicateByStoryGroup(Builder $query): Builder
     {
+        // Bound the window function to the cleanup retention window so it
+        // never scans the entire table as article volume grows.
+        $maxAgeDays = (int) config('news.feed.max_article_age_days', 30);
+
         $ranked = NewsArticle::query()
             ->select('news_articles.id')
             ->join('news_sources', 'news_sources.id', '=', 'news_articles.news_source_id')
+            ->where('news_articles.published_at', '>=', now()->subDays($maxAgeDays))
             ->selectRaw(
                 'ROW_NUMBER() OVER (
                     PARTITION BY COALESCE(news_articles.story_group_id, CAST(news_articles.id AS TEXT))

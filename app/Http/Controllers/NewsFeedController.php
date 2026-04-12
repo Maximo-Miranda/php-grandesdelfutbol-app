@@ -37,7 +37,7 @@ class NewsFeedController extends Controller
             abort(404, 'Categoría de noticias no encontrada.');
         }
 
-        if ($user !== null) {
+        if ($user !== null && ($user->news_last_seen_at === null || $user->news_last_seen_at->lt(now()->subSeconds(30)))) {
             $user->update(['news_last_seen_at' => now()]);
             $this->badgeService->forget($user);
         }

@@ -17,9 +17,6 @@ class NewsCommentController extends Controller
             'body' => $request->validated('body'),
         ]);
 
-        // The feed refreshes the affected card on back navigation via the
-        // useNewsFeedDirty composable, which is marked from NewsComments.vue's
-        // onSuccess callback. See Feed.vue's refreshIfDirty handler.
         return back();
     }
 

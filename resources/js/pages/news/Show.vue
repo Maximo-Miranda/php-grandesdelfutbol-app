@@ -11,7 +11,7 @@ import NewsShareButton from '@/components/news/NewsShareButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { formatTimeAgo } from '@/lib/utils';
+import { buildShareUrl, formatTimeAgo } from '@/lib/utils';
 import type { BreadcrumbItem, NewsArticle, NewsArticleComment } from '@/types';
 
 type Props = {
@@ -42,13 +42,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const timeAgo = computed(() => formatTimeAgo(props.article.published_at));
 
-const shareUrl = computed(() => {
-    if (typeof window === 'undefined') {
-        return `/news/${props.article.slug}`;
-    }
-
-    return `${window.location.origin}/news/${props.article.slug}`;
-});
+const shareUrl = computed(() => buildShareUrl(`/news/${props.article.slug}`));
 
 const images = computed<string[]>(() => {
     const gallery = props.article.image_urls ?? [];

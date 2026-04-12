@@ -16,7 +16,6 @@ export type NewsArticle = {
     image_urls: string[] | null;
     original_url: string;
     author: string | null;
-    content_type: 'article';
     tags: string[] | null;
     competitions: string[] | null;
     teams: string[] | null;

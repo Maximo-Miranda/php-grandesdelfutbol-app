@@ -13,6 +13,8 @@ class NewsBadgeService
 
     private const CACHE_TAG = 'news-unread';
 
+    private ?bool $hasTags = null;
+
     /**
      * Compute the unread-news badge payload for a user. Results are cached for
      * a short window so navigating between tabs doesn't hit the database on
@@ -87,6 +89,6 @@ class NewsBadgeService
 
     private function supportsTags(): bool
     {
-        return method_exists(Cache::getStore(), 'tags');
+        return $this->hasTags ??= method_exists(Cache::getStore(), 'tags');
     }
 }

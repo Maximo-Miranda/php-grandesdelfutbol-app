@@ -7,7 +7,7 @@ import NewsImageCarousel from '@/components/news/NewsImageCarousel.vue';
 import NewsLikeButton from '@/components/news/NewsLikeButton.vue';
 import NewsShareButton from '@/components/news/NewsShareButton.vue';
 import { Badge } from '@/components/ui/badge';
-import { formatTimeAgo } from '@/lib/utils';
+import { buildShareUrl, formatTimeAgo } from '@/lib/utils';
 import type { NewsArticle } from '@/types';
 
 const props = defineProps<{
@@ -21,13 +21,7 @@ const isAuthenticated = computed(() => !!page.props.auth?.user);
 const timeAgo = computed(() => formatTimeAgo(props.article.published_at));
 const articleUrl = computed(() => `/news/${props.article.slug}`);
 
-const shareUrl = computed(() => {
-    if (typeof window === 'undefined') {
-        return articleUrl.value;
-    }
-
-    return `${window.location.origin}${articleUrl.value}`;
-});
+const shareUrl = computed(() => buildShareUrl(articleUrl.value));
 
 const images = computed<string[]>(() => {
     const gallery = props.article.image_urls ?? [];
