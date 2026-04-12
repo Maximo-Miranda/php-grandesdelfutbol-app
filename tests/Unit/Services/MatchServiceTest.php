@@ -67,14 +67,14 @@ test('registerPlayer auto-assigns substitute role when team starters are full', 
     $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
     $service = new MatchService;
 
-    // Fill up team A starters (2 max)
-    $players = Player::factory()->count(2)->create(['club_id' => $match->club_id]);
+    // Fill up team A starters (2 max) with outfield players
+    $players = Player::factory()->count(2)->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
     foreach ($players as $player) {
         $service->registerPlayer($match, $player, AttendanceStatus::Confirmed, AttendanceTeam::A);
     }
 
-    // Next player on team A should be substitute
-    $extraPlayer = Player::factory()->create(['club_id' => $match->club_id]);
+    // Next outfield player on team A should be substitute
+    $extraPlayer = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
     $attendance = $service->registerPlayer($match, $extraPlayer, AttendanceStatus::Confirmed, AttendanceTeam::A);
 
     expect($attendance->role)->toBe(AttendanceRole::Substitute);
