@@ -184,7 +184,7 @@ test('manual cancel of recurring match recreates next occurrence', function () {
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
 
-    $match = FootballMatch::factory()->recurring(8)->create([
+    $match = FootballMatch::factory()->recurring(7)->create([
         'club_id' => $club->id,
         'status' => MatchStatus::Upcoming,
         'scheduled_at' => now()->addDay(),

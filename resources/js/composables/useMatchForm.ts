@@ -24,7 +24,7 @@ export type MatchFormData = {
     min_players_required: number;
 };
 
-const recurrencePresets = ['8', '15', '30'];
+const recurrencePresets = ['7', '14', '30'];
 
 export const fieldTypeToPlayers: Record<string, number> = {
     '5v5': 10,
@@ -158,14 +158,14 @@ export function useMatchForm(options: UseMatchFormOptions) {
         team_a_color: match?.team_a_color ?? '#1a1a1a',
         team_b_color: match?.team_b_color ?? '#facc15',
         is_recurring: match?.is_recurring ?? true,
-        recurrence_days: match?.recurrence_days ?? 8,
+        recurrence_days: match?.recurrence_days ?? 7,
         auto_cancel: match?.auto_cancel ?? true,
         min_players_required: match?.min_players_required ?? initialMaxPlayers,
     });
 
     // --- Recurrence ---
     const selectedRecurrenceOption = ref(
-        isEdit && !recurrencePresets.includes(String(match.recurrence_days)) ? 'custom' : String(match?.recurrence_days ?? 8),
+        isEdit && !recurrencePresets.includes(String(match.recurrence_days)) ? 'custom' : String(match?.recurrence_days ?? 7),
     );
 
     // Initialize auto-title on create

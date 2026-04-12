@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Services\MatchService;
 
 test('auto-completion recreates recurring match', function () {
-    $match = FootballMatch::factory()->recurring(8)->create([
+    $match = FootballMatch::factory()->recurring(7)->create([
         'status' => MatchStatus::InProgress,
         'auto_started' => true,
         'started_at' => now()->subMinutes(90),
@@ -31,9 +31,9 @@ test('auto-completion recreates recurring match', function () {
 
     expect($newMatch)->not->toBeNull()
         ->and($newMatch->scheduled_at->toDateString())
-        ->toBe($match->scheduled_at->addDays(8)->toDateString())
+        ->toBe($match->scheduled_at->addDays(7)->toDateString())
         ->and($newMatch->is_recurring)->toBeTrue()
-        ->and($newMatch->recurrence_days)->toBe(8);
+        ->and($newMatch->recurrence_days)->toBe(7);
 });
 
 test('auto-completion does not recreate non-recurring match', function () {
@@ -129,7 +129,7 @@ test('past scheduled_at advances to future', function () {
 });
 
 test('new match copies correct fields and generates new identifiers', function () {
-    $match = FootballMatch::factory()->recurring(8)->completed()->create([
+    $match = FootballMatch::factory()->recurring(7)->completed()->create([
         'duration_minutes' => 90,
         'arrival_minutes' => 20,
         'max_players' => 14,
@@ -159,7 +159,7 @@ test('new match copies correct fields and generates new identifiers', function (
         ->and($newMatch->team_a_color)->toBe('#dc2626')
         ->and($newMatch->team_b_color)->toBe('#2563eb')
         ->and($newMatch->is_recurring)->toBeTrue()
-        ->and($newMatch->recurrence_days)->toBe(8)
+        ->and($newMatch->recurrence_days)->toBe(7)
         ->and($newMatch->status)->toBe(MatchStatus::Upcoming)
         ->and($newMatch->ulid)->not->toBe($match->ulid)
         ->and($newMatch->share_token)->not->toBe($match->share_token)

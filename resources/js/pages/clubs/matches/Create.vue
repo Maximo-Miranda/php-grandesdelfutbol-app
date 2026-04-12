@@ -535,9 +535,9 @@ function submitExistingVenueField() {
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="8">Cada 8 días</SelectItem>
-                                <SelectItem value="15">Cada 15 días</SelectItem>
-                                <SelectItem value="30">Cada 30 días</SelectItem>
+                                <SelectItem value="7">Semanal</SelectItem>
+                                <SelectItem value="14">Quincenal</SelectItem>
+                                <SelectItem value="30">Mensual</SelectItem>
                                 <SelectItem value="custom">Personalizado</SelectItem>
                             </SelectContent>
                         </Select>
