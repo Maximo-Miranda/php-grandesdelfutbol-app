@@ -24,7 +24,14 @@ export type MatchFormData = {
     min_players_required: number;
 };
 
-const recurrencePresets = ['7', '14', '30'];
+export const recurrenceOptions = [
+    { value: '7', label: 'Semanal' },
+    { value: '14', label: 'Quincenal' },
+    { value: '30', label: 'Mensual' },
+    { value: 'custom', label: 'Personalizado' },
+] as const;
+
+const recurrencePresets = recurrenceOptions.filter(o => o.value !== 'custom').map(o => o.value);
 
 export const fieldTypeToPlayers: Record<string, number> = {
     '5v5': 10,
