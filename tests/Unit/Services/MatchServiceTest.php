@@ -150,8 +150,8 @@ test('recalculateRoles fixes roles per team based on confirmed_at order', functi
     $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
     $service = new MatchService;
 
-    // Create 3 players on team A — all incorrectly marked as starters
-    $players = Player::factory()->count(3)->create(['club_id' => $match->club_id]);
+    // Create 3 outfield players on team A — all incorrectly marked as starters
+    $players = Player::factory()->count(3)->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
     foreach ($players as $i => $player) {
         MatchAttendance::factory()->create([
             'match_id' => $match->id,
