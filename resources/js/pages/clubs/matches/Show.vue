@@ -25,7 +25,6 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +44,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import UserAvatar from '@/components/UserAvatar.vue';
 import VideoServiceCta from '@/components/VideoServiceCta.vue';
 import VideoServiceRequestDialog from '@/components/VideoServiceRequestDialog.vue';
 import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';

@@ -5,10 +5,8 @@ namespace App\Console\Commands;
 use App\Enums\AttendanceStatus;
 use App\Enums\MatchStatus;
 use App\Models\FootballMatch;
-use App\Notifications\MatchAutoCancelledNotification;
 use App\Services\MatchService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Notification;
 
 class ProcessMatchSchedules extends Command
 {
@@ -65,11 +63,6 @@ class ProcessMatchSchedules extends Command
             $match->status = MatchStatus::Cancelled;
 
             $this->matchService->recreateIfRecurring($match);
-
-            $users = $match->confirmedAttendeeUsers();
-            if ($users->isNotEmpty()) {
-                Notification::send($users, new MatchAutoCancelledNotification($match));
-            }
         }
 
         return $cancelled;

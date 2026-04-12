@@ -135,26 +135,33 @@ class MatchService
         AttendanceStatus $status,
         ?AttendanceTeam $team = null,
     ): MatchAttendance {
-        $previous = MatchAttendance::query()
-            ->where('match_id', $match->id)
-            ->where('player_id', $player->id)
-            ->first();
-
         $isConfirming = $status === AttendanceStatus::Confirmed;
         $role = $isConfirming ? $this->determineRole($match, $player->id, $team) : AttendanceRole::Pending;
 
-        $attendance = MatchAttendance::query()->updateOrCreate(
-            [
-                'match_id' => $match->id,
-                'player_id' => $player->id,
-            ],
-            [
+        $existing = $match->attendances()
+            ->where('player_id', $player->id)
+            ->first();
+
+        $wasStarter = $existing?->role === AttendanceRole::Starter;
+        $previousTeam = $existing?->team;
+
+        if ($existing) {
+            $existing->update([
                 'status' => $status,
                 'role' => $role,
                 'team' => $isConfirming ? $team : null,
                 'confirmed_at' => $isConfirming ? now() : null,
-            ],
-        );
+            ]);
+            $attendance = $existing;
+        } else {
+            $attendance = $match->attendances()->create([
+                'player_id' => $player->id,
+                'status' => $status,
+                'role' => $role,
+                'team' => $isConfirming ? $team : null,
+                'confirmed_at' => $isConfirming ? now() : null,
+            ]);
+        }
 
         if (
             $isConfirming
@@ -167,7 +174,7 @@ class MatchService
             $attendance->refresh();
         }
 
-        if ($status === AttendanceStatus::Declined && $previous?->role === AttendanceRole::Starter && $previous?->team) {
+        if ($status === AttendanceStatus::Declined && $wasStarter && $previousTeam) {
             $this->recalculateRoles($match);
         }
 

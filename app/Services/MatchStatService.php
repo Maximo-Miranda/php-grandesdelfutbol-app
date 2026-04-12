@@ -109,14 +109,16 @@ class MatchStatService
         $scoringTypes = [MatchEventType::Goal, MatchEventType::PenaltyScored, MatchEventType::OwnGoal];
 
         $events = $match->events()->whereIn('event_type', $scoringTypes)->get();
-        $attendances = $match->attendances()->get();
+        $teamByPlayer = $match->attendances()
+            ->whereNotNull('team')
+            ->pluck('team', 'player_id');
 
         $teamAScore = 0;
         $teamBScore = 0;
 
         foreach ($events as $event) {
             $playerTeam = $event->team?->value
-                ?? $attendances->firstWhere('player_id', $event->player_id)?->team?->value;
+                ?? $teamByPlayer->get($event->player_id)?->value;
 
             if ($event->event_type === MatchEventType::OwnGoal) {
                 $playerTeam === 'a' ? $teamBScore++ : $teamAScore++;

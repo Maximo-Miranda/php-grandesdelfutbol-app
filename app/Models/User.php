@@ -123,8 +123,13 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         ];
     }
 
+    /** Only resolves when playerProfile is eager-loaded to avoid N+1 queries. */
     public function getAvatarAttribute(): ?string
     {
+        if (! $this->relationLoaded('playerProfile')) {
+            return null;
+        }
+
         return $this->playerProfile?->photo_url;
     }
 
