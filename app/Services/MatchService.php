@@ -135,24 +135,43 @@ class MatchService
         AttendanceStatus $status,
         ?AttendanceTeam $team = null,
     ): MatchAttendance {
-        $role = AttendanceRole::Pending;
+        $previous = MatchAttendance::query()
+            ->where('match_id', $match->id)
+            ->where('player_id', $player->id)
+            ->first();
 
-        if ($status === AttendanceStatus::Confirmed) {
-            $role = $this->determineRole($match, $player->id, $team);
-        }
+        $isConfirming = $status === AttendanceStatus::Confirmed;
+        $role = $isConfirming ? $this->determineRole($match, $player->id, $team) : AttendanceRole::Pending;
 
-        return MatchAttendance::query()->updateOrCreate(
+        $attendance = MatchAttendance::query()->updateOrCreate(
             [
                 'match_id' => $match->id,
                 'player_id' => $player->id,
             ],
             [
                 'status' => $status,
-                'role' => $status === AttendanceStatus::Confirmed ? $role : AttendanceRole::Pending,
-                'team' => $status === AttendanceStatus::Confirmed ? $team : null,
-                'confirmed_at' => $status === AttendanceStatus::Confirmed ? now() : null,
+                'role' => $role,
+                'team' => $isConfirming ? $team : null,
+                'confirmed_at' => $isConfirming ? now() : null,
             ],
         );
+
+        if (
+            $isConfirming
+            && $team !== null
+            && $role === AttendanceRole::Substitute
+            && $player->isGoalkeeper()
+            && ! $this->hasGoalkeeperStarter($match, $team, $player->id)
+        ) {
+            $this->promoteGoalkeeperByDemotingLastStarter($match, $attendance, $team);
+            $attendance->refresh();
+        }
+
+        if ($status === AttendanceStatus::Declined && $previous?->role === AttendanceRole::Starter && $previous?->team) {
+            $this->recalculateRoles($match);
+        }
+
+        return $attendance;
     }
 
     public function isRegistrationOpen(FootballMatch $match): bool
@@ -197,7 +216,9 @@ class MatchService
     }
 
     /**
-     * Recalculate roles for all confirmed attendances per team, ordered by confirmed_at.
+     * Recalculate roles for all confirmed attendances per team.
+     * Goalkeepers get priority: the first confirmed GK on each team is placed
+     * ahead of outfield players, ensuring each team has a GK starter when possible.
      */
     public function recalculateRoles(FootballMatch $match): void
     {
@@ -206,21 +227,36 @@ class MatchService
         $attendances = $match->attendances()
             ->where('status', AttendanceStatus::Confirmed)
             ->whereNotNull('team')
+            ->with('player')
             ->orderBy('confirmed_at')
             ->get();
 
         $starterIds = [];
         $subIds = [];
-        $teamCounts = [AttendanceTeam::A->value => 0, AttendanceTeam::B->value => 0];
 
-        foreach ($attendances as $attendance) {
-            $teamKey = $attendance->team->value;
+        foreach ([AttendanceTeam::A, AttendanceTeam::B] as $teamEnum) {
+            $teamAttendances = $attendances->where('team', $teamEnum);
 
-            if ($teamCounts[$teamKey] < $maxPerTeam) {
-                $starterIds[] = $attendance->id;
-                $teamCounts[$teamKey]++;
-            } else {
-                $subIds[] = $attendance->id;
+            $gkSlotUsed = false;
+            $sorted = $teamAttendances->sortBy(function ($att) use (&$gkSlotUsed) {
+                $isGk = $att->player?->isGoalkeeper();
+                if ($isGk && ! $gkSlotUsed) {
+                    $gkSlotUsed = true;
+
+                    return [0, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
+                }
+
+                return [1, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
+            })->values();
+
+            $count = 0;
+            foreach ($sorted as $attendance) {
+                if ($count < $maxPerTeam) {
+                    $starterIds[] = $attendance->id;
+                    $count++;
+                } else {
+                    $subIds[] = $attendance->id;
+                }
             }
         }
 
@@ -242,16 +278,9 @@ class MatchService
 
         $maxPerTeam = intdiv($match->max_players, 2);
 
-        // Separate pre-assigned and unassigned players
         $preAssigned = $confirmedAttendances->whereNotNull('team');
         $unassigned = $confirmedAttendances->whereNull('team');
 
-        // Reset only unassigned players' roles
-        foreach ($unassigned as $attendance) {
-            $attendance->update(['role' => AttendanceRole::Pending]);
-        }
-
-        // Reset previously auto-assigned players (those with a team but reassignable)
         // When all players already have teams, reset all for a fresh sort
         if ($unassigned->isEmpty() && $preAssigned->isNotEmpty()) {
             foreach ($confirmedAttendances as $attendance) {
@@ -259,25 +288,22 @@ class MatchService
             }
             $preAssigned = collect();
             $unassigned = $confirmedAttendances;
+        } else {
+            foreach ($unassigned as $attendance) {
+                $attendance->update(['role' => AttendanceRole::Pending]);
+            }
         }
 
-        // Initialize teams with pre-assigned players
-        $teams = [
+        $teamStats = [
             AttendanceTeam::A->value => ['score' => 0.0, 'positions' => [], 'count' => 0],
             AttendanceTeam::B->value => ['score' => 0.0, 'positions' => [], 'count' => 0],
         ];
 
         foreach ($preAssigned as $attendance) {
-            $score = $this->calculatePlayerScore($attendance->player);
-            $posGroup = $this->positionGroup($attendance->player?->position);
-            $t = &$teams[$attendance->team->value];
-            $t['score'] += $score;
-            $t['positions'][$posGroup] = ($t['positions'][$posGroup] ?? 0) + 1;
-            $t['count']++;
+            $this->addToTeamStats($teamStats[$attendance->team->value], $attendance->player);
             $attendance->update(['role' => AttendanceRole::Starter]);
         }
 
-        // Score and sort unassigned players by skill rating (highest first)
         $scored = $unassigned->map(fn (MatchAttendance $att) => [
             'attendance' => $att,
             'score' => $this->calculatePlayerScore($att->player),
@@ -288,28 +314,12 @@ class MatchService
         $starters = $scored->take($starterSlots);
         $subs = $scored->slice($starterSlots);
 
-        // Cap per team to ensure even distribution when fewer players than max
-        $totalStarters = $preAssigned->count() + $starters->count();
-        $effectiveMaxPerTeam = (int) ceil($totalStarters / 2);
+        $effectiveMaxPerTeam = (int) ceil(($preAssigned->count() + $starters->count()) / 2);
 
-        // Balanced distribution: snake draft sorted by score
         foreach ($starters as $item) {
-            $posGroup = $item['position_group'];
-            $a = &$teams[AttendanceTeam::A->value];
-            $b = &$teams[AttendanceTeam::B->value];
+            $team = $this->pickTeamForDraft($teamStats, $item['position_group'], $effectiveMaxPerTeam);
 
-            $preferA = $a['score'] < $b['score']
-                || ($a['score'] === $b['score'] && ($a['positions'][$posGroup] ?? 0) <= ($b['positions'][$posGroup] ?? 0));
-
-            $team = ($preferA && $a['count'] < $effectiveMaxPerTeam) || $b['count'] >= $effectiveMaxPerTeam
-                ? AttendanceTeam::A
-                : AttendanceTeam::B;
-
-            $t = &$teams[$team->value];
-            $t['score'] += $item['score'];
-            $t['positions'][$posGroup] = ($t['positions'][$posGroup] ?? 0) + 1;
-            $t['count']++;
-
+            $this->addToTeamStats($teamStats[$team->value], null, $item['score'], $item['position_group']);
             $item['attendance']->update(['team' => $team, 'role' => AttendanceRole::Starter]);
         }
 
@@ -321,6 +331,7 @@ class MatchService
     /**
      * Calculate a player's skill score based on stats.
      * Players without stats get a random baseline score.
+     * Includes a small random factor to avoid identical sorts every time.
      */
     private function calculatePlayerScore(?Player $player): float
     {
@@ -328,18 +339,85 @@ class MatchService
             return round(mt_rand(30, 50) + mt_rand(0, 99) / 100, 2);
         }
 
-        $goalsPerMatch = $player->goals / $player->matches_played;
-        $assistsPerMatch = $player->assists / $player->matches_played;
+        $matches = $player->matches_played;
 
-        $goalScore = $goalsPerMatch * self::GOAL_WEIGHT;
-        $assistScore = $assistsPerMatch * self::ASSIST_WEIGHT;
-        $experienceScore = min($player->matches_played / self::EXPERIENCE_CAP_MATCHES, 1) * self::EXPERIENCE_WEIGHT;
-        $disciplineScore = max(0, self::DISCIPLINE_WEIGHT - ($player->yellow_cards * 0.5 + $player->red_cards * 2));
+        return round(
+            ($player->goals / $matches) * self::GOAL_WEIGHT
+            + ($player->assists / $matches) * self::ASSIST_WEIGHT
+            + min($matches / self::EXPERIENCE_CAP_MATCHES, 1) * self::EXPERIENCE_WEIGHT
+            + max(0, self::DISCIPLINE_WEIGHT - ($player->yellow_cards * 0.5 + $player->red_cards * 2))
+            + mt_rand(0, 500) / 100,
+            2,
+        );
+    }
 
-        // Small random factor to avoid identical sorts every time
-        $randomFactor = mt_rand(0, 500) / 100;
+    private function hasGoalkeeperStarter(FootballMatch $match, AttendanceTeam $team, int $excludePlayerId = 0): bool
+    {
+        return $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('role', AttendanceRole::Starter)
+            ->where('team', $team)
+            ->where('player_id', '!=', $excludePlayerId)
+            ->whereHas('player', fn ($q) => $q->where('position', PlayerPosition::Gk))
+            ->exists();
+    }
 
-        return round($goalScore + $assistScore + $experienceScore + $randomFactor + $disciplineScore, 2);
+    private function promoteGoalkeeperByDemotingLastStarter(
+        FootballMatch $match,
+        MatchAttendance $gkAttendance,
+        AttendanceTeam $team,
+    ): void {
+        $lastNonGkStarter = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('role', AttendanceRole::Starter)
+            ->where('team', $team)
+            ->where('id', '!=', $gkAttendance->id)
+            ->whereHas('player', fn ($q) => $q->where('position', '!=', PlayerPosition::Gk)->orWhereNull('position'))
+            ->orderByDesc('confirmed_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $lastNonGkStarter) {
+            return;
+        }
+
+        $lastNonGkStarter->update(['role' => AttendanceRole::Substitute]);
+        $gkAttendance->update(['role' => AttendanceRole::Starter]);
+    }
+
+    /**
+     * Accumulate a player's score and position into the given team stats bucket.
+     *
+     * @param  array{score: float, positions: array<string, int>, count: int}  $stats
+     */
+    private function addToTeamStats(array &$stats, ?Player $player, ?float $score = null, ?string $positionGroup = null): void
+    {
+        $score ??= $this->calculatePlayerScore($player);
+        $positionGroup ??= $this->positionGroup($player?->position);
+
+        $stats['score'] += $score;
+        $stats['positions'][$positionGroup] = ($stats['positions'][$positionGroup] ?? 0) + 1;
+        $stats['count']++;
+    }
+
+    /**
+     * Pick the best team for the next draft pick using snake-draft balancing.
+     *
+     * @param  array<string, array{score: float, positions: array<string, int>, count: int}>  $teamStats
+     */
+    private function pickTeamForDraft(array &$teamStats, string $positionGroup, int $effectiveMaxPerTeam): AttendanceTeam
+    {
+        $a = $teamStats[AttendanceTeam::A->value];
+        $b = $teamStats[AttendanceTeam::B->value];
+
+        $preferA = $a['score'] < $b['score']
+            || ($a['score'] === $b['score'] && ($a['positions'][$positionGroup] ?? 0) <= ($b['positions'][$positionGroup] ?? 0));
+
+        if (($preferA && $a['count'] < $effectiveMaxPerTeam) || $b['count'] >= $effectiveMaxPerTeam) {
+            return AttendanceTeam::A;
+        }
+
+        return AttendanceTeam::B;
     }
 
     /**

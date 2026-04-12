@@ -21,11 +21,8 @@ class MatchAttendanceController extends Controller
 
     public function store(Request $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        if ($match->status === MatchStatus::Completed) {
-            Gate::authorize('update', $match);
-        } else {
-            Gate::authorize('register', $match);
-        }
+        $ability = $match->status === MatchStatus::Completed ? 'update' : 'register';
+        Gate::authorize($ability, $match);
 
         $validated = $request->validate([
             'player_id' => ['required', 'exists:players,id'],
@@ -62,41 +59,66 @@ class MatchAttendanceController extends Controller
         ]);
 
         if (isset($validated['status'])) {
-            $status = AttendanceStatus::from($validated['status']);
-
-            if ($status === AttendanceStatus::Declined) {
-                $attendance->update([
-                    'status' => $status,
-                    'role' => AttendanceRole::Pending,
-                    'team' => null,
-                    'confirmed_at' => null,
-                ]);
-            } else {
-                try {
-                    $role = $this->matchService->determineRole($match, $attendance->player_id, $attendance->team);
-                } catch (MatchFullException) {
-                    return back()->with('error', 'El cupo del partido está lleno.');
-                }
-
-                $attendance->update([
-                    'status' => $status,
-                    'role' => $role,
-                    'confirmed_at' => now(),
-                ]);
-            }
-
-            return back()->with('success', 'Asistencia actualizada.');
+            return $this->updateStatus($match, $attendance, AttendanceStatus::from($validated['status']));
         }
 
-        $data = [];
-        if (isset($validated['team'])) {
-            $data['team'] = AttendanceTeam::from($validated['team']);
-        }
-        if (isset($validated['role'])) {
-            $data['role'] = AttendanceRole::from($validated['role']);
-        }
+        $data = array_filter([
+            'team' => isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null,
+            'role' => isset($validated['role']) ? AttendanceRole::from($validated['role']) : null,
+        ], fn ($value) => $value !== null);
 
         $attendance->update($data);
+
+        return back()->with('success', 'Asistencia actualizada.');
+    }
+
+    private function updateStatus(FootballMatch $match, MatchAttendance $attendance, AttendanceStatus $status): RedirectResponse
+    {
+        if ($status === AttendanceStatus::Declined) {
+            return $this->declineAttendance($match, $attendance);
+        }
+
+        return $this->confirmAttendance($match, $attendance, $status);
+    }
+
+    private function declineAttendance(FootballMatch $match, MatchAttendance $attendance): RedirectResponse
+    {
+        $shouldRecalculate = $attendance->role === AttendanceRole::Starter && $attendance->team !== null;
+
+        $attendance->update([
+            'status' => AttendanceStatus::Declined,
+            'role' => AttendanceRole::Pending,
+            'team' => null,
+            'confirmed_at' => null,
+        ]);
+
+        if ($shouldRecalculate) {
+            $this->matchService->recalculateRoles($match);
+        }
+
+        return back()->with('success', 'Asistencia actualizada.');
+    }
+
+    private function confirmAttendance(FootballMatch $match, MatchAttendance $attendance, AttendanceStatus $status): RedirectResponse
+    {
+        try {
+            $role = $this->matchService->determineRole($match, $attendance->player_id, $attendance->team);
+        } catch (MatchFullException) {
+            return back()->with('error', 'El cupo del partido está lleno.');
+        }
+
+        $attendance->update([
+            'status' => $status,
+            'role' => $role,
+            'confirmed_at' => now(),
+        ]);
+
+        if ($role === AttendanceRole::Substitute && $attendance->team) {
+            $attendance->load('player');
+            if ($attendance->player?->isGoalkeeper()) {
+                $this->matchService->recalculateRoles($match);
+            }
+        }
 
         return back()->with('success', 'Asistencia actualizada.');
     }
@@ -105,7 +127,14 @@ class MatchAttendanceController extends Controller
     {
         Gate::authorize('update', $match);
 
+        $wasStarter = $attendance->role === AttendanceRole::Starter;
+        $hadTeam = $attendance->team !== null;
+
         $attendance->delete();
+
+        if ($wasStarter && $hadTeam) {
+            $this->matchService->recalculateRoles($match);
+        }
 
         return back()->with('success', 'Jugador removido del partido.');
     }

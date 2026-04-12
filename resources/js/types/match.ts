@@ -51,6 +51,8 @@ export type FootballMatch = {
     team_b_name: string;
     team_a_color: string | null;
     team_b_color: string | null;
+    team_a_score: number | null;
+    team_b_score: number | null;
     is_recurring: boolean;
     recurrence_days: number;
     auto_cancel: boolean;

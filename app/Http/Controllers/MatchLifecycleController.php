@@ -9,6 +9,7 @@ use App\Notifications\MatchStatsFinalizedNotification;
 use App\Services\MatchService;
 use App\Services\MatchStatService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 
@@ -31,15 +32,10 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'El partido solo puede iniciarse 30 minutos antes.');
         }
 
-        $affected = FootballMatch::query()
-            ->where('id', $match->id)
-            ->where('status', MatchStatus::Upcoming)
-            ->update([
-                'status' => MatchStatus::InProgress,
-                'started_at' => now(),
-            ]);
-
-        if ($affected === 0) {
+        if (! $this->transitionStatus($match, MatchStatus::Upcoming, [
+            'status' => MatchStatus::InProgress,
+            'started_at' => now(),
+        ])) {
             return back()->with('error', 'El partido ya fue modificado por otro proceso.');
         }
 
@@ -54,15 +50,10 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'El partido solo puede completarse desde estado en progreso.');
         }
 
-        $affected = FootballMatch::query()
-            ->where('id', $match->id)
-            ->where('status', MatchStatus::InProgress)
-            ->update([
-                'status' => MatchStatus::Completed,
-                'ended_at' => now(),
-            ]);
-
-        if ($affected === 0) {
+        if (! $this->transitionStatus($match, MatchStatus::InProgress, [
+            'status' => MatchStatus::Completed,
+            'ended_at' => now(),
+        ])) {
             return back()->with('error', 'El partido ya fue modificado por otro proceso.');
         }
 
@@ -80,14 +71,9 @@ class MatchLifecycleController extends Controller
             return back()->with('error', 'Los partidos completados no pueden ser cancelados.');
         }
 
-        $affected = FootballMatch::query()
-            ->where('id', $match->id)
-            ->where('status', $match->status)
-            ->update([
-                'status' => MatchStatus::Cancelled,
-            ]);
-
-        if ($affected === 0) {
+        if (! $this->transitionStatus($match, $match->status, [
+            'status' => MatchStatus::Cancelled,
+        ])) {
             return back()->with('error', 'El partido ya fue modificado por otro proceso.');
         }
 
@@ -110,12 +96,38 @@ class MatchLifecycleController extends Controller
         $this->statService->finalizeStats($match);
 
         if ($isFirstFinalization) {
-            $members = $club->approvedMemberUsers();
-            if ($members->isNotEmpty()) {
-                Notification::send($members, new MatchStatsFinalizedNotification($match));
-            }
+            Notification::send($club->approvedMemberUsers(), new MatchStatsFinalizedNotification($match));
         }
 
         return back()->with('success', 'Estadísticas registradas.');
+    }
+
+    public function updateScore(Request $request, Club $club, FootballMatch $match): RedirectResponse
+    {
+        Gate::authorize('update', $match);
+
+        if ($match->status !== MatchStatus::Completed) {
+            return back()->with('error', 'El marcador solo puede registrarse para partidos completados.');
+        }
+
+        $validated = $request->validate([
+            'team_a_score' => ['required', 'integer', 'min:0', 'max:99'],
+            'team_b_score' => ['required', 'integer', 'min:0', 'max:99'],
+        ]);
+
+        $match->update($validated);
+
+        return back()->with('success', 'Marcador actualizado.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function transitionStatus(FootballMatch $match, MatchStatus $expectedStatus, array $data): bool
+    {
+        return FootballMatch::query()
+            ->where('id', $match->id)
+            ->where('status', $expectedStatus)
+            ->update($data) > 0;
     }
 }

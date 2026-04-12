@@ -4,6 +4,7 @@ use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
 use App\Enums\MatchStatus;
+use App\Enums\PlayerPosition;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
@@ -239,4 +240,206 @@ test('autoAssignTeams respects existing team choices', function () {
 
     // All 6 should be assigned
     expect($match->attendances->whereNotNull('team')->count())->toBe(6);
+});
+
+// --- Goalkeeper priority tests ---
+
+test('goalkeeper becomes starter when team is full and no other GK on team', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Fill team A with 2 outfield starters
+    $outfield1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $outfield2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+
+    $service->registerPlayer($match, $outfield1, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $outfield2, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    // GK confirms on team A (team full)
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $attendance = $service->registerPlayer($match, $gk, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    expect($attendance->role)->toBe(AttendanceRole::Starter);
+
+    // The last outfield player should be demoted
+    $demoted = MatchAttendance::where('player_id', $outfield2->id)->first();
+    expect($demoted->role)->toBe(AttendanceRole::Substitute);
+
+    // First outfield player stays starter
+    $first = MatchAttendance::where('player_id', $outfield1->id)->first();
+    expect($first->role)->toBe(AttendanceRole::Starter);
+});
+
+test('goalkeeper gets starter normally when team has room', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Only 1 player on team A
+    $outfield = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $service->registerPlayer($match, $outfield, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    // GK confirms — room available
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $attendance = $service->registerPlayer($match, $gk, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    expect($attendance->role)->toBe(AttendanceRole::Starter);
+
+    // No one was demoted
+    $outfieldAtt = MatchAttendance::where('player_id', $outfield->id)->first();
+    expect($outfieldAtt->role)->toBe(AttendanceRole::Starter);
+});
+
+test('goalkeeper gets substitute when another GK already starter on same team', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4, 'max_substitutes' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // GK1 confirms on team A as starter
+    $gk1 = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $service->registerPlayer($match, $gk1, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    // Fill remaining starter slot
+    $outfield = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $service->registerPlayer($match, $outfield, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    // GK2 confirms — another GK already exists as starter
+    $gk2 = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $attendance = $service->registerPlayer($match, $gk2, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    expect($attendance->role)->toBe(AttendanceRole::Substitute);
+});
+
+test('goalkeeper priority does not apply when team is null', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 2, 'max_substitutes' => 2]);
+    $service = new MatchService;
+
+    // Fill starters without team
+    $outfield1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $outfield2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+    $service->registerPlayer($match, $outfield1, AttendanceStatus::Confirmed);
+    $service->registerPlayer($match, $outfield2, AttendanceStatus::Confirmed);
+
+    // GK confirms without team — should be substitute (no priority)
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $attendance = $service->registerPlayer($match, $gk, AttendanceStatus::Confirmed);
+
+    expect($attendance->role)->toBe(AttendanceRole::Substitute);
+});
+
+test('demoted player is the last confirmed non-GK on the team', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 6]); // 3 per team
+    $service = new MatchService;
+
+    // Fill team A with 3 outfield players
+    $first = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cb]);
+    $second = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $third = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+
+    $service->registerPlayer($match, $first, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $second, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $third, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    // GK confirms — the third (last confirmed) should be demoted
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $service->registerPlayer($match, $gk, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    expect(MatchAttendance::where('player_id', $first->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $second->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $third->id)->first()->role)->toBe(AttendanceRole::Substitute)
+        ->and(MatchAttendance::where('player_id', $gk->id)->first()->role)->toBe(AttendanceRole::Starter);
+});
+
+test('recalculateRoles places GK as starter ahead of later outfield players', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Create 3 attendances on team A: 2 outfield then GK, all as starters
+    $outfield1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $outfield2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $outfield1->id,
+        'status' => AttendanceStatus::Confirmed,
+        'team' => AttendanceTeam::A,
+        'role' => AttendanceRole::Starter,
+        'confirmed_at' => now(),
+    ]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $outfield2->id,
+        'status' => AttendanceStatus::Confirmed,
+        'team' => AttendanceTeam::A,
+        'role' => AttendanceRole::Starter,
+        'confirmed_at' => now()->addMinute(),
+    ]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $gk->id,
+        'status' => AttendanceStatus::Confirmed,
+        'team' => AttendanceTeam::A,
+        'role' => AttendanceRole::Starter,
+        'confirmed_at' => now()->addMinutes(2),
+    ]);
+
+    $service->recalculateRoles($match);
+
+    // GK gets priority, first outfield keeps slot, second outfield becomes sub
+    expect(MatchAttendance::where('player_id', $gk->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $outfield1->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $outfield2->id)->first()->role)->toBe(AttendanceRole::Substitute);
+});
+
+test('goalkeeper priority on team B does not affect team A', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Fill both teams
+    $teamAPlayer1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $teamAPlayer2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+    $teamBPlayer1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cb]);
+    $teamBPlayer2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+
+    $service->registerPlayer($match, $teamAPlayer1, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $teamAPlayer2, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $teamBPlayer1, AttendanceStatus::Confirmed, AttendanceTeam::B);
+    $service->registerPlayer($match, $teamBPlayer2, AttendanceStatus::Confirmed, AttendanceTeam::B);
+
+    // GK confirms on team B
+    $gk = Player::factory()->goalkeeper()->create(['club_id' => $match->club_id]);
+    $service->registerPlayer($match, $gk, AttendanceStatus::Confirmed, AttendanceTeam::B);
+
+    // Team A players should remain starters
+    expect(MatchAttendance::where('player_id', $teamAPlayer1->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $teamAPlayer2->id)->first()->role)->toBe(AttendanceRole::Starter);
+
+    // GK is starter on team B, last team B player is demoted
+    expect(MatchAttendance::where('player_id', $gk->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $teamBPlayer2->id)->first()->role)->toBe(AttendanceRole::Substitute);
+});
+
+// --- Substitute promotion tests ---
+
+test('substitute is promoted to starter when a starter declines via registerPlayer', function () {
+    $match = FootballMatch::factory()->create(['max_players' => 4, 'max_substitutes' => 4]); // 2 per team
+    $service = new MatchService;
+
+    // Fill team A: 2 starters + 1 substitute
+    $starter1 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cm]);
+    $starter2 = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::St]);
+    $sub = Player::factory()->create(['club_id' => $match->club_id, 'position' => PlayerPosition::Cb]);
+
+    $service->registerPlayer($match, $starter1, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $starter2, AttendanceStatus::Confirmed, AttendanceTeam::A);
+    $service->registerPlayer($match, $sub, AttendanceStatus::Confirmed, AttendanceTeam::A);
+
+    expect(MatchAttendance::where('player_id', $sub->id)->first()->role)->toBe(AttendanceRole::Substitute);
+
+    // Starter 2 declines
+    $service->registerPlayer($match, $starter2, AttendanceStatus::Declined);
+
+    // Substitute should now be promoted to starter
+    expect(MatchAttendance::where('player_id', $sub->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $starter1->id)->first()->role)->toBe(AttendanceRole::Starter)
+        ->and(MatchAttendance::where('player_id', $starter2->id)->first()->role)->toBe(AttendanceRole::Pending);
 });

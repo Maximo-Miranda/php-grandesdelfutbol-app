@@ -25,6 +25,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -736,9 +737,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold" :style="match.team_a_color ? { backgroundColor: match.team_a_color + '30' } : { backgroundColor: 'var(--color-muted)' }">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -781,9 +780,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold" :style="match.team_b_color ? { backgroundColor: match.team_b_color + '30' } : { backgroundColor: 'var(--color-muted)' }">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -823,9 +820,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -862,9 +857,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -921,9 +914,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -966,9 +957,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -1008,9 +997,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -1047,9 +1034,7 @@ function dismissPush() {
                                 class="flex items-center gap-3 bg-card px-4 py-2.5"
                             >
                                 <span class="w-5 text-center text-xs font-bold text-muted-foreground">{{ idx + 1 }}</span>
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold">
-                                    {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                                </div>
+                                <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                                 <div class="min-w-0 flex-1">
                                     <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                                     <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
@@ -1092,9 +1077,7 @@ function dismissPush() {
                             :key="att.id"
                             class="flex items-center gap-3 bg-card px-4 py-2.5"
                         >
-                            <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                                {{ att.player?.display_name?.charAt(0)?.toUpperCase() ?? '?' }}
-                            </div>
+                            <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
                             <div class="min-w-0 flex-1">
                                 <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
                             </div>

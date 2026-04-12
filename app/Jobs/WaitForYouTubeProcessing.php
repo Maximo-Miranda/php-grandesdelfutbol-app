@@ -4,12 +4,10 @@ namespace App\Jobs;
 
 use App\Enums\VideoUploadStatus;
 use App\Models\MatchVideoUpload;
-use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\YouTubeService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -54,7 +52,6 @@ class WaitForYouTubeProcessing implements ShouldQueue
 
             if ($affected > 0) {
                 $this->cleanupOriginal();
-                $this->notifyClub();
             }
 
             return;
@@ -85,17 +82,5 @@ class WaitForYouTubeProcessing implements ShouldQueue
             Storage::disk('s3')->delete($originalPath);
             $this->videoUpload->update(['original_s3_path' => null]);
         }
-    }
-
-    private function notifyClub(): void
-    {
-        $match = $this->videoUpload->match;
-        $club = $match?->club;
-
-        if (! $club) {
-            return;
-        }
-
-        Notification::send($club->approvedMemberUsers(), new MatchVideoUploadedNotification($match));
     }
 }
