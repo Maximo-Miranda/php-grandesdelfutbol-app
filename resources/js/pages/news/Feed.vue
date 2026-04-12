@@ -141,7 +141,7 @@ onBeforeUnmount(() => offNavigate());
                 </button>
             </div>
 
-            <NewsCategoryPills v-if="!isSearching" :current-category="currentCategory" class="mb-4" />
+            <NewsCategoryPills v-if="!isSearching" :current-category="currentCategory" :has-preferences="hasPreferences" class="mb-4" />
 
             <!-- Preferences hint (auth only) -->
             <div v-if="isAuthenticated && !hasPreferences && !isSearching" class="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
