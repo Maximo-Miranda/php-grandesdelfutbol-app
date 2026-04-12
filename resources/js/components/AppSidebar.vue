@@ -5,6 +5,7 @@ import {
     Film,
     Home,
     MapPin,
+    Newspaper,
     Settings,
     Shield,
     Users,
@@ -25,17 +26,20 @@ import {
 } from '@/components/ui/sidebar';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { useNewsBadge } from '@/composables/useNewsBadge';
 import type { Club, NavItem } from '@/types';
 
 const page = usePage<{ currentClub: Club | null }>();
 const { isCurrentOrParentUrl } = useCurrentUrl();
 const { isAdmin } = useClubPermissions();
+const { newsUnread, badgeLabel: newsBadgeLabel, showBadge: showNewsBadge } = useNewsBadge();
 
 const currentClub = computed(() => page.props.currentClub);
 
 const globalNavItems: NavItem[] = [
     { title: 'Mis Clubes', href: '/clubs', icon: Shield },
     { title: 'Mis Jugadas', href: '/player-card', icon: Film },
+    { title: 'Noticias', href: '/news', icon: Newspaper },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {
@@ -94,7 +98,16 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                             :tooltip="item.title"
                         >
                             <Link :href="item.href">
-                                <component :is="item.icon" />
+                                <div class="relative shrink-0">
+                                    <component :is="item.icon" />
+                                    <span
+                                        v-if="item.href === '/news' && showNewsBadge"
+                                        class="absolute -right-1.5 -top-1.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm shadow-red-500/50"
+                                        :class="{ 'animate-pulse': newsUnread.hasBreaking }"
+                                    >
+                                        {{ newsBadgeLabel }}
+                                    </span>
+                                </div>
                                 <span>{{ item.title }}</span>
                             </Link>
                         </SidebarMenuButton>

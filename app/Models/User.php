@@ -37,6 +37,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property string|null $two_factor_recovery_codes
  * @property CarbonImmutable|null $two_factor_confirmed_at
  * @property int|null $last_club_id
+ * @property CarbonImmutable|null $news_last_seen_at
  * @property-read Collection<int, ClubMember> $clubMemberships
  * @property-read int|null $club_memberships_count
  * @property-read Collection<int, Club> $clubs
@@ -48,6 +49,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property-read int|null $players_count
  * @property-read Collection<int, SocialAccount> $socialAccounts
  * @property-read int|null $social_accounts_count
+ * @property-read UserNewsPreference|null $newsPreference
  *
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
@@ -87,6 +89,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'terms_accepted_ip',
         'terms_accepted_user_agent',
         'last_club_id',
+        'news_last_seen_at',
     ];
 
     /**
@@ -113,6 +116,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'terms_accepted_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'news_last_seen_at' => 'datetime',
         ];
     }
 
@@ -151,6 +155,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
+    }
+
+    public function newsPreference(): HasOne
+    {
+        return $this->hasOne(UserNewsPreference::class);
     }
 
     public function hasSocialAccount(string $provider): bool

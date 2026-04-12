@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\ClubContext;
+use App\Services\NewsBadgeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -47,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             },
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             'googleAuthEnabled' => config('services.google.enabled'),
+            'newsUnreadCount' => fn () => app(NewsBadgeService::class)->forUser($user),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
