@@ -22,6 +22,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             currentMemberRole: 'owner' | 'admin' | 'player' | 'super_admin' | null;
+            newsUnreadCount: { count: number; hasBreaking: boolean };
             [key: string]: unknown;
         };
     }

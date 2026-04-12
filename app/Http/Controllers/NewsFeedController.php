@@ -25,6 +25,9 @@ class NewsFeedController extends Controller
         $user = auth()->user();
         $perPage = config('news.feed.per_page', 15);
 
+        // Reset the unread-news badge on the bottom nav when the user opens the feed.
+        $user?->update(['news_last_seen_at' => now()]);
+
         $articles = Inertia::scroll(fn () => match (true) {
             filled($search) => $this->feedService->search($search, $perPage),
             $user !== null => $this->feedService->getPersonalizedFeed($user, $category, $perPage),

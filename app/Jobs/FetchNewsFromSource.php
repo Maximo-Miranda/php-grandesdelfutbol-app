@@ -93,12 +93,15 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
         }
     }
 
-    private function parseDate(?string $date): ?Carbon
+    private function parseDate(?string $date): ?callable
     {
         if (blank($date)) {
             return null;
         }
 
-        return rescue(fn () => Carbon::parse($date));
+        // RSS timestamps are typically in UTC or a remote timezone. Normalize to the
+        // app timezone so published_at stays aligned with the rest of the system
+        // (notifications, news_last_seen_at, etc.) which are all Bogotá-naive.
+        return rescue(fn () => Carbon::parse($date)->setTimezone(config('app.timezone')));
     }
 }
