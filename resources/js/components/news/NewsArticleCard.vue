@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
-import { Clock, Layers } from 'lucide-vue-next';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { Clock, Layers, MessageCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
+import NewsBookmarkButton from '@/components/news/NewsBookmarkButton.vue';
 import NewsImageCarousel from '@/components/news/NewsImageCarousel.vue';
+import NewsLikeButton from '@/components/news/NewsLikeButton.vue';
+import NewsShareButton from '@/components/news/NewsShareButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { formatTimeAgo } from '@/lib/utils';
 import type { NewsArticle } from '@/types';
@@ -12,8 +15,19 @@ const props = defineProps<{
     storySourceCount?: number;
 }>();
 
+const page = usePage();
+const isAuthenticated = computed(() => !!page.props.auth?.user);
+
 const timeAgo = computed(() => formatTimeAgo(props.article.published_at));
 const articleUrl = computed(() => `/news/${props.article.slug}`);
+
+const shareUrl = computed(() => {
+    if (typeof window === 'undefined') {
+        return articleUrl.value;
+    }
+
+    return `${window.location.origin}${articleUrl.value}`;
+});
 
 const images = computed<string[]>(() => {
     const gallery = props.article.image_urls ?? [];
@@ -58,6 +72,36 @@ function openArticle() {
                 :alt="article.title"
                 aspect-ratio="video"
                 class="rounded-none"
+            />
+        </div>
+
+        <!-- Action row (Instagram-style: social left, save right) -->
+        <div v-if="isAuthenticated" class="flex items-center justify-between px-4 pt-3">
+            <div class="flex items-center gap-4">
+                <NewsLikeButton
+                    :article-slug="article.slug"
+                    :is-liked="article.is_liked ?? false"
+                    :likes-count="article.likes_count ?? 0"
+                />
+                <Link
+                    :href="articleUrl"
+                    class="inline-flex h-5 items-center gap-1.5 leading-none text-foreground transition-colors hover:text-primary"
+                    aria-label="Ver comentarios"
+                >
+                    <MessageCircle class="size-5 shrink-0" />
+                    <span v-if="(article.comments_count ?? 0) > 0" class="text-sm font-medium leading-none tabular-nums">
+                        {{ article.comments_count }}
+                    </span>
+                </Link>
+                <NewsShareButton
+                    :article-slug="article.slug"
+                    :article-title="article.title"
+                    :share-url="shareUrl"
+                />
+            </div>
+            <NewsBookmarkButton
+                :article-slug="article.slug"
+                :is-bookmarked="article.is_bookmarked ?? false"
             />
         </div>
 

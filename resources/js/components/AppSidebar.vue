@@ -26,17 +26,15 @@ import {
 } from '@/components/ui/sidebar';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { useNewsBadge } from '@/composables/useNewsBadge';
 import type { Club, NavItem } from '@/types';
 
 const page = usePage<{ currentClub: Club | null }>();
 const { isCurrentOrParentUrl } = useCurrentUrl();
 const { isAdmin } = useClubPermissions();
+const { newsUnread, badgeLabel: newsBadgeLabel, showBadge: showNewsBadge } = useNewsBadge();
 
 const currentClub = computed(() => page.props.currentClub);
-
-const newsUnread = computed(() => page.props.newsUnreadCount ?? { count: 0, hasBreaking: false });
-const newsBadgeLabel = computed(() => (newsUnread.value.count > 9 ? '9+' : String(newsUnread.value.count)));
-const showNewsBadge = computed(() => newsUnread.value.count > 0 && !isCurrentOrParentUrl('/news'));
 
 const globalNavItems: NavItem[] = [
     { title: 'Mis Clubes', href: '/clubs', icon: Shield },

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useInitials } from '@/composables/useInitials';
+import { useNewsFeedDirty } from '@/composables/useNewsFeedDirty';
 import { formatTimeAgo } from '@/lib/utils';
 import type { NewsArticleComment } from '@/types';
 
@@ -17,6 +18,7 @@ const props = defineProps<{
 
 const page = usePage();
 const { getInitials } = useInitials();
+const { markDirty } = useNewsFeedDirty();
 
 const currentUserId = computed(() => page.props.auth?.user?.id ?? null);
 const isAuthenticated = computed(() => currentUserId.value !== null);
@@ -32,13 +34,17 @@ function submit() {
 
     form.post(`/news/${props.articleSlug}/comments`, {
         preserveScroll: true,
-        onSuccess: () => form.reset(),
+        onSuccess: () => {
+            form.reset();
+            markDirty();
+        },
     });
 }
 
 function deleteComment(comment: NewsArticleComment) {
     router.delete(`/news/${props.articleSlug}/comments/${comment.ulid}`, {
         preserveScroll: true,
+        onSuccess: () => markDirty(),
     });
 }
 

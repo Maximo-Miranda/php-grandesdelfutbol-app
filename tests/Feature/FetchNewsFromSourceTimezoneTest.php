@@ -4,6 +4,7 @@ use App\Jobs\FetchNewsFromSource;
 use App\Models\NewsArticle;
 use App\Models\NewsSource;
 use App\Services\ArticleCategorizationService;
+use App\Services\NewsBadgeService;
 use App\Services\RssFetcherService;
 use Illuminate\Support\Collection;
 
@@ -32,6 +33,7 @@ test('job stores published_at in the app timezone when the feed reports UTC', fu
     (new FetchNewsFromSource($source))->handle(
         $fetcher,
         app(ArticleCategorizationService::class),
+        app(NewsBadgeService::class),
     );
 
     $article = NewsArticle::where('external_id', 'tz-test-1')->firstOrFail();

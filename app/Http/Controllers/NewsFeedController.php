@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\NewsInteractionType;
 use App\Models\NewsArticle;
+use App\Services\NewsBadgeService;
 use App\Services\NewsFeedService;
 use App\Services\NewsSummaryService;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +17,7 @@ class NewsFeedController extends Controller
     public function __construct(
         private readonly NewsFeedService $feedService,
         private readonly NewsSummaryService $summaryService,
+        private readonly NewsBadgeService $badgeService,
     ) {}
 
     public function index(Request $request): Response
@@ -25,14 +27,24 @@ class NewsFeedController extends Controller
         $user = auth()->user();
         $perPage = config('news.feed.per_page', 15);
 
-        // Reset the unread-news badge on the bottom nav when the user opens the feed.
-        $user?->update(['news_last_seen_at' => now()]);
+        if (is_string($category) && ! NewsFeedService::categoryExists($category)) {
+            abort(404, 'Categoría de noticias no encontrada.');
+        }
 
+        // Reset the unread-news badge on the bottom nav when the user opens the feed.
+        if ($user !== null) {
+            $user->update(['news_last_seen_at' => now()]);
+            $this->badgeService->forget($user);
+        }
+
+        // matchOn('data.ulid') lets partial reloads upsert individual cards by
+        // ulid without resetting the accumulated pages or the scroll position,
+        // which we use to refresh counters after the user posts a comment.
         $articles = Inertia::scroll(fn () => match (true) {
-            filled($search) => $this->feedService->search($search, $perPage),
+            filled($search) => $this->feedService->search($search, $perPage, $user),
             $user !== null => $this->feedService->getPersonalizedFeed($user, $category, $perPage),
             default => $this->feedService->getPublicFeed($category, $perPage),
-        });
+        })->matchOn('data.ulid');
 
         return Inertia::render('news/Feed', [
             'articles' => $articles,
@@ -45,6 +57,10 @@ class NewsFeedController extends Controller
     public function show(NewsArticle $article): Response
     {
         $article->load('source:id,name,slug,logo_url');
+        $article->loadCount([
+            'comments as comments_count',
+            'interactions as likes_count' => fn ($q) => $q->where('type', NewsInteractionType::Like),
+        ]);
 
         $user = auth()->user();
 
@@ -60,6 +76,19 @@ class NewsFeedController extends Controller
             ->limit(50)
             ->get();
 
+        $isBookmarked = false;
+        $isLiked = false;
+
+        if ($user !== null) {
+            $existingTypes = $article->interactions()
+                ->where('user_id', $user->id)
+                ->whereIn('type', [NewsInteractionType::Bookmark, NewsInteractionType::Like])
+                ->pluck('type');
+
+            $isBookmarked = $existingTypes->contains(NewsInteractionType::Bookmark);
+            $isLiked = $existingTypes->contains(NewsInteractionType::Like);
+        }
+
         return Inertia::render('news/Show', [
             'article' => $article,
             'relatedArticles' => $relatedArticles,
@@ -67,15 +96,25 @@ class NewsFeedController extends Controller
             'comments' => $comments,
             'commentsCount' => $comments->count(),
             'readingMinutes' => $this->summaryService->estimateReadingMinutes($article),
-            'isBookmarked' => $user
-                ? $article->interactions()
-                    ->where('user_id', $user->id)
-                    ->where('type', NewsInteractionType::Bookmark)
-                    ->exists()
-                : false,
+            'isBookmarked' => $isBookmarked,
+            'isLiked' => $isLiked,
+            'likesCount' => $article->likes_count,
             'canSummarize' => $article->ai_summary === null
                 && $this->summaryService->hasEnoughContent($article)
                 && $this->summaryService->canGenerate(),
+        ]);
+    }
+
+    public function bookmarks(Request $request): Response
+    {
+        $perPage = config('news.feed.per_page', 15);
+
+        $articles = Inertia::scroll(
+            fn () => $this->feedService->getBookmarkedFeed($request->user(), $perPage),
+        )->matchOn('data.ulid');
+
+        return Inertia::render('news/Bookmarks', [
+            'articles' => $articles,
         ]);
     }
 

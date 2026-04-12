@@ -14,11 +14,24 @@ use Illuminate\Support\Facades\DB;
 
 class NewsFeedService
 {
-    public function getPublicFeed(?string $category = null, int $perPage = 15): LengthAwarePaginator
+    /**
+     * Mapping from dictionary type to the JSON column storing that entity
+     * on news_articles. Used by both the "exists?" check and the query
+     * filter, so adding a new type is a one-line change.
+     *
+     * @var array<string, string>
+     */
+    private const CATEGORY_COLUMN_MAP = [
+        'competition' => 'news_articles.competitions',
+        'topic' => 'news_articles.topics',
+        'team' => 'news_articles.teams',
+    ];
+
+    public function getPublicFeed(?string $category = null, int $perPage = 15, ?User $user = null): LengthAwarePaginator
     {
         $days = config('news.feed.public_feed_days', 3);
 
-        $query = $this->baseQuery()
+        $query = $this->baseQuery($user)
             ->where('news_articles.published_at', '>=', now()->subDays($days));
 
         if ($category !== null) {
@@ -28,11 +41,11 @@ class NewsFeedService
         return $this->paginateFeed($query, $perPage);
     }
 
-    public function search(string $query, int $perPage = 15): LengthAwarePaginator
+    public function search(string $query, int $perPage = 15, ?User $user = null): LengthAwarePaginator
     {
         $search = '%'.mb_strtolower($query).'%';
 
-        return $this->baseQuery()
+        return $this->baseQuery($user)
             ->where(function (Builder $q) use ($search) {
                 $q->whereRaw('LOWER(news_articles.title) LIKE ?', [$search])
                     ->orWhereRaw('LOWER(news_articles.snippet) LIKE ?', [$search]);
@@ -46,10 +59,10 @@ class NewsFeedService
         $preference = $user->newsPreference;
 
         if ($preference === null || ! $preference->hasPreferences()) {
-            return $this->getPublicFeed($category, $perPage);
+            return $this->getPublicFeed($category, $perPage, $user);
         }
 
-        $query = $this->baseQuery();
+        $query = $this->baseQuery($user);
 
         if ($category !== null) {
             $this->applyCategoryFilter($query, $category);
@@ -74,22 +87,115 @@ class NewsFeedService
         );
     }
 
-    private function baseQuery(): Builder
+    public function toggleBookmark(User $user, NewsArticle $article): bool
     {
-        return NewsArticle::query()
+        return $this->toggleInteraction($user, $article, NewsInteractionType::Bookmark);
+    }
+
+    public function toggleLike(User $user, NewsArticle $article): bool
+    {
+        return $this->toggleInteraction($user, $article, NewsInteractionType::Like);
+    }
+
+    /**
+     * Shared toggle for interactions that behave as on/off switches
+     * (bookmark, like). Returns true when the interaction is now active.
+     */
+    private function toggleInteraction(User $user, NewsArticle $article, NewsInteractionType $type): bool
+    {
+        $existing = NewsArticleInteraction::query()
+            ->where('user_id', $user->id)
+            ->where('news_article_id', $article->id)
+            ->where('type', $type)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+
+            return false;
+        }
+
+        NewsArticleInteraction::query()->create([
+            'user_id' => $user->id,
+            'news_article_id' => $article->id,
+            'type' => $type,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Record a share interaction. Idempotent per user/article.
+     */
+    public function recordShare(User $user, NewsArticle $article): void
+    {
+        $this->recordInteraction($user, $article, NewsInteractionType::Share);
+    }
+
+    public function getBookmarkedFeed(User $user, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->baseQuery($user)
+            ->whereHas('interactions', function (Builder $q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->where('type', NewsInteractionType::Bookmark);
+            })
+            ->orderByDesc('published_at')
+            ->paginate($perPage);
+    }
+
+    private function baseQuery(?User $user = null): Builder
+    {
+        $query = NewsArticle::query()
             ->with('source:id,name,slug,logo_url')
-            ->select('news_articles.*');
+            ->select('news_articles.*')
+            ->withCount([
+                'comments as comments_count',
+                'interactions as likes_count' => fn (Builder $q) => $q
+                    ->where('type', NewsInteractionType::Like),
+            ]);
+
+        if ($user !== null) {
+            $query->withExists([
+                'interactions as is_bookmarked' => fn (Builder $q) => $q
+                    ->where('user_id', $user->id)
+                    ->where('type', NewsInteractionType::Bookmark),
+                'interactions as is_liked' => fn (Builder $q) => $q
+                    ->where('user_id', $user->id)
+                    ->where('type', NewsInteractionType::Like),
+            ]);
+        }
+
+        return $query;
+    }
+
+    public static function categoryExists(string $category): bool
+    {
+        $dictionary = NewsDictionaryEntry::getDictionary();
+
+        foreach (array_keys(self::CATEGORY_COLUMN_MAP) as $type) {
+            if (isset($dictionary[$type][$category])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function applyCategoryFilter(Builder $query, string $category): void
     {
         $dictionary = NewsDictionaryEntry::getDictionary();
 
-        if (isset($dictionary['competition'][$category])) {
-            $query->whereJsonContains('news_articles.competitions', $category);
-        } elseif (isset($dictionary['topic'][$category])) {
-            $query->whereJsonContains('news_articles.topics', $category);
+        foreach (self::CATEGORY_COLUMN_MAP as $type => $column) {
+            if (isset($dictionary[$type][$category])) {
+                $query->whereJsonContains($column, $category);
+
+                return;
+            }
         }
+
+        // Unknown category — force empty result set so the controller can
+        // return a clear "no results" state instead of silently showing all.
+        $query->whereRaw('1 = 0');
     }
 
     private function applyPreferenceFilter(Builder $query, UserNewsPreference $preference): void
@@ -112,25 +218,35 @@ class NewsFeedService
     private function paginateFeed(Builder $query, int $perPage): LengthAwarePaginator
     {
         return $this->deduplicateByStoryGroup($query)
-            ->orderByDesc('is_breaking')
-            ->orderByDesc('published_at')
+            ->orderByDesc('news_articles.is_breaking')
+            ->orderByDesc('news_articles.published_at')
             ->paginate($perPage);
     }
 
+    /**
+     * Keep a single article per story_group_id (the one from the highest-
+     * priority source, breaking ties by published_at DESC). Implemented as a
+     * pure SQL subquery so it stays in the database without pulling IDs into
+     * PHP memory, scaling past hundreds of thousands of articles.
+     */
     private function deduplicateByStoryGroup(Builder $query): Builder
     {
-        $bestIds = DB::table(
-            DB::raw('(
-                SELECT na.id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY COALESCE(na.story_group_id, CAST(na.id AS TEXT))
-                           ORDER BY ns.priority DESC, na.published_at DESC
-                       ) AS rn
-                FROM news_articles na
-                JOIN news_sources ns ON ns.id = na.news_source_id
-            ) AS ranked')
-        )->where('rn', 1)->pluck('id');
+        $ranked = NewsArticle::query()
+            ->select('news_articles.id')
+            ->join('news_sources', 'news_sources.id', '=', 'news_articles.news_source_id')
+            ->selectRaw(
+                'ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(news_articles.story_group_id, CAST(news_articles.id AS TEXT))
+                    ORDER BY news_sources.priority DESC, news_articles.published_at DESC
+                ) AS rn'
+            );
 
-        return $query->whereIn('news_articles.id', $bestIds);
+        return $query->joinSub(
+            DB::query()->fromSub($ranked, 'ranked')->where('rn', 1),
+            'deduped',
+            'deduped.id',
+            '=',
+            'news_articles.id',
+        );
     }
 }

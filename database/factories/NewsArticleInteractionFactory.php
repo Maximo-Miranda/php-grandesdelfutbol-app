@@ -28,4 +28,18 @@ class NewsArticleInteractionFactory extends Factory
             'type' => NewsInteractionType::Bookmark,
         ]);
     }
+
+    public function like(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => NewsInteractionType::Like,
+        ]);
+    }
+
+    public function share(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => NewsInteractionType::Share,
+        ]);
+    }
 }

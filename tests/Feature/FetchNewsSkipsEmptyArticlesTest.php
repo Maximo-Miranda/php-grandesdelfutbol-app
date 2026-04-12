@@ -4,6 +4,7 @@ use App\Jobs\FetchNewsFromSource;
 use App\Models\NewsArticle;
 use App\Models\NewsSource;
 use App\Services\ArticleCategorizationService;
+use App\Services\NewsBadgeService;
 use App\Services\RssFetcherService;
 use Illuminate\Support\Collection;
 
@@ -34,7 +35,7 @@ test('articles without image_url are skipped at ingestion', function () {
         $mock->shouldReceive('fetch')->once()->andReturn($entries);
     });
 
-    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class));
+    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class), app(NewsBadgeService::class));
 
     expect(NewsArticle::pluck('external_id')->all())->toBe(['valid-1']);
 });
@@ -52,7 +53,7 @@ test('articles without snippet are skipped at ingestion', function () {
         $mock->shouldReceive('fetch')->once()->andReturn($entries);
     });
 
-    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class));
+    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class), app(NewsBadgeService::class));
 
     expect(NewsArticle::pluck('external_id')->all())->toBe(['valid-2']);
 });
@@ -69,7 +70,7 @@ test('valid articles with both image and snippet are stored', function () {
         $mock->shouldReceive('fetch')->once()->andReturn($entries);
     });
 
-    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class));
+    (new FetchNewsFromSource($source))->handle($fetcher, app(ArticleCategorizationService::class), app(NewsBadgeService::class));
 
     expect(NewsArticle::count())->toBe(2);
 });

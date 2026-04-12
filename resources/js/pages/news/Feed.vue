@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
-import { Newspaper, Search, Settings2, X } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { Bookmark, Newspaper, Search, Settings2, X } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NewsArticleCard from '@/components/news/NewsArticleCard.vue';
 import NewsCategoryPills from '@/components/news/NewsCategoryPills.vue';
 import NewsFeedSkeleton from '@/components/news/NewsFeedSkeleton.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useNewsFeedDirty } from '@/composables/useNewsFeedDirty';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, NewsArticle } from '@/types';
 
@@ -54,6 +55,34 @@ const emptyMessage = computed(() => {
 
     return 'No hay noticias disponibles.';
 });
+
+// When the user posts or deletes a comment (or toggles like) on the detail
+// page and hits back, upsert the affected cards without touching scroll or
+// the already-loaded infinite scroll pages. Works together with the
+// matchOn('data.ulid') config on Inertia::scroll() in the backend.
+const { consumeDirty } = useNewsFeedDirty();
+
+function refreshIfDirty(): void {
+    if (!consumeDirty()) {
+        return;
+    }
+
+    // router.reload preserves scroll position and local state by default
+    // (ReloadOptions explicitly omits preserveScroll/preserveState). The
+    // matchOn('data.ulid') on the backend handles upserting the affected
+    // card into the already-loaded infinite scroll pages.
+    router.reload({ only: ['articles'] });
+}
+
+onMounted(refreshIfDirty);
+
+const offNavigate = router.on('navigate', (event) => {
+    if (event.detail.page.component === 'news/Feed') {
+        refreshIfDirty();
+    }
+});
+
+onBeforeUnmount(() => offNavigate());
 </script>
 
 <template>
@@ -76,9 +105,22 @@ const emptyMessage = computed(() => {
         <component :is="isAuthenticated ? 'div' : 'main'" class="mx-auto max-w-2xl px-4 py-6">
             <div v-if="isAuthenticated" class="mb-4 flex items-center justify-between">
                 <h1 class="text-lg font-bold">Noticias</h1>
-                <Link href="/news/preferences" class="text-muted-foreground hover:text-foreground">
-                    <Settings2 class="size-5" />
-                </Link>
+                <div class="flex items-center gap-1">
+                    <Link
+                        href="/news/bookmarks"
+                        aria-label="Ver noticias guardadas"
+                        class="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                        <Bookmark class="size-5" />
+                    </Link>
+                    <Link
+                        href="/news/preferences"
+                        aria-label="Personalizar feed"
+                        class="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                        <Settings2 class="size-5" />
+                    </Link>
+                </div>
             </div>
 
             <!-- Search bar -->

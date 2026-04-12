@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
-use App\Enums\NewsContentType;
 use Carbon\CarbonImmutable;
 use Database\Factories\NewsArticleFactory;
 use Illuminate\Database\Eloquent\Collection;
@@ -27,8 +26,6 @@ use Spatie\Sluggable\SlugOptions;
  * @property array<int, string>|null $image_urls
  * @property string $original_url
  * @property string|null $author
- * @property NewsContentType $content_type
- * @property string|null $video_embed_url
  * @property array<int, string>|null $tags
  * @property array<int, string>|null $competitions
  * @property array<int, string>|null $teams
@@ -80,8 +77,6 @@ class NewsArticle extends Model
         'image_urls',
         'original_url',
         'author',
-        'content_type',
-        'video_embed_url',
         'tags',
         'competitions',
         'teams',
@@ -95,7 +90,6 @@ class NewsArticle extends Model
     protected function casts(): array
     {
         return [
-            'content_type' => NewsContentType::class,
             'tags' => 'array',
             'competitions' => 'array',
             'teams' => 'array',

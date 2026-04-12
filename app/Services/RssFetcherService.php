@@ -40,7 +40,7 @@ class RssFetcherService
             throw new RuntimeException("HTTP {$response->status()} fetching RSS from {$source->name}");
         }
 
-        $xml = @simplexml_load_string($response->body(), 'SimpleXMLElement', LIBXML_NOCDATA);
+        $xml = @simplexml_load_string($response->body(), 'SimpleXMLElement', LIBXML_NOCDATA | LIBXML_NONET);
 
         if ($xml === false) {
             throw new RuntimeException("Failed to parse XML from {$source->name}");

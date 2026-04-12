@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\NewsContentType;
 use App\Models\NewsArticle;
 use App\Models\NewsSource;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -27,7 +26,6 @@ class NewsArticleFactory extends Factory
             'image_url' => fake()->imageUrl(800, 400),
             'original_url' => fake()->url(),
             'author' => fake()->name(),
-            'content_type' => NewsContentType::Article,
             'is_breaking' => false,
             'story_group_id' => (string) Str::uuid(),
             'published_at' => fake()->dateTimeBetween('-3 days', 'now'),
@@ -46,14 +44,6 @@ class NewsArticleFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_breaking' => true,
-        ]);
-    }
-
-    public function videoHighlight(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'content_type' => NewsContentType::VideoHighlight,
-            'video_embed_url' => fake()->url(),
         ]);
     }
 

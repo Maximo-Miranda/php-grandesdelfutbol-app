@@ -3,8 +3,11 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, BookOpen, Clock, ExternalLink, Layers, Loader2, Sparkles, User2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import NewsBookmarkButton from '@/components/news/NewsBookmarkButton.vue';
 import NewsComments from '@/components/news/NewsComments.vue';
 import NewsImageCarousel from '@/components/news/NewsImageCarousel.vue';
+import NewsLikeButton from '@/components/news/NewsLikeButton.vue';
+import NewsShareButton from '@/components/news/NewsShareButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -16,6 +19,8 @@ type Props = {
     relatedArticles: NewsArticle[];
     storySourceCount: number;
     isBookmarked: boolean;
+    isLiked: boolean;
+    likesCount: number;
     canSummarize: boolean;
     comments: NewsArticleComment[];
     commentsCount: number;
@@ -36,6 +41,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const timeAgo = computed(() => formatTimeAgo(props.article.published_at));
+
+const shareUrl = computed(() => {
+    if (typeof window === 'undefined') {
+        return `/news/${props.article.slug}`;
+    }
+
+    return `${window.location.origin}/news/${props.article.slug}`;
+});
 
 const images = computed<string[]>(() => {
     const gallery = props.article.image_urls ?? [];
@@ -124,23 +137,42 @@ function generateSummary(): void {
                     {{ article.title }}
                 </h1>
 
-                <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                    <span v-if="article.author" class="flex items-center gap-1.5">
-                        <User2 class="size-3.5" />
-                        <span class="font-medium text-foreground/80">{{ article.author }}</span>
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <Clock class="size-3.5" />
-                        {{ timeAgo }}
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <BookOpen class="size-3.5" />
-                        {{ readingMinutes }} min de lectura
-                    </span>
-                    <span v-if="storySourceCount > 1" class="flex items-center gap-1.5 text-primary">
-                        <Layers class="size-3.5" />
-                        {{ storySourceCount }} fuentes
-                    </span>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <span v-if="article.author" class="flex items-center gap-1.5">
+                            <User2 class="size-3.5" />
+                            <span class="font-medium text-foreground/80">{{ article.author }}</span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <Clock class="size-3.5" />
+                            {{ timeAgo }}
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <BookOpen class="size-3.5" />
+                            {{ readingMinutes }} min de lectura
+                        </span>
+                        <span v-if="storySourceCount > 1" class="flex items-center gap-1.5 text-primary">
+                            <Layers class="size-3.5" />
+                            {{ storySourceCount }} fuentes
+                        </span>
+                    </div>
+
+                    <div v-if="isAuthenticated" class="flex items-center gap-4">
+                        <NewsLikeButton
+                            :article-slug="article.slug"
+                            :is-liked="isLiked"
+                            :likes-count="likesCount"
+                        />
+                        <NewsShareButton
+                            :article-slug="article.slug"
+                            :article-title="article.title"
+                            :share-url="shareUrl"
+                        />
+                        <NewsBookmarkButton
+                            :article-slug="article.slug"
+                            :is-bookmarked="isBookmarked"
+                        />
+                    </div>
                 </div>
             </header>
 

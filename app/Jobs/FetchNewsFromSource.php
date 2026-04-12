@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Enums\NewsContentType;
 use App\Models\NewsArticle;
 use App\Models\NewsSource;
 use App\Services\ArticleCategorizationService;
+use App\Services\NewsBadgeService;
 use App\Services\RssFetcherService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -36,6 +36,7 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
     public function handle(
         RssFetcherService $rssFetcher,
         ArticleCategorizationService $categorizer,
+        NewsBadgeService $badgeService,
     ): void {
         $entries = $rssFetcher->fetch($this->source);
 
@@ -77,7 +78,6 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
                     'image_urls' => $entry['image_urls'] ?: null,
                     'original_url' => $entry['original_url'],
                     'author' => $entry['author'],
-                    'content_type' => NewsContentType::Article,
                     'teams' => $categories['teams'] ?: null,
                     'competitions' => $categories['competitions'] ?: null,
                     'topics' => $categories['topics'] ?: null,
@@ -97,10 +97,11 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
 
         if ($created > 0) {
             Log::info("Fetched {$created} new articles from {$this->source->name}");
+            $badgeService->flushAll();
         }
     }
 
-    private function parseDate(?string $date): ?Carbon
+    private function parseDate(?string $date): ?callable
     {
         if (blank($date)) {
             return null;

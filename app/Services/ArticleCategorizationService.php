@@ -117,7 +117,15 @@ class ArticleCategorizationService
     private function containsAlias(string $text, array $aliases): bool
     {
         foreach ($aliases as $alias) {
-            if (str_contains($text, mb_strtolower($alias))) {
+            $needle = mb_strtolower(trim($alias));
+
+            if ($needle === '') {
+                continue;
+            }
+
+            $pattern = '/(?<!\pL)'.preg_quote($needle, '/').'(?!\pL)/u';
+
+            if (preg_match($pattern, $text) === 1) {
                 return true;
             }
         }

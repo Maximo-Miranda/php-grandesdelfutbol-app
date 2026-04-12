@@ -2,9 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\NewsArticle;
-use App\Models\User;
 use App\Services\ClubContext;
+use App\Services\NewsBadgeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -49,39 +48,11 @@ class HandleInertiaRequests extends Middleware
             },
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             'googleAuthEnabled' => config('services.google.enabled'),
-            'newsUnreadCount' => fn () => $this->newsUnreadCount($user),
+            'newsUnreadCount' => fn () => app(NewsBadgeService::class)->forUser($user),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
-        ];
-    }
-
-    /**
-     * Count articles published since the user last opened the news feed.
-     * Users who have never visited the feed fall back to the last 24 hours so
-     * the badge has meaningful initial content.
-     *
-     * @return array{count: int, hasBreaking: bool}
-     */
-    private function newsUnreadCount(?User $user): array
-    {
-        if ($user === null) {
-            return ['count' => 0, 'hasBreaking' => false];
-        }
-
-        $since = $user->news_last_seen_at ?? now()->subDay();
-        $articlesSince = NewsArticle::query()->where('published_at', '>', $since);
-
-        $count = $articlesSince->count();
-
-        if ($count === 0) {
-            return ['count' => 0, 'hasBreaking' => false];
-        }
-
-        return [
-            'count' => $count,
-            'hasBreaking' => (clone $articlesSince)->where('is_breaking', true)->exists(),
         ];
     }
 }

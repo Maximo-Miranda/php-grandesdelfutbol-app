@@ -16,8 +16,7 @@ export type NewsArticle = {
     image_urls: string[] | null;
     original_url: string;
     author: string | null;
-    content_type: 'article' | 'video_highlight';
-    video_embed_url: string | null;
+    content_type: 'article';
     tags: string[] | null;
     competitions: string[] | null;
     teams: string[] | null;
@@ -29,6 +28,10 @@ export type NewsArticle = {
     created_at: string;
     source?: NewsSource;
     story_source_count?: number;
+    is_bookmarked?: boolean;
+    is_liked?: boolean;
+    likes_count?: number;
+    comments_count?: number;
 };
 
 export type UserNewsPreference = {
@@ -38,14 +41,6 @@ export type UserNewsPreference = {
     topics: string[] | null;
     free_text_input: string | null;
     onboarding_completed: boolean;
-};
-
-export type NewsAdPlacement = {
-    id: number;
-    name: string;
-    advertiser: string;
-    image_url: string;
-    target_url: string;
 };
 
 export type NewsArticleComment = {
