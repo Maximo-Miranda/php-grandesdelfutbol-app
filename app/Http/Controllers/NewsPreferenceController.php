@@ -33,13 +33,26 @@ class NewsPreferenceController extends Controller
     {
         $user = auth()->user();
         $data = $request->validated();
+        $existingPreference = $user->newsPreference;
+
+        // When the user clears the free-text prompt, also wipe the entities
+        // that the AI extracted from it. Otherwise stale teams/topics remain
+        // in the DB and keep filtering the feed even after the user removed them.
+        $hadFreeText = filled($existingPreference?->free_text_input);
+        $hasFreeText = filled($data['free_text_input'] ?? null);
+
+        if ($hadFreeText && ! $hasFreeText) {
+            $data['teams'] = null;
+            $data['topics'] = null;
+            $data['ai_extracted_entities'] = null;
+        }
 
         UserNewsPreference::updateOrCreate(
             ['user_id' => $user->id],
             [...$data, 'onboarding_completed' => true],
         );
 
-        if (filled($data['free_text_input'] ?? null)) {
+        if ($hasFreeText) {
             ExtractUserNewsPreferences::dispatch($user, $data['free_text_input']);
         }
 

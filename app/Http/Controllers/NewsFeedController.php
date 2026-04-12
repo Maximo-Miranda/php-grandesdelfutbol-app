@@ -27,23 +27,26 @@ class NewsFeedController extends Controller
         $user = auth()->user();
         $perPage = config('news.feed.per_page', 15);
 
-        if (is_string($category) && ! NewsFeedService::categoryExists($category)) {
+        // "all" is a virtual category from the "Todas" pill — it means
+        // "show everything, ignore my preferences". Real dictionary-based
+        // categories are validated below.
+        $showAll = $category === 'all';
+        $filterCategory = $showAll ? null : $category;
+
+        if (is_string($filterCategory) && ! NewsFeedService::categoryExists($filterCategory)) {
             abort(404, 'Categoría de noticias no encontrada.');
         }
 
-        // Reset the unread-news badge on the bottom nav when the user opens the feed.
         if ($user !== null) {
             $user->update(['news_last_seen_at' => now()]);
             $this->badgeService->forget($user);
         }
 
-        // matchOn('data.ulid') lets partial reloads upsert individual cards by
-        // ulid without resetting the accumulated pages or the scroll position,
-        // which we use to refresh counters after the user posts a comment.
         $articles = Inertia::scroll(fn () => match (true) {
             filled($search) => $this->feedService->search($search, $perPage, $user),
-            $user !== null => $this->feedService->getPersonalizedFeed($user, $category, $perPage),
-            default => $this->feedService->getPublicFeed($category, $perPage),
+            $showAll => $this->feedService->getPublicFeed(null, $perPage, $user),
+            $user !== null => $this->feedService->getPersonalizedFeed($user, $filterCategory, $perPage),
+            default => $this->feedService->getPublicFeed($filterCategory, $perPage),
         })->matchOn('data.ulid');
 
         return Inertia::render('news/Feed', [

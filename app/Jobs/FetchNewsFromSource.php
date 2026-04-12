@@ -101,7 +101,7 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
         }
     }
 
-    private function parseDate(?string $date): ?callable
+    private function parseDate(?string $date): ?Carbon
     {
         if (blank($date)) {
             return null;

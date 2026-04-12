@@ -30,41 +30,78 @@ class ExtractUserNewsPreferences implements ShouldQueue
         }
 
         try {
-            $extracted = ExtractNewsPreferences::make()
-                ->prompt($this->freeText)
-                ->structured();
+            $response = ExtractNewsPreferences::make()
+                ->prompt($this->freeText);
         } catch (\Throwable $e) {
             Log::warning("Failed to extract preferences for user {$this->user->id}: {$e->getMessage()}");
 
             return;
         }
 
-        $teams = $extracted['teams'] ?? [];
-        $competitions = $extracted['competitions'] ?? [];
-        $topics = $extracted['topics'] ?? [];
-
-        $this->ensureEntriesExist($teams, NewsDictionaryType::Team);
-        $this->ensureEntriesExist($competitions, NewsDictionaryType::Competition);
-        $this->ensureEntriesExist($topics, NewsDictionaryType::Topic);
+        // Normalize AI-extracted keys against existing dictionary aliases so
+        // "junior" resolves to "junior_barranquilla" instead of creating a
+        // duplicate entry that articles won't match.
+        $teams = $this->normalizeKeys($response['teams'] ?? [], NewsDictionaryType::Team);
+        $competitions = $this->normalizeKeys($response['competitions'] ?? [], NewsDictionaryType::Competition);
+        $topics = $this->normalizeKeys($response['topics'] ?? [], NewsDictionaryType::Topic);
 
         $preference->update([
             'teams' => $this->mergeUnique($preference->teams, $teams),
             'competitions' => $this->mergeUnique($preference->competitions, $competitions),
             'topics' => $this->mergeUnique($preference->topics, $topics),
-            'ai_extracted_entities' => $extracted,
+            'ai_extracted_entities' => compact('teams', 'competitions', 'topics'),
         ]);
     }
 
-    /** @param  list<string>  $keys */
-    private function ensureEntriesExist(array $keys, NewsDictionaryType $type): void
+    /**
+     * Resolve AI-generated keys against existing dictionary entries. If a key
+     * already exists as an entry, keep it. If it matches an existing entry's
+     * alias, swap it for that entry's canonical key. Otherwise, create a new
+     * entry so the feed can filter by it in the future.
+     *
+     * @param  list<string>  $rawKeys
+     * @return list<string>
+     */
+    private function normalizeKeys(array $rawKeys, NewsDictionaryType $type): array
     {
-        if ($keys === []) {
-            return;
+        if ($rawKeys === []) {
+            return [];
         }
 
-        $existing = NewsDictionaryEntry::whereIn('key', $keys)->pluck('key')->all();
+        $dictionary = NewsDictionaryEntry::getDictionary();
+        $entries = $dictionary[$type->value] ?? [];
+        $normalized = [];
 
-        foreach (array_diff($keys, $existing) as $key) {
+        foreach ($rawKeys as $key) {
+            // Already a known key — use as-is.
+            if (isset($entries[$key])) {
+                $normalized[] = $key;
+
+                continue;
+            }
+
+            // Search aliases for a match (Gemini says "junior", dictionary has
+            // "junior_barranquilla" with alias "junior").
+            $humanized = str_replace('_', ' ', $key);
+            $resolved = null;
+
+            foreach ($entries as $entryKey => $aliases) {
+                foreach ($aliases as $alias) {
+                    if (mb_strtolower($alias) === mb_strtolower($key) || mb_strtolower($alias) === mb_strtolower($humanized)) {
+                        $resolved = $entryKey;
+                        break 2;
+                    }
+                }
+            }
+
+            if ($resolved !== null) {
+                $normalized[] = $resolved;
+
+                continue;
+            }
+
+            // New entity not in the dictionary — create it so articles can
+            // match in the future when they're categorized.
             $label = Str::of($key)->replace('_', ' ')->title()->toString();
 
             NewsDictionaryEntry::create([
@@ -75,7 +112,13 @@ class ExtractUserNewsPreferences implements ShouldQueue
                 'is_active' => true,
                 'source' => 'ai',
             ]);
+
+            $normalized[] = $key;
         }
+
+        NewsDictionaryEntry::clearCache();
+
+        return array_values(array_unique($normalized));
     }
 
     /**

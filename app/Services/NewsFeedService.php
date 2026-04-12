@@ -170,6 +170,10 @@ class NewsFeedService
 
     public static function categoryExists(string $category): bool
     {
+        if ($category === 'all') {
+            return true;
+        }
+
         $dictionary = NewsDictionaryEntry::getDictionary();
 
         foreach (array_keys(self::CATEGORY_COLUMN_MAP) as $type) {

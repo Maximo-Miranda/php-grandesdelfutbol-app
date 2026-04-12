@@ -11,16 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('news_articles', function (Blueprint $table) {
-            if (Schema::hasColumn('news_articles', 'content_type')) {
-                $table->dropIndex('news_articles_content_type_index');
+        // Drop columns one at a time — SQLite requires separate ALTER statements
+        // when dropping columns, and the index needs its own drop call.
+        if (Schema::hasColumn('news_articles', 'content_type')) {
+            Schema::table('news_articles', function (Blueprint $table) {
+                $table->dropIndex(['content_type']);
+            });
+            Schema::table('news_articles', function (Blueprint $table) {
                 $table->dropColumn('content_type');
-            }
+            });
+        }
 
-            if (Schema::hasColumn('news_articles', 'video_embed_url')) {
+        if (Schema::hasColumn('news_articles', 'video_embed_url')) {
+            Schema::table('news_articles', function (Blueprint $table) {
                 $table->dropColumn('video_embed_url');
-            }
-        });
+            });
+        }
     }
 
     /**

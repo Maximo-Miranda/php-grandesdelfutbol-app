@@ -6,7 +6,7 @@ defineProps<{
 }>();
 
 const categories = [
-    { key: null, label: 'Todas' },
+    { key: 'all', label: 'Todas' },
     { key: 'champions_league', label: 'Champions' },
     { key: 'la_liga', label: 'La Liga' },
     { key: 'premier_league', label: 'Premier' },
