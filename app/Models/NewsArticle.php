@@ -22,7 +22,9 @@ use Spatie\Sluggable\SlugOptions;
  * @property string|null $external_id
  * @property string $title
  * @property string|null $snippet
+ * @property string|null $full_content
  * @property string|null $image_url
+ * @property array<int, string>|null $image_urls
  * @property string $original_url
  * @property string|null $author
  * @property NewsContentType $content_type
@@ -73,7 +75,9 @@ class NewsArticle extends Model
         'title',
         'slug',
         'snippet',
+        'full_content',
         'image_url',
+        'image_urls',
         'original_url',
         'author',
         'content_type',
@@ -96,6 +100,7 @@ class NewsArticle extends Model
             'competitions' => 'array',
             'teams' => 'array',
             'topics' => 'array',
+            'image_urls' => 'array',
             'is_breaking' => 'boolean',
             'published_at' => 'immutable_datetime',
         ];
@@ -113,11 +118,13 @@ class NewsArticle extends Model
         return $this->hasMany(NewsArticleInteraction::class);
     }
 
-    /**
-     * Get other articles in the same story group.
-     *
-     * @return Collection<int, NewsArticle>
-     */
+    /** @return HasMany<NewsArticleComment, $this> */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(NewsArticleComment::class);
+    }
+
+    /** @return Collection<int, NewsArticle> */
     public function relatedArticles(): Collection
     {
         if ($this->story_group_id === null) {
@@ -126,7 +133,7 @@ class NewsArticle extends Model
 
         return static::query()
             ->where('story_group_id', $this->story_group_id)
-            ->where('id', '!=', $this->id)
+            ->whereKeyNot($this->id)
             ->with('source')
             ->orderByDesc('published_at')
             ->limit(10)

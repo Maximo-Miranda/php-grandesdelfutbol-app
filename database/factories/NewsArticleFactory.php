@@ -15,12 +15,15 @@ class NewsArticleFactory extends Factory
 {
     public function definition(): array
     {
+        $fullContent = fake()->paragraphs(15, true);
+
         return [
             'ulid' => (string) Str::ulid(),
             'news_source_id' => NewsSource::factory(),
             'external_id' => fake()->uuid(),
             'title' => fake()->sentence(8),
-            'snippet' => fake()->paragraph(2),
+            'snippet' => mb_substr($fullContent, 0, 500),
+            'full_content' => $fullContent,
             'image_url' => fake()->imageUrl(800, 400),
             'original_url' => fake()->url(),
             'author' => fake()->name(),
@@ -29,6 +32,14 @@ class NewsArticleFactory extends Factory
             'story_group_id' => (string) Str::uuid(),
             'published_at' => fake()->dateTimeBetween('-3 days', 'now'),
         ];
+    }
+
+    public function withoutContent(): static
+    {
+        return $this->state(fn () => [
+            'snippet' => null,
+            'full_content' => null,
+        ]);
     }
 
     public function breaking(): static

@@ -10,6 +10,9 @@ return [
 
     'ai' => [
         'model' => env('NEWS_AI_MODEL', 'gemini-2.5-flash-lite'),
+        'daily_limit' => env('NEWS_AI_DAILY_LIMIT', 1200),
+        'per_minute_limit' => env('NEWS_AI_PER_MINUTE_LIMIT', 200),
+        'min_content_length' => env('NEWS_AI_MIN_CONTENT_LENGTH', 1500),
     ],
 
     /*
@@ -44,8 +47,7 @@ return [
 
     'clustering' => [
         'time_window_hours' => 6,
-        'min_entity_overlap' => 2,
-        'min_title_similarity' => 0.4,
+        'min_title_similarity' => 0.7,
     ],
 
 ];

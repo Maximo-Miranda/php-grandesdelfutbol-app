@@ -19,6 +19,7 @@ use App\Http\Controllers\MatchEventController;
 use App\Http\Controllers\MatchLifecycleController;
 use App\Http\Controllers\MatchReelController;
 use App\Http\Controllers\MatchVideoUploadController;
+use App\Http\Controllers\NewsCommentController;
 use App\Http\Controllers\NewsFeedController;
 use App\Http\Controllers\NewsPreferenceController;
 use App\Http\Controllers\PlayerCardController;
@@ -48,11 +49,8 @@ Route::post('video-service-request', [VideoServiceRequestController::class, 'sto
     ->middleware('throttle:public-form')
     ->name('video-service-request.store');
 
-// News — public (accessible without login)
-Route::middleware('throttle:60,1')->group(function () {
-    Route::get('news', [NewsFeedController::class, 'index'])->name('news.feed');
-    Route::get('news/{article:slug}', [NewsFeedController::class, 'show'])->name('news.show');
-});
+// News — public feed
+Route::get('news', [NewsFeedController::class, 'index'])->middleware('throttle:60,1')->name('news.feed');
 
 Route::middleware('guest')->group(function () {
     Route::get('start', function () {
@@ -88,8 +86,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('preferences', [NewsPreferenceController::class, 'create'])->name('preferences.create');
         Route::post('preferences', [NewsPreferenceController::class, 'store'])->name('preferences.store');
         Route::patch('preferences', [NewsPreferenceController::class, 'update'])->name('preferences.update');
-        Route::post('{article:slug}/summarize', [NewsFeedController::class, 'summarize'])->name('summarize');
+        Route::post('{article:slug}/summarize', [NewsFeedController::class, 'summarize'])->middleware('throttle:10,1')->name('summarize');
+        Route::post('{article:slug}/comments', [NewsCommentController::class, 'store'])->middleware('throttle:20,1')->name('comments.store');
+        Route::delete('{article:slug}/comments/{comment:ulid}', [NewsCommentController::class, 'destroy'])->name('comments.destroy');
     });
+
+    // News — public article detail (after auth routes to avoid slug capturing "preferences")
+    Route::get('news/{article:slug}', [NewsFeedController::class, 'show'])->middleware('throttle:60,1')->name('news.show')->withoutMiddleware(['auth', 'verified']);
     Route::resource('clubs', ClubController::class);
     Route::get('clubs-search', ClubSearchController::class)->name('clubs.search');
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');

@@ -2,7 +2,7 @@
 import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
 import { Newspaper, Search, Settings2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
-import AppLogo from '@/components/AppLogo.vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NewsArticleCard from '@/components/news/NewsArticleCard.vue';
 import NewsCategoryPills from '@/components/news/NewsCategoryPills.vue';
 import NewsFeedSkeleton from '@/components/news/NewsFeedSkeleton.vue';
@@ -64,8 +64,8 @@ const emptyMessage = computed(() => {
         <header v-if="!isAuthenticated" class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
             <div class="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
                 <Link href="/" class="flex items-center gap-2">
-                    <AppLogo class="size-8" />
-                    <span class="text-sm font-bold">GDF Noticias</span>
+                    <AppLogoIcon class="size-8 text-primary" />
+                    <span class="text-sm font-bold tracking-tight">GDF Noticias</span>
                 </Link>
                 <Link href="/start">
                     <Button size="sm" variant="default">Iniciar sesión</Button>

@@ -11,7 +11,9 @@ export type NewsArticle = {
     slug: string;
     title: string;
     snippet: string | null;
+    full_content: string | null;
     image_url: string | null;
+    image_urls: string[] | null;
     original_url: string;
     author: string | null;
     content_type: 'article' | 'video_highlight';
@@ -44,4 +46,14 @@ export type NewsAdPlacement = {
     advertiser: string;
     image_url: string;
     target_url: string;
+};
+
+export type NewsArticleComment = {
+    ulid: string;
+    body: string;
+    created_at: string;
+    user?: {
+        id: number;
+        name: string;
+    };
 };

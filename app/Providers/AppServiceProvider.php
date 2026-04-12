@@ -78,6 +78,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-form', function (Request $request) {
             return Limit::perMinute(3)->by($request->ip());
         });
+
+        RateLimiter::for('gemini-api', fn () => Limit::perMinute(
+            (int) config('news.ai.per_minute_limit', 200),
+        ));
     }
 
     protected function configureDefaults(): void

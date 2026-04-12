@@ -97,6 +97,18 @@ class NewsDictionaryEntryResource extends Resource
                     ->badge()
                     ->limitList(4)
                     ->toggleable(),
+                TextColumn::make('source')
+                    ->label('Origen')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'ai' => 'warning',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+                TextColumn::make('matches_count')
+                    ->label('Matches')
+                    ->numeric()
+                    ->sortable(),
                 IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean()
@@ -106,6 +118,12 @@ class NewsDictionaryEntryResource extends Resource
                 SelectFilter::make('type')
                     ->label('Tipo')
                     ->options(NewsDictionaryType::options()),
+                SelectFilter::make('source')
+                    ->label('Origen')
+                    ->options([
+                        'manual' => 'Manual',
+                        'ai' => 'AI',
+                    ]),
             ])
             ->defaultSort('type')
             ->recordActions([

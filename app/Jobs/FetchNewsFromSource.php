@@ -33,8 +33,10 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
         return (string) $this->source->id;
     }
 
-    public function handle(RssFetcherService $rssFetcher, ArticleCategorizationService $categorizer): void
-    {
+    public function handle(
+        RssFetcherService $rssFetcher,
+        ArticleCategorizationService $categorizer,
+    ): void {
         $entries = $rssFetcher->fetch($this->source);
 
         $existingIds = NewsArticle::query()
@@ -63,7 +65,9 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
                     'external_id' => $entry['external_id'],
                     'title' => $entry['title'],
                     'snippet' => $entry['snippet'],
+                    'full_content' => $entry['full_content'] ?? null,
                     'image_url' => $entry['image_url'],
+                    'image_urls' => $entry['image_urls'] ?: null,
                     'original_url' => $entry['original_url'],
                     'author' => $entry['author'],
                     'content_type' => NewsContentType::Article,

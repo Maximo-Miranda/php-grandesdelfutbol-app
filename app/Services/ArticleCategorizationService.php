@@ -17,50 +17,46 @@ class ArticleCategorizationService
         $text = mb_strtolower($articleData['title'].' '.($articleData['snippet'] ?? ''));
         $dictionary = NewsDictionaryEntry::getDictionary();
 
+        $teams = $this->matchEntities($text, $dictionary['team'] ?? []);
+        $competitions = $this->matchEntities($text, $dictionary['competition'] ?? []);
+        $topics = $this->matchEntities($text, $dictionary['topic'] ?? []);
+
+        $matchedKeys = [...$teams, ...$competitions, ...$topics];
+
+        if ($matchedKeys !== []) {
+            NewsDictionaryEntry::whereIn('key', $matchedKeys)->increment('matches_count');
+        }
+
         return [
-            'teams' => $this->matchEntities($text, $dictionary['team'] ?? []),
-            'competitions' => $this->matchEntities($text, $dictionary['competition'] ?? []),
-            'topics' => $this->matchEntities($text, $dictionary['topic'] ?? []),
-            'is_breaking' => $this->isBreaking($articleData['title'], $dictionary['breaking_keyword'] ?? []),
+            'teams' => $teams,
+            'competitions' => $competitions,
+            'topics' => $topics,
+            'is_breaking' => $this->matchesAny(mb_strtolower($articleData['title']), $dictionary['breaking_keyword'] ?? []),
         ];
     }
 
     public function assignStoryGroup(NewsArticle $article): void
     {
         $timeWindow = config('news.clustering.time_window_hours', 6);
-        $minEntityOverlap = config('news.clustering.min_entity_overlap', 2);
-        $minTitleSimilarity = config('news.clustering.min_title_similarity', 0.4);
+        $minTitleSimilarity = config('news.clustering.min_title_similarity', 0.7);
 
         $candidates = NewsArticle::query()
-            ->where('id', '!=', $article->id)
+            ->whereKeyNot($article->id)
             ->where('news_source_id', '!=', $article->news_source_id)
-            ->where('published_at', '>=', $article->published_at->subHours($timeWindow))
-            ->where('published_at', '<=', $article->published_at->addHours($timeWindow))
+            ->whereBetween('published_at', [
+                $article->published_at->subHours($timeWindow),
+                $article->published_at->addHours($timeWindow),
+            ])
             ->whereNotNull('story_group_id')
-            ->get(['id', 'title', 'teams', 'competitions', 'story_group_id']);
+            ->get(['id', 'title', 'story_group_id']);
 
         foreach ($candidates as $candidate) {
-            $titleSimilarity = $this->calculateTitleSimilarity($article->title, $candidate->title);
+            $similarity = $this->calculateTitleSimilarity($article->title, $candidate->title);
 
-            if ($titleSimilarity >= 0.8) {
+            if ($similarity >= $minTitleSimilarity) {
                 $article->update(['story_group_id' => $candidate->story_group_id]);
 
                 return;
-            }
-
-            if ($titleSimilarity >= $minTitleSimilarity) {
-                $entityOverlap = $this->countEntityOverlap(
-                    $article->teams ?? [],
-                    $article->competitions ?? [],
-                    $candidate->teams ?? [],
-                    $candidate->competitions ?? [],
-                );
-
-                if ($entityOverlap >= $minEntityOverlap) {
-                    $article->update(['story_group_id' => $candidate->story_group_id]);
-
-                    return;
-                }
             }
         }
 
@@ -85,6 +81,7 @@ class ArticleCategorizationService
     }
 
     /**
+     * @param  array<string, list<string>>  $dictionary
      * @return list<string>
      */
     private function matchEntities(string $text, array $dictionary): array
@@ -92,11 +89,8 @@ class ArticleCategorizationService
         $matched = [];
 
         foreach ($dictionary as $key => $aliases) {
-            foreach ($aliases as $alias) {
-                if (str_contains($text, mb_strtolower($alias))) {
-                    $matched[] = $key;
-                    break;
-                }
+            if ($this->containsAlias($text, $aliases)) {
+                $matched[] = $key;
             }
         }
 
@@ -104,26 +98,31 @@ class ArticleCategorizationService
     }
 
     /**
-     * @param  array<string, list<string>>  $breakingKeywords
+     * @param  array<string, list<string>>  $dictionary
      */
-    private function isBreaking(string $title, array $breakingKeywords): bool
+    private function matchesAny(string $text, array $dictionary): bool
     {
-        $lower = mb_strtolower($title);
-
-        foreach ($breakingKeywords as $aliases) {
-            foreach ($aliases as $alias) {
-                if (str_contains($lower, mb_strtolower($alias))) {
-                    return true;
-                }
+        foreach ($dictionary as $aliases) {
+            if ($this->containsAlias($text, $aliases)) {
+                return true;
             }
         }
 
         return false;
     }
 
-    private function countEntityOverlap(array $teamsA, array $compsA, array $teamsB, array $compsB): int
+    /**
+     * @param  list<string>  $aliases
+     */
+    private function containsAlias(string $text, array $aliases): bool
     {
-        return count(array_intersect($teamsA, $teamsB)) + count(array_intersect($compsA, $compsB));
+        foreach ($aliases as $alias) {
+            if (str_contains($text, mb_strtolower($alias))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

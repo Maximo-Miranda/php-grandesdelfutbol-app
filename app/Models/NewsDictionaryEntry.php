@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Cache;
  * @property string $label
  * @property array<int, string> $aliases
  * @property bool $is_active
+ * @property string $source
+ * @property int $matches_count
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  *
@@ -27,6 +29,7 @@ class NewsDictionaryEntry extends Model
         'label',
         'aliases',
         'is_active',
+        'source',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class NewsDictionaryEntry extends Model
             'type' => NewsDictionaryType::class,
             'aliases' => 'array',
             'is_active' => 'boolean',
+            'matches_count' => 'integer',
         ];
     }
 
