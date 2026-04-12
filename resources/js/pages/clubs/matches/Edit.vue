@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { timeOptions, useMatchForm } from '@/composables/useMatchForm';
+import { recurrenceOptions, timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, Venue } from '@/types';
 
@@ -542,10 +542,7 @@ function submitExistingVenueField() {
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="8">Cada 8 días</SelectItem>
-                                <SelectItem value="15">Cada 15 días</SelectItem>
-                                <SelectItem value="30">Cada 30 días</SelectItem>
-                                <SelectItem value="custom">Personalizado</SelectItem>
+                                <SelectItem v-for="opt in recurrenceOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</SelectItem>
                             </SelectContent>
                         </Select>
                         <div v-if="selectedRecurrenceOption === 'custom'" class="max-w-[200px]">

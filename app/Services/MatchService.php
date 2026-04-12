@@ -54,7 +54,7 @@ class MatchService
             'team_a_color' => $data['team_a_color'] ?? '#1a1a1a',
             'team_b_color' => $data['team_b_color'] ?? '#facc15',
             'is_recurring' => $data['is_recurring'] ?? true,
-            'recurrence_days' => $data['recurrence_days'] ?? 8,
+            'recurrence_days' => $data['recurrence_days'] ?? 7,
             'auto_cancel' => $data['auto_cancel'] ?? true,
             'min_players_required' => $data['min_players_required'] ?? ($data['max_players'] ?? 10),
         ]);

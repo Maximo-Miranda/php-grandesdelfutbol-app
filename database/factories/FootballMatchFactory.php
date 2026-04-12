@@ -36,7 +36,7 @@ class FootballMatchFactory extends Factory
             'team_a_color' => '#1a1a1a',
             'team_b_color' => '#facc15',
             'is_recurring' => false,
-            'recurrence_days' => 8,
+            'recurrence_days' => 7,
             'auto_cancel' => false,
             'min_players_required' => 10,
         ];
@@ -73,7 +73,7 @@ class FootballMatchFactory extends Factory
         ]);
     }
 
-    public function recurring(int $days = 8): static
+    public function recurring(int $days = 7): static
     {
         return $this->state(fn (array $attributes) => [
             'is_recurring' => true,
