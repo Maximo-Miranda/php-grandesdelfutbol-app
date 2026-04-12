@@ -53,6 +53,13 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
                     continue;
                 }
 
+                // Skip entries that can't render a decent feed card. Articles
+                // without an image or without any descriptive text show up as
+                // blank placeholders and hurt the feed's perceived quality.
+                if (blank($entry['image_url']) || blank($entry['snippet'])) {
+                    continue;
+                }
+
                 $categories = $categorizer->categorize([
                     'title' => $entry['title'],
                     'snippet' => $entry['snippet'],
@@ -93,7 +100,7 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
         }
     }
 
-    private function parseDate(?string $date): ?callable
+    private function parseDate(?string $date): ?Carbon
     {
         if (blank($date)) {
             return null;
