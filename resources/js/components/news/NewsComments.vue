@@ -2,7 +2,7 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { Loader2, MessageCircle, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useInitials } from '@/composables/useInitials';
@@ -93,6 +93,7 @@ function isOwnComment(comment: NewsArticleComment): boolean {
         <ul v-else class="space-y-4">
             <li v-for="comment in comments" :key="comment.ulid" class="flex gap-3">
                 <Avatar class="size-8 shrink-0">
+                    <AvatarImage v-if="comment.user?.player_profile?.photo_url" :src="comment.user.player_profile.photo_url" :alt="comment.user?.name" />
                     <AvatarFallback class="text-xs">
                         {{ getInitials(comment.user?.name ?? '?') }}
                     </AvatarFallback>

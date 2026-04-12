@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\VideoUploadStatus;
 use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
+use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\GoogleDriveService;
 use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -96,6 +98,14 @@ class ProcessUploadedVideo implements ShouldQueue
                         'encoded_at' => now(),
                         'error_message' => null,
                     ]);
+
+                    rescue(function () use ($match) {
+                        $users = $match->club?->approvedMemberUsers();
+
+                        if ($users?->isNotEmpty()) {
+                            Notification::send($users, new MatchVideoUploadedNotification($match));
+                        }
+                    });
                 } else {
                     $videoUpload->update([
                         'status' => VideoUploadStatus::Failed,

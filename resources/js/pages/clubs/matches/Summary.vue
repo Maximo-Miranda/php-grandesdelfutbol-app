@@ -89,8 +89,28 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // --- Goals ---
-const teamAGoals = computed(() => countTeamGoalsUtil(props.match, 'a'));
-const teamBGoals = computed(() => countTeamGoalsUtil(props.match, 'b'));
+const teamAGoals = computed(() => props.match.team_a_score ?? countTeamGoalsUtil(props.match, 'a'));
+const teamBGoals = computed(() => props.match.team_b_score ?? countTeamGoalsUtil(props.match, 'b'));
+
+// --- Manual score editing ---
+const editingScore = ref(false);
+const scoreForm = useForm({
+    team_a_score: 0,
+    team_b_score: 0,
+});
+
+function startEditingScore() {
+    scoreForm.team_a_score = teamAGoals.value;
+    scoreForm.team_b_score = teamBGoals.value;
+    editingScore.value = true;
+}
+
+function saveScore() {
+    scoreForm.patch(`/clubs/${props.club.ulid}/matches/${props.match.ulid}/score`, {
+        preserveScroll: true,
+        onSuccess: () => { editingScore.value = false; },
+    });
+}
 
 // --- Events ---
 const sortedEvents = computed(() => [...(props.match.events ?? [])].sort((a, b) => a.minute - b.minute || a.second - b.second));
@@ -1022,7 +1042,15 @@ async function shareReel(reel: MatchReel) {
                                 <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_a_name }}</p>
                                 <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>
                             </div>
-                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamAGoals }}</p>
+                            <input
+                                v-if="editingScore"
+                                v-model.number="scoreForm.team_a_score"
+                                type="number"
+                                min="0"
+                                max="99"
+                                class="w-20 border-b-2 border-zinc-600 bg-transparent text-center text-5xl font-black tabular-nums text-white focus:border-primary focus:outline-none sm:text-6xl ml-auto block"
+                            />
+                            <p v-else class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamAGoals }}</p>
                         </div>
 
                         <div class="flex flex-col items-center">
@@ -1034,8 +1062,36 @@ async function shareReel(reel: MatchReel) {
                                 <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>
                                 <p class="truncate text-xs font-bold tracking-wider text-zinc-400 uppercase sm:text-sm">{{ match.team_b_name }}</p>
                             </div>
-                            <p class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamBGoals }}</p>
+                            <input
+                                v-if="editingScore"
+                                v-model.number="scoreForm.team_b_score"
+                                type="number"
+                                min="0"
+                                max="99"
+                                class="w-20 border-b-2 border-zinc-600 bg-transparent text-center text-5xl font-black tabular-nums text-white focus:border-primary focus:outline-none sm:text-6xl"
+                            />
+                            <p v-else class="text-5xl font-black tabular-nums text-white sm:text-6xl">{{ teamBGoals }}</p>
                         </div>
+                    </div>
+
+                    <!-- Score edit controls (admin only) -->
+                    <div v-if="isAdmin" class="mt-3 flex justify-center">
+                        <template v-if="editingScore">
+                            <div class="flex gap-2">
+                                <Button size="sm" variant="ghost" class="text-zinc-400 hover:text-white" @click="editingScore = false">
+                                    <X class="mr-1 size-3.5" />
+                                    Cancelar
+                                </Button>
+                                <Button size="sm" :disabled="scoreForm.processing" @click="saveScore">
+                                    <Check class="mr-1 size-3.5" />
+                                    Guardar
+                                </Button>
+                            </div>
+                        </template>
+                        <Button v-else size="sm" :variant="match.team_a_score !== null ? 'ghost' : 'outline'" :class="match.team_a_score !== null ? 'text-zinc-400 hover:text-zinc-200' : 'border-zinc-600 text-zinc-200 hover:bg-zinc-800 hover:text-white'" @click="startEditingScore">
+                            <Pencil class="mr-1.5 size-3.5" />
+                            {{ match.team_a_score !== null ? 'Editar marcador' : 'Agregar marcador' }}
+                        </Button>
                     </div>
 
                     <!-- Top scorer highlight -->

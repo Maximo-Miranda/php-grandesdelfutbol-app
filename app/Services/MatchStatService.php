@@ -104,6 +104,35 @@ class MatchStatService
         return $stats;
     }
 
+    public function recalculateScore(FootballMatch $match): void
+    {
+        $scoringTypes = [MatchEventType::Goal, MatchEventType::PenaltyScored, MatchEventType::OwnGoal];
+
+        $events = $match->events()->whereIn('event_type', $scoringTypes)->get();
+        $teamByPlayer = $match->attendances()
+            ->whereNotNull('team')
+            ->pluck('team', 'player_id');
+
+        $teamAScore = 0;
+        $teamBScore = 0;
+
+        foreach ($events as $event) {
+            $playerTeam = $event->team?->value
+                ?? $teamByPlayer->get($event->player_id)?->value;
+
+            if ($event->event_type === MatchEventType::OwnGoal) {
+                $playerTeam === 'a' ? $teamBScore++ : $teamAScore++;
+            } else {
+                $playerTeam === 'a' ? $teamAScore++ : $teamBScore++;
+            }
+        }
+
+        $match->update([
+            'team_a_score' => $teamAScore,
+            'team_b_score' => $teamBScore,
+        ]);
+    }
+
     public function revertStats(FootballMatch $match): void
     {
         $appliedStats = $match->applied_stats;

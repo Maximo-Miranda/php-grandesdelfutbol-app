@@ -64,10 +64,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Player extends Model
 {
-    use BelongsToClub, HasPublicUlid;
-
     /** @use HasFactory<PlayerFactory> */
-    use HasFactory;
+    use BelongsToClub, HasFactory, HasPublicUlid;
 
     protected $fillable = [
         'club_id',
@@ -118,6 +116,11 @@ class Player extends Model
     public function getPhotoUrlAttribute(): ?string
     {
         return $this->user?->playerProfile?->photo_url;
+    }
+
+    public function isGoalkeeper(): bool
+    {
+        return $this->position === PlayerPosition::Gk;
     }
 
     public function getPositionLabelAttribute(): ?string

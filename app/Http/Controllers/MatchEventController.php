@@ -20,12 +20,10 @@ class MatchEventController extends Controller
     {
         $match->events()->create($request->validated());
 
-        $this->refreshStatsIfFinalized($match);
-
-        return back();
+        return $this->recalculateAndRedirect($match);
     }
 
-    /** Lightweight PATCH — player_id / highlighted only (used by EventTimeline inline assign). */
+    /** Lightweight PATCH -- player_id / highlighted only (used by EventTimeline inline assign). */
     public function update(Request $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
     {
         Gate::authorize('update', $match);
@@ -37,19 +35,15 @@ class MatchEventController extends Controller
 
         $event->update($validated);
 
-        $this->refreshStatsIfFinalized($match);
-
-        return back();
+        return $this->recalculateAndRedirect($match);
     }
 
-    /** Full PUT — all fields (used by edit Dialog). */
+    /** Full PUT -- all fields (used by edit Dialog). */
     public function fullUpdate(UpdateMatchEventRequest $request, Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
     {
         $event->update($request->validated());
 
-        $this->refreshStatsIfFinalized($match);
-
-        return back();
+        return $this->recalculateAndRedirect($match);
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchEvent $event): RedirectResponse
@@ -58,15 +52,19 @@ class MatchEventController extends Controller
 
         $event->delete();
 
-        $this->refreshStatsIfFinalized($match);
-
-        return back()->with('success', 'Evento eliminado.');
+        return $this->recalculateAndRedirect($match, 'Evento eliminado.');
     }
 
-    private function refreshStatsIfFinalized(FootballMatch $match): void
+    private function recalculateAndRedirect(FootballMatch $match, ?string $message = null): RedirectResponse
     {
+        $this->statService->recalculateScore($match);
+
         if ($match->stats_finalized_at) {
             $this->statService->finalizeStats($match);
         }
+
+        $redirect = back();
+
+        return $message ? $redirect->with('success', $message) : $redirect;
     }
 }

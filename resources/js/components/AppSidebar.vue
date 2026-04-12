@@ -96,6 +96,7 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                             as-child
                             :is-active="isActive(item, globalNavItems)"
                             :tooltip="item.title"
+                            :class="{ '!overflow-visible': item.href === '/news' && showNewsBadge }"
                         >
                             <Link :href="item.href">
                                 <div class="relative shrink-0">

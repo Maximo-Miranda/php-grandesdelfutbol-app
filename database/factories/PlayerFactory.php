@@ -45,6 +45,13 @@ class PlayerFactory extends Factory
         ]);
     }
 
+    public function goalkeeper(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'position' => PlayerPosition::Gk,
+        ]);
+    }
+
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => [

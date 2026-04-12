@@ -47,6 +47,7 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
  * @property-read PlayerProfile|null $playerProfile
  * @property-read Collection<int, Player> $players
  * @property-read int|null $players_count
+ * @property-read string|null $avatar
  * @property-read Collection<int, SocialAccount> $socialAccounts
  * @property-read int|null $social_accounts_count
  * @property-read UserNewsPreference|null $newsPreference
@@ -92,6 +93,8 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'news_last_seen_at',
     ];
 
+    protected $appends = ['avatar'];
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -118,6 +121,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'two_factor_confirmed_at' => 'datetime',
             'news_last_seen_at' => 'datetime',
         ];
+    }
+
+    /** Only resolves when playerProfile is eager-loaded to avoid N+1 queries. */
+    public function getAvatarAttribute(): ?string
+    {
+        if (! $this->relationLoaded('playerProfile')) {
+            return null;
+        }
+
+        return $this->playerProfile?->photo_url;
     }
 
     public function isSuperAdmin(): bool

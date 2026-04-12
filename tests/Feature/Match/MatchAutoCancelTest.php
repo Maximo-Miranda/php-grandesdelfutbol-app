@@ -8,10 +8,9 @@ use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\Player;
 use App\Models\User;
-use App\Notifications\MatchAutoCancelledNotification;
 use Illuminate\Support\Facades\Notification;
 
-test('auto-cancels match 2h before when not enough confirmed players', function () {
+test('auto-cancels match 10h before when no confirmed players', function () {
     Notification::fake();
 
     $club = Club::factory()->create();
@@ -20,23 +19,34 @@ test('auto-cancels match 2h before when not enough confirmed players', function 
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => true,
         'min_players_required' => 10,
-        'scheduled_at' => now()->addMinutes(90),
+        'scheduled_at' => now()->addHours(9),
     ]);
-
-    foreach (range(1, 3) as $i) {
-        $player = Player::factory()->linked()->create(['club_id' => $club->id]);
-        MatchAttendance::factory()->create([
-            'match_id' => $match->id,
-            'player_id' => $player->id,
-            'status' => AttendanceStatus::Confirmed,
-        ]);
-    }
 
     $this->artisan('matches:process-schedules')->assertSuccessful();
 
     expect($match->refresh()->status)->toBe(MatchStatus::Cancelled);
+});
 
-    Notification::assertSentTimes(MatchAutoCancelledNotification::class, 3);
+test('does not auto-cancel when at least one player confirmed', function () {
+    $club = Club::factory()->create();
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'status' => MatchStatus::Upcoming,
+        'auto_cancel' => true,
+        'min_players_required' => 10,
+        'scheduled_at' => now()->addHours(9),
+    ]);
+
+    $player = Player::factory()->create(['club_id' => $club->id]);
+    MatchAttendance::factory()->create([
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => AttendanceStatus::Confirmed,
+    ]);
+
+    $this->artisan('matches:process-schedules')->assertSuccessful();
+
+    expect($match->refresh()->status)->toBe(MatchStatus::Upcoming);
 });
 
 test('does not auto-cancel when enough players confirmed', function () {
@@ -46,7 +56,7 @@ test('does not auto-cancel when enough players confirmed', function () {
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => true,
         'min_players_required' => 4,
-        'scheduled_at' => now()->addMinutes(90),
+        'scheduled_at' => now()->addHours(9),
     ]);
 
     foreach (range(1, 5) as $i) {
@@ -68,7 +78,7 @@ test('does not auto-cancel when auto_cancel is disabled', function () {
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => false,
         'min_players_required' => 10,
-        'scheduled_at' => now()->addMinutes(90),
+        'scheduled_at' => now()->addHours(9),
     ]);
 
     $this->artisan('matches:process-schedules')->assertSuccessful();
@@ -76,12 +86,12 @@ test('does not auto-cancel when auto_cancel is disabled', function () {
     expect($match->refresh()->status)->toBe(MatchStatus::Upcoming);
 });
 
-test('does not auto-cancel match more than 2h before scheduled time', function () {
+test('does not auto-cancel match more than 10h before scheduled time', function () {
     $match = FootballMatch::factory()->create([
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => true,
         'min_players_required' => 10,
-        'scheduled_at' => now()->addHours(5),
+        'scheduled_at' => now()->addHours(15),
     ]);
 
     $this->artisan('matches:process-schedules')->assertSuccessful();
@@ -111,30 +121,14 @@ test('notifies confirmed players when match is auto-cancelled', function () {
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => true,
         'min_players_required' => 10,
-        'scheduled_at' => now()->addMinutes(60),
-    ]);
-
-    $confirmedPlayer = Player::factory()->linked()->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $confirmedPlayer->id,
-        'status' => AttendanceStatus::Confirmed,
-    ]);
-
-    $declinedPlayer = Player::factory()->linked()->create(['club_id' => $club->id]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $declinedPlayer->id,
-        'status' => AttendanceStatus::Declined,
+        'scheduled_at' => now()->addHours(5),
     ]);
 
     $this->artisan('matches:process-schedules')->assertSuccessful();
 
-    Notification::assertSentTimes(MatchAutoCancelledNotification::class, 1);
-    Notification::assertSentTo(
-        $confirmedPlayer->user,
-        MatchAutoCancelledNotification::class,
-    );
+    expect($match->refresh()->status)->toBe(MatchStatus::Cancelled);
+
+    Notification::assertNothingSent();
 });
 
 test('auto-cancel runs before auto-start so cancelled matches are not started', function () {
@@ -159,7 +153,7 @@ test('auto-cancelled recurring match recreates next occurrence', function () {
         'status' => MatchStatus::Upcoming,
         'auto_cancel' => true,
         'min_players_required' => 10,
-        'scheduled_at' => now()->addMinutes(60),
+        'scheduled_at' => now()->addHours(5),
     ]);
 
     $this->artisan('matches:process-schedules')->assertSuccessful();
@@ -278,4 +272,29 @@ test('validation rejects min_players_required out of range', function () {
     $this->actingAs($user)
         ->post(route('clubs.matches.store', $club), array_merge($baseData, ['min_players_required' => 8]))
         ->assertSessionDoesntHaveErrors('min_players_required');
+});
+
+test('declined players do not prevent auto-cancel', function () {
+    $club = Club::factory()->create();
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'status' => MatchStatus::Upcoming,
+        'auto_cancel' => true,
+        'min_players_required' => 10,
+        'scheduled_at' => now()->addHours(5),
+    ]);
+
+    // Only declined players — should still auto-cancel
+    foreach (range(1, 3) as $i) {
+        $player = Player::factory()->create(['club_id' => $club->id]);
+        MatchAttendance::factory()->create([
+            'match_id' => $match->id,
+            'player_id' => $player->id,
+            'status' => AttendanceStatus::Declined,
+        ]);
+    }
+
+    $this->artisan('matches:process-schedules')->assertSuccessful();
+
+    expect($match->refresh()->status)->toBe(MatchStatus::Cancelled);
 });

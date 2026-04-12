@@ -39,6 +39,8 @@ use Illuminate\Support\Collection;
  * @property string $team_b_name
  * @property string $team_a_color
  * @property string $team_b_color
+ * @property int|null $team_a_score
+ * @property int|null $team_b_score
  * @property-read \Illuminate\Database\Eloquent\Collection<int, MatchAttendance> $attendances
  * @property-read int|null $attendances_count
  * @property-read Club $club
@@ -132,6 +134,8 @@ class FootballMatch extends Model
         'team_b_name',
         'team_a_color',
         'team_b_color',
+        'team_a_score',
+        'team_b_score',
         'is_recurring',
         'recurrence_days',
         'next_match_created_at',
