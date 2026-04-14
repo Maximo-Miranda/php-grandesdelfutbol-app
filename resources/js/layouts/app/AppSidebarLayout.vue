@@ -69,7 +69,7 @@ function goBack() {
                 <ArrowLeft class="size-4" />
                 Volver
             </button>
-            <div class="pb-20 lg:pb-0">
+            <div class="pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
                 <slot />
             </div>
         </AppContent>

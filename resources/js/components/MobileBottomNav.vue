@@ -23,7 +23,7 @@ function isActive(tab: (typeof tabs)[number]): boolean {
 </script>
 
 <template>
-    <nav class="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
+    <nav class="fixed inset-x-0 bottom-0 z-50 transform-gpu border-t border-border bg-background/95 backdrop-blur-md will-change-transform lg:hidden">
         <div class="flex h-16 items-stretch">
             <Link
                 v-for="tab in tabs"
