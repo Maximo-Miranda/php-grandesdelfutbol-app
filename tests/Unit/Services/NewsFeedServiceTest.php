@@ -126,6 +126,29 @@ test('categoryExists returns true for dictionary entries only', function () {
     expect(NewsFeedService::categoryExists('ghost_category'))->toBeFalse();
 });
 
+test('feed orders articles by published_at regardless of is_breaking flag', function () {
+    $source = NewsSource::factory()->create();
+
+    $oldBreaking = NewsArticle::factory()->breaking()->create([
+        'news_source_id' => $source->id,
+        'published_at' => now()->subDays(2),
+    ]);
+    $recentNormal = NewsArticle::factory()->create([
+        'news_source_id' => $source->id,
+        'published_at' => now()->subHour(),
+    ]);
+    $newestBreaking = NewsArticle::factory()->breaking()->create([
+        'news_source_id' => $source->id,
+        'published_at' => now()->subMinutes(30),
+    ]);
+
+    $feed = $this->service->getPublicFeed();
+
+    $ids = collect($feed->items())->pluck('id')->all();
+
+    expect($ids)->toBe([$newestBreaking->id, $recentNormal->id, $oldBreaking->id]);
+});
+
 test('toggleBookmark creates and removes interaction', function () {
     $user = User::factory()->create();
     $article = NewsArticle::factory()->create([

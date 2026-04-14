@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { Loader2, Settings2, Sparkles } from 'lucide-vue-next';
+import { ArrowLeft, Loader2, Settings2, Sparkles } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useHistoryBack } from '@/composables/useHistoryBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, UserNewsPreference } from '@/types';
 
@@ -41,6 +42,8 @@ function isSelected(key: string): boolean {
     return selectedCompetitions.value.includes(key);
 }
 
+const goBack = useHistoryBack('/news');
+
 function savePreferences() {
     saving.value = true;
 
@@ -64,6 +67,15 @@ function savePreferences() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto max-w-2xl px-4 py-6">
+            <button
+                type="button"
+                class="mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                @click="goBack"
+            >
+                <ArrowLeft class="size-3.5" />
+                Volver a noticias
+            </button>
+
             <div class="mb-6 flex items-center gap-3">
                 <Settings2 class="size-6 text-primary" />
                 <h1 class="text-lg font-bold">Preferencias de Noticias</h1>

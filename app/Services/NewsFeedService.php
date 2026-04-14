@@ -216,7 +216,6 @@ class NewsFeedService
     private function paginateFeed(Builder $query, int $perPage): LengthAwarePaginator
     {
         return $this->deduplicateByStoryGroup($query)
-            ->orderByDesc('news_articles.is_breaking')
             ->orderByDesc('news_articles.published_at')
             ->paginate($perPage);
     }

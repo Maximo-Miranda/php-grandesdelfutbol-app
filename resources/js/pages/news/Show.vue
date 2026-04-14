@@ -10,6 +10,7 @@ import NewsLikeButton from '@/components/news/NewsLikeButton.vue';
 import NewsShareButton from '@/components/news/NewsShareButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useHistoryBack } from '@/composables/useHistoryBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { buildShareUrl, formatTimeAgo } from '@/lib/utils';
 import type { BreadcrumbItem, NewsArticle, NewsArticleComment } from '@/types';
@@ -65,13 +66,7 @@ const paragraphs = computed<string[]>(() => {
 
 const summaryLoading = ref(false);
 
-function goBack(): void {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else {
-        router.visit('/news');
-    }
-}
+const goBack = useHistoryBack('/news');
 
 function generateSummary(): void {
     router.post(`/news/${props.article.slug}/summarize`, {}, {
