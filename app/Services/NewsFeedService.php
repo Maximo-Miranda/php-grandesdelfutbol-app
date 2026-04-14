@@ -43,15 +43,43 @@ class NewsFeedService
 
     public function search(string $query, int $perPage = 15, ?User $user = null): LengthAwarePaginator
     {
-        $search = '%'.mb_strtolower($query).'%';
-
-        return $this->baseQuery($user)
-            ->where(function (Builder $q) use ($search) {
-                $q->whereRaw('LOWER(news_articles.title) LIKE ?', [$search])
-                    ->orWhereRaw('LOWER(news_articles.snippet) LIKE ?', [$search]);
-            })
-            ->orderByDesc('news_articles.published_at')
+        // Scout's database engine applies `to_tsvector('spanish', ...) @@
+        // plainto_tsquery('spanish', ?)` across title/snippet/full_content
+        // (see NewsArticle::toSearchableArray) and orders by ts_rank
+        // automatically when running on Postgres. The `query` callback
+        // hydrates the same relations/counts/bookmarks the feed uses so
+        // article cards render identically to the regular feed.
+        return NewsArticle::search($query)
+            ->query(fn (Builder $q) => $this->applyCardSelections($q, $user))
             ->paginate($perPage);
+    }
+
+    /**
+     * Eager-load the relations and aggregate columns a NewsArticleCard needs.
+     * Matches `baseQuery()` but takes an existing builder so Scout's
+     * `query()` callback can layer it onto the search query.
+     */
+    private function applyCardSelections(Builder $query, ?User $user = null): Builder
+    {
+        $query->with('source:id,name,slug,logo_url')
+            ->withCount([
+                'comments as comments_count',
+                'interactions as likes_count' => fn (Builder $q) => $q
+                    ->where('type', NewsInteractionType::Like),
+            ]);
+
+        if ($user !== null) {
+            $query->withExists([
+                'interactions as is_bookmarked' => fn (Builder $q) => $q
+                    ->where('user_id', $user->id)
+                    ->where('type', NewsInteractionType::Bookmark),
+                'interactions as is_liked' => fn (Builder $q) => $q
+                    ->where('user_id', $user->id)
+                    ->where('type', NewsInteractionType::Like),
+            ]);
+        }
+
+        return $query;
     }
 
     public function getPersonalizedFeed(User $user, ?string $category = null, int $perPage = 15): LengthAwarePaginator
@@ -143,27 +171,9 @@ class NewsFeedService
 
     private function baseQuery(?User $user = null): Builder
     {
-        $query = NewsArticle::query()
-            ->with('source:id,name,slug,logo_url')
-            ->select('news_articles.*')
-            ->withCount([
-                'comments as comments_count',
-                'interactions as likes_count' => fn (Builder $q) => $q
-                    ->where('type', NewsInteractionType::Like),
-            ]);
+        $query = NewsArticle::query()->select('news_articles.*');
 
-        if ($user !== null) {
-            $query->withExists([
-                'interactions as is_bookmarked' => fn (Builder $q) => $q
-                    ->where('user_id', $user->id)
-                    ->where('type', NewsInteractionType::Bookmark),
-                'interactions as is_liked' => fn (Builder $q) => $q
-                    ->where('user_id', $user->id)
-                    ->where('type', NewsInteractionType::Like),
-            ]);
-        }
-
-        return $query;
+        return $this->applyCardSelections($query, $user);
     }
 
     public static function categoryExists(string $category): bool

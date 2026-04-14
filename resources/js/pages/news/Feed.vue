@@ -33,18 +33,27 @@ watch(searchQuery, (value) => {
     clearTimeout(debounceTimer);
 
     debounceTimer = setTimeout(() => {
+        // `reset: ['articles']` is REQUIRED: per Inertia v2 docs, when
+        // filter parameters change the InfiniteScroll merges new results
+        // into the existing list instead of replacing them. Without it,
+        // users searching "junior" would still see the prior feed's
+        // unrelated items at the top of the list.
         router.visit('/news', {
             data: value.trim() ? { search: value.trim() } : {},
             preserveScroll: true,
             preserveState: true,
             only: ['articles', 'search'],
+            reset: ['articles'],
         });
     }, 400);
 });
 
 function clearSearch() {
     searchQuery.value = '';
-    router.visit('/news', { preserveScroll: true });
+    router.visit('/news', {
+        preserveScroll: true,
+        reset: ['articles'],
+    });
 }
 
 const isSearching = computed(() => !!props.search);

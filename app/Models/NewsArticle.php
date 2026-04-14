@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Attributes\SearchUsingFullText;
+use Laravel\Scout\Searchable;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
@@ -45,7 +47,7 @@ use Spatie\Sluggable\SlugOptions;
 class NewsArticle extends Model
 {
     /** @use HasFactory<NewsArticleFactory> */
-    use HasFactory, HasPublicUlid, HasSlug;
+    use HasFactory, HasPublicUlid, HasSlug, Searchable;
 
     public function getSlugOptions(): SlugOptions
     {
@@ -97,6 +99,24 @@ class NewsArticle extends Model
             'image_urls' => 'array',
             'is_breaking' => 'boolean',
             'published_at' => 'immutable_datetime',
+        ];
+    }
+
+    /**
+     * Scout-searchable columns. Uses Postgres full-text search in Spanish
+     * so stemming ("junior"/"juniors") and stopwords ("de", "la") work
+     * correctly; ordering by `ts_rank` is handled automatically by the
+     * database engine on Postgres (see Laravel\Scout\Engines\DatabaseEngine).
+     *
+     * @return array<string, mixed>
+     */
+    #[SearchUsingFullText(['title', 'snippet', 'full_content'], ['language' => 'spanish'])]
+    public function toSearchableArray(): array
+    {
+        return [
+            'title' => $this->title,
+            'snippet' => $this->snippet,
+            'full_content' => $this->full_content,
         ];
     }
 

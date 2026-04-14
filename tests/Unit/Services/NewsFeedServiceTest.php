@@ -53,6 +53,30 @@ test('search is case-insensitive and matches snippet', function () {
     expect($results->total())->toBe(1);
 });
 
+test('search matches words that only appear in full_content', function () {
+    $source = NewsSource::factory()->create();
+
+    NewsArticle::factory()->create([
+        'news_source_id' => $source->id,
+        'title' => 'Crónica del partido',
+        'snippet' => 'Resumen breve del encuentro.',
+        'full_content' => 'El delantero colombiano Juan Fernando Quintero marcó el gol del triunfo.',
+        'published_at' => now(),
+    ]);
+    NewsArticle::factory()->create([
+        'news_source_id' => $source->id,
+        'title' => 'Otra noticia',
+        'snippet' => 'Contenido sin relación',
+        'full_content' => 'Texto libre sin menciones relevantes.',
+        'published_at' => now(),
+    ]);
+
+    $results = $this->service->search('Quintero');
+
+    expect($results->total())->toBe(1);
+    expect($results->first()->full_content)->toContain('Quintero');
+});
+
 test('deduplication keeps highest-priority source per story group', function () {
     $highPriority = NewsSource::factory()->create(['priority' => 10]);
     $lowPriority = NewsSource::factory()->create(['priority' => 1]);
