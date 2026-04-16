@@ -45,36 +45,38 @@ function toggleTheme() {
 </script>
 
 <template>
-    <header class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-        <div class="flex items-center gap-2">
-            <button
-                v-if="showBack"
-                type="button"
-                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
-                @click="goBack"
-            >
-                <ArrowLeft class="size-5" />
-            </button>
-            <ClubSwitcher />
-        </div>
-        <div class="flex items-center gap-1">
-            <button
-                class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                @click="toggleTheme"
-            >
-                <Sun v-if="appearance === 'dark'" class="size-5" />
-                <Moon v-else class="size-5" />
-            </button>
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <button class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                        <User class="size-5" />
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent class="w-56" align="end" :side-offset="8">
-                    <UserMenuContent :user="user" />
-                </DropdownMenuContent>
-            </DropdownMenu>
+    <header class="shrink-0 border-b border-border pt-[env(safe-area-inset-top,0px)]">
+        <div class="flex h-14 items-center justify-between px-4">
+            <div class="flex items-center gap-2">
+                <button
+                    v-if="showBack"
+                    type="button"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
+                    @click="goBack"
+                >
+                    <ArrowLeft class="size-5" />
+                </button>
+                <ClubSwitcher />
+            </div>
+            <div class="flex items-center gap-1">
+                <button
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    @click="toggleTheme"
+                >
+                    <Sun v-if="appearance === 'dark'" class="size-5" />
+                    <Moon v-else class="size-5" />
+                </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                            <User class="size-5" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent class="w-56" align="end" :side-offset="8">
+                        <UserMenuContent :user="user" />
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
     </header>
 </template>
