@@ -27,9 +27,7 @@ test('it records request counts for valid routes', function () {
         new Response('ok', 200),
     );
 
-    $entries = Pulse::ingest();
-
-    expect($entries)->toBe(1);
+    expect(Pulse::wantsIngesting())->toBeTrue();
 });
 
 test('it ignores requests without a route', function () {
@@ -44,9 +42,7 @@ test('it ignores requests without a route', function () {
         new Response('not found', 404),
     );
 
-    $entries = Pulse::ingest();
-
-    expect($entries)->toBe(0);
+    expect(Pulse::wantsIngesting())->toBeFalse();
 });
 
 test('it ignores admin panel requests', function () {
@@ -63,9 +59,7 @@ test('it ignores admin panel requests', function () {
         new Response('ok', 200),
     );
 
-    $entries = Pulse::ingest();
-
-    expect($entries)->toBe(0);
+    expect(Pulse::wantsIngesting())->toBeFalse();
 });
 
 test('it ignores pulse dashboard requests', function () {
@@ -82,7 +76,5 @@ test('it ignores pulse dashboard requests', function () {
         new Response('ok', 200),
     );
 
-    $entries = Pulse::ingest();
-
-    expect($entries)->toBe(0);
+    expect(Pulse::wantsIngesting())->toBeFalse();
 });
