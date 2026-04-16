@@ -31,8 +31,22 @@ class MatchService
     public function createMatch(Club $club, array $data): FootballMatch
     {
         $scheduledAt = Carbon::parse($data['scheduled_at'])->setTimezone(config('app.timezone'));
-        $isPast = $scheduledAt->isPast();
         $durationMinutes = $data['duration_minutes'] ?? 60;
+        $endsAt = $scheduledAt->copy()->addMinutes($durationMinutes);
+
+        if ($scheduledAt->isFuture()) {
+            $status = MatchStatus::Upcoming;
+            $startedAt = null;
+            $endedAt = null;
+        } elseif ($endsAt->isFuture()) {
+            $status = MatchStatus::InProgress;
+            $startedAt = $scheduledAt;
+            $endedAt = null;
+        } else {
+            $status = MatchStatus::Completed;
+            $startedAt = $scheduledAt;
+            $endedAt = $endsAt;
+        }
 
         $match = FootballMatch::query()->create([
             'club_id' => $club->id,
@@ -43,11 +57,12 @@ class MatchService
             'arrival_minutes' => $data['arrival_minutes'] ?? 15,
             'max_players' => $data['max_players'] ?? 10,
             'max_substitutes' => $data['max_substitutes'] ?? 4,
-            'status' => $isPast ? MatchStatus::Completed : MatchStatus::Upcoming,
-            'started_at' => $isPast ? $scheduledAt : null,
-            'ended_at' => $isPast ? $scheduledAt->copy()->addMinutes($durationMinutes) : null,
+            'status' => $status,
+            'started_at' => $startedAt,
+            'ended_at' => $endedAt,
             'share_token' => Str::random(16),
             'registration_opens_hours' => $data['registration_opens_hours'] ?? 24,
+            'registration_opens_at' => $data['registration_opens_at'] ?? null,
             'notes' => $data['notes'] ?? null,
             'team_a_name' => $data['team_a_name'] ?? 'Equipo A',
             'team_b_name' => $data['team_b_name'] ?? 'Equipo B',
@@ -57,9 +72,10 @@ class MatchService
             'recurrence_days' => $data['recurrence_days'] ?? 7,
             'auto_cancel' => $data['auto_cancel'] ?? true,
             'min_players_required' => $data['min_players_required'] ?? ($data['max_players'] ?? 10),
+            'cancel_hours_before' => $data['cancel_hours_before'] ?? null,
         ]);
 
-        if ($isPast) {
+        if ($status === MatchStatus::Completed) {
             $this->recreateIfRecurring($match);
         }
 
@@ -81,10 +97,16 @@ class MatchService
             return null;
         }
 
-        $newScheduledAt = $match->scheduled_at->copy()->addDays($match->recurrence_days);
+        $newScheduledAt = $match->scheduled_at->addDays($match->recurrence_days);
 
         while ($newScheduledAt->isPast()) {
             $newScheduledAt = $newScheduledAt->addDays($match->recurrence_days);
+        }
+
+        $newRegistrationOpensAt = null;
+        if ($match->registration_opens_at !== null) {
+            $offsetSeconds = $match->registration_opens_at->diffInSeconds($match->scheduled_at);
+            $newRegistrationOpensAt = $newScheduledAt->subSeconds($offsetSeconds);
         }
 
         return FootballMatch::query()->create([
@@ -99,6 +121,7 @@ class MatchService
             'status' => MatchStatus::Upcoming,
             'share_token' => Str::random(16),
             'registration_opens_hours' => $match->registration_opens_hours,
+            'registration_opens_at' => $newRegistrationOpensAt,
             'notes' => $match->notes,
             'team_a_name' => $match->team_a_name,
             'team_b_name' => $match->team_b_name,
@@ -108,6 +131,7 @@ class MatchService
             'recurrence_days' => $match->recurrence_days,
             'auto_cancel' => $match->auto_cancel,
             'min_players_required' => $match->min_players_required,
+            'cancel_hours_before' => $match->cancel_hours_before,
         ]);
     }
 
@@ -187,9 +211,7 @@ class MatchService
             return false;
         }
 
-        $opensAt = $match->scheduled_at->subHours($match->registration_opens_hours);
-
-        return now()->gte($opensAt);
+        return now()->gte($match->effectiveRegistrationOpensAt());
     }
 
     /**

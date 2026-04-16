@@ -50,8 +50,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubs', href: '/clubs' },
     { title: props.club.name, href: `/clubs/${props.club.ulid}` },
     { title: 'Partidos', href: base },
-    { title: props.match.title, href: `${base}/${props.match.ulid}` },
-    { title: 'Live', href: `${base}/${props.match.ulid}/live` },
+    { title: `${props.match.title} — Live`, href: `${base}/${props.match.ulid}/live` },
 ];
 
 // --- Event type definitions (single unified grid) ---

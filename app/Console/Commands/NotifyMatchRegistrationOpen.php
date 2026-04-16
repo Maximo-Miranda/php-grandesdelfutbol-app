@@ -22,15 +22,15 @@ class NotifyMatchRegistrationOpen extends Command
         $now = now()->toDateTimeString();
 
         $query = FootballMatch::query()
+            ->with('club')
             ->where('status', MatchStatus::Upcoming)
             ->whereNull('registration_notified_at');
 
         // Use Laravel's now() (app.timezone) instead of DB now() (UTC) to avoid timezone mismatch
         if ($driver === 'pgsql') {
-            $query->whereRaw("? >= scheduled_at - (registration_opens_hours || ' hours')::interval", [$now]);
+            $query->whereRaw("? >= COALESCE(registration_opens_at, scheduled_at - (registration_opens_hours || ' hours')::interval)", [$now]);
         } else {
-            // SQLite fallback for tests
-            $query->whereRaw("? >= datetime(scheduled_at, '-' || registration_opens_hours || ' hours')", [$now]);
+            $query->whereRaw("? >= COALESCE(registration_opens_at, datetime(scheduled_at, '-' || registration_opens_hours || ' hours'))", [$now]);
         }
 
         $query->chunkById(100, function ($matches) {

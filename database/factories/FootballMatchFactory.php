@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\MatchStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -39,6 +40,8 @@ class FootballMatchFactory extends Factory
             'recurrence_days' => 7,
             'auto_cancel' => false,
             'min_players_required' => 10,
+            'registration_opens_at' => null,
+            'cancel_hours_before' => null,
         ];
     }
 
@@ -78,6 +81,20 @@ class FootballMatchFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'is_recurring' => true,
             'recurrence_days' => $days,
+        ]);
+    }
+
+    public function withManualRegistration(CarbonImmutable|string $opensAt): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'registration_opens_at' => $opensAt,
+        ]);
+    }
+
+    public function withCancelHours(int $hours): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'cancel_hours_before' => $hours,
         ]);
     }
 }

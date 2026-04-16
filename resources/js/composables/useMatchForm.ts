@@ -13,6 +13,7 @@ export type MatchFormData = {
     max_players: number;
     max_substitutes: number;
     registration_opens_hours: number;
+    registration_opens_at: string | null;
     notes: string;
     team_a_name: string;
     team_b_name: string;
@@ -22,6 +23,7 @@ export type MatchFormData = {
     recurrence_days: number;
     auto_cancel: boolean;
     min_players_required: number;
+    cancel_hours_before: number | null;
 };
 
 export const recurrenceOptions = [
@@ -31,7 +33,7 @@ export const recurrenceOptions = [
     { value: 'custom', label: 'Personalizado' },
 ] as const;
 
-const recurrencePresets = recurrenceOptions.filter(o => o.value !== 'custom').map(o => o.value);
+const recurrencePresets: string[] = recurrenceOptions.filter(o => o.value !== 'custom').map(o => o.value);
 
 export const fieldTypeToPlayers: Record<string, number> = {
     '5v5': 10,
@@ -58,12 +60,20 @@ function capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1).replace('.', '');
 }
 
+function formatShortParts(d: Date): string {
+    const weekday = capitalize(d.toLocaleDateString('es', { weekday: 'short' }));
+    const monthName = capitalize(d.toLocaleDateString('es', { month: 'short' }));
+    return `${weekday} ${d.getDate()} ${monthName}`;
+}
+
 export function formatShortDate(dateStr: string): string {
     const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const weekday = capitalize(date.toLocaleDateString('es', { weekday: 'short' }));
-    const monthName = capitalize(date.toLocaleDateString('es', { month: 'short' }));
-    return `${weekday} ${date.getDate()} ${monthName}`;
+    return formatShortParts(new Date(year, month - 1, day));
+}
+
+export function formatShortDateTime(d: Date): string {
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${formatShortParts(d)} ${time}`;
 }
 
 export function getDefaultDate(): string {
@@ -77,10 +87,11 @@ type UseMatchFormOptions = {
     venues: MaybeRefOrGetter<Venue[]>;
     match?: FootballMatch;
     autoTitleOnInit?: boolean;
+    defaultCancelHoursBefore: number;
 };
 
 export function useMatchForm(options: UseMatchFormOptions) {
-    const { venues: venuesSource, match, autoTitleOnInit = true } = options;
+    const { venues: venuesSource, match, autoTitleOnInit = true, defaultCancelHoursBefore } = options;
 
     // --- Field list ---
     const allFields = computed(() => {
@@ -117,7 +128,6 @@ export function useMatchForm(options: UseMatchFormOptions) {
     // --- Initial values ---
     const isEdit = !!match;
 
-    // Parse UTC ISO string to local date/time parts (Carbon serializes to UTC)
     function toLocalParts(isoString: string): { date: string; time: string } {
         const d = new Date(isoString);
         const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -132,11 +142,21 @@ export function useMatchForm(options: UseMatchFormOptions) {
     const initialFieldLabel = isEdit ? resolveFieldLabel(match.field_id) : 'none';
     const initialMaxPlayers = isEdit ? match.max_players : 10;
 
+    // --- Registration opens manual datetime ---
+    const editRegParts = isEdit && match.registration_opens_at ? toLocalParts(match.registration_opens_at) : null;
+    const initialRegDate = editRegParts ? editRegParts.date : '';
+    const initialRegTime = editRegParts ? editRegParts.time : '';
+
     // --- Reactive state ---
     const autoTitle = ref(autoTitleOnInit);
+    const autoRegistration = ref(isEdit ? match.registration_opens_at === null : true);
     const selectedFieldLabel = ref(initialFieldLabel);
     const selectedDate = ref(initialDate);
     const selectedTime = ref(initialTime);
+    const registrationDate = ref(initialRegDate);
+    const registrationTime = ref(
+        initialRegTime && timeOptions.includes(initialRegTime) ? initialRegTime : '',
+    );
 
     // --- Generated title ---
     const generatedTitle = computed(() => {
@@ -145,6 +165,14 @@ export function useMatchForm(options: UseMatchFormOptions) {
         if (fieldType) parts.push(fieldType);
         if (selectedDate.value) parts.push(formatShortDate(selectedDate.value));
         return parts.join(' ');
+    });
+
+    // --- Computed: auto-calculated registration opens datetime ---
+    const generatedRegistrationOpensAt = computed(() => {
+        if (!selectedDate.value || !selectedTime.value) return null;
+        const scheduledAt = new Date(`${selectedDate.value}T${selectedTime.value}`);
+        scheduledAt.setHours(scheduledAt.getHours() - form.registration_opens_hours);
+        return scheduledAt;
     });
 
     // --- Form ---
@@ -159,6 +187,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
         registration_opens_hours: isEdit
             ? (match.registration_opens_hours ?? 24)
             : calcRegistrationHours(initialMaxPlayers),
+        registration_opens_at: match?.registration_opens_at ?? null,
         notes: match?.notes ?? '',
         team_a_name: match?.team_a_name ?? 'Equipo A',
         team_b_name: match?.team_b_name ?? 'Equipo B',
@@ -168,6 +197,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
         recurrence_days: match?.recurrence_days ?? 7,
         auto_cancel: match?.auto_cancel ?? true,
         min_players_required: match?.min_players_required ?? initialMaxPlayers,
+        cancel_hours_before: match?.cancel_hours_before ?? defaultCancelHoursBefore,
     });
 
     // --- Recurrence ---
@@ -194,7 +224,9 @@ export function useMatchForm(options: UseMatchFormOptions) {
         const playerCount = fieldType ? fieldTypeToPlayers[fieldType] : undefined;
         if (playerCount) {
             form.max_players = playerCount;
-            form.registration_opens_hours = calcRegistrationHours(playerCount);
+            if (autoRegistration.value) {
+                form.registration_opens_hours = calcRegistrationHours(playerCount);
+            }
             form.min_players_required = playerCount;
         }
     });
@@ -261,6 +293,23 @@ export function useMatchForm(options: UseMatchFormOptions) {
         }
     }
 
+    // --- Registration toggles ---
+    function enableManualRegistration() {
+        autoRegistration.value = false;
+        if (generatedRegistrationOpensAt.value) {
+            const { date, time } = toLocalParts(generatedRegistrationOpensAt.value.toISOString());
+            registrationDate.value = date;
+            registrationTime.value = timeOptions.includes(time) ? time : timeOptions[0];
+        }
+    }
+
+    function enableAutoRegistration() {
+        autoRegistration.value = true;
+        form.registration_opens_at = null;
+        registrationDate.value = '';
+        registrationTime.value = '';
+    }
+
     // --- Past-match detection ---
     const isPastMatch = computed(() => {
         if (!selectedDate.value || !selectedTime.value) return false;
@@ -274,6 +323,12 @@ export function useMatchForm(options: UseMatchFormOptions) {
             ? `${selectedDate.value}T${selectedTime.value}`
             : '';
         form.field_id = resolveFieldId(selectedFieldLabel.value);
+
+        if (!autoRegistration.value && registrationDate.value && registrationTime.value) {
+            form.registration_opens_at = `${registrationDate.value}T${registrationTime.value}`;
+        } else {
+            form.registration_opens_at = null;
+        }
     }
 
     return {
@@ -282,14 +337,20 @@ export function useMatchForm(options: UseMatchFormOptions) {
         autoTitle,
         autoTeamA,
         autoTeamB,
+        autoRegistration,
         selectedFieldLabel,
         selectedDate,
         selectedTime,
+        registrationDate,
+        registrationTime,
         generatedTitle,
+        generatedRegistrationOpensAt,
         enableManualTitle,
         enableAutoTitle,
         enableManualTeamName,
         enableAutoTeamName,
+        enableManualRegistration,
+        enableAutoRegistration,
         isPastMatch,
         selectedRecurrenceOption,
         resolveBeforeSubmit,

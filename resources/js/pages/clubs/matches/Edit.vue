@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Bell, Clock, MapPin, Pencil, Plus, Repeat, Save, ShieldX, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Bell, CalendarClock, Clock, MapPin, Pencil, Plus, Repeat, Save, ShieldX, Trophy, WandSparkles } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { recurrenceOptions, timeOptions, useMatchForm } from '@/composables/useMatchForm';
+import { formatShortDateTime, recurrenceOptions, timeOptions, useMatchForm } from '@/composables/useMatchForm';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, FootballMatch, Venue } from '@/types';
 
@@ -27,7 +27,7 @@ type VideoUploadData = {
     error_message: string | null;
 };
 
-type Props = { club: Club; match: FootballMatch; venues: Venue[]; videoUpload?: VideoUploadData | null; embedUrl?: string | null; streamUrl?: string | null };
+type Props = { club: Club; match: FootballMatch; venues: Venue[]; videoUpload?: VideoUploadData | null; embedUrl?: string | null; streamUrl?: string | null; defaultCancelHoursBefore: number };
 const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -44,19 +44,26 @@ const {
     autoTitle,
     autoTeamA,
     autoTeamB,
+    autoRegistration,
     selectedFieldLabel,
     selectedDate,
     selectedTime,
+    registrationDate,
+    registrationTime,
+    generatedRegistrationOpensAt,
     enableManualTitle,
     enableAutoTitle,
     enableManualTeamName,
     enableAutoTeamName,
+    enableManualRegistration,
+    enableAutoRegistration,
     selectedRecurrenceOption,
     resolveBeforeSubmit,
 } = useMatchForm({
     venues: () => props.venues,
     match: props.match,
     autoTitleOnInit: false,
+    defaultCancelHoursBefore: props.defaultCancelHoursBefore,
 });
 
 function submit() {
@@ -443,22 +450,75 @@ function submitExistingVenueField() {
                     </div>
                 </div>
 
-                <!-- Registro abre antes -->
+                <!-- Apertura de convocatoria -->
                 <div class="grid gap-1.5">
-                    <Label for="registration_opens_hours">Registro abre antes (hrs) <span class="text-destructive">*</span></Label>
-                    <p class="text-xs text-muted-foreground">Horas antes del partido en que se abre el registro.</p>
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Bell class="size-4 text-muted-foreground" />
+                    <Label>Apertura de convocatoria <span class="text-destructive">*</span></Label>
+
+                    <!-- Modo auto -->
+                    <template v-if="autoRegistration">
+                        <p class="text-xs text-muted-foreground">Se calcula automáticamente. Presiona el lápiz para establecer fecha y hora exacta.</p>
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <Bell class="size-4 text-muted-foreground" />
+                            </div>
+                            <Input
+                                id="registration_opens_hours"
+                                v-model="form.registration_opens_hours"
+                                type="number"
+                                class="pl-9 pr-9 bg-muted/50"
+                                readonly
+                            />
+                            <button
+                                type="button"
+                                class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                                @click="enableManualRegistration()"
+                            >
+                                <Pencil class="size-4" />
+                            </button>
                         </div>
-                        <Input
-                            id="registration_opens_hours"
-                            v-model="form.registration_opens_hours"
-                            type="number"
-                            class="pl-9"
-                        />
-                    </div>
+                        <p v-if="generatedRegistrationOpensAt" class="text-xs text-muted-foreground">
+                            Convocatoria se abre: <span class="font-medium">{{ formatShortDateTime(generatedRegistrationOpensAt) }}</span>
+                        </p>
+                    </template>
+
+                    <!-- Modo manual -->
+                    <template v-else>
+                        <p class="text-xs text-muted-foreground">Fecha y hora exacta en que se abre la convocatoria.</p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
+                            <div class="relative">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <CalendarClock class="size-4 text-muted-foreground" />
+                                </div>
+                                <Input
+                                    id="registration_date"
+                                    v-model="registrationDate"
+                                    type="date"
+                                    class="pl-9"
+                                />
+                            </div>
+                            <Select v-model="registrationTime">
+                                <SelectTrigger>
+                                    <div class="flex items-center gap-2">
+                                        <Clock class="size-4 text-muted-foreground" />
+                                        <SelectValue placeholder="Hora" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="t in timeOptions" :key="t" :value="t">{{ t }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <button
+                                type="button"
+                                class="flex items-center justify-center rounded-md border border-input px-3 text-muted-foreground hover:text-foreground"
+                                @click="enableAutoRegistration()"
+                            >
+                                <WandSparkles class="size-4" />
+                            </button>
+                        </div>
+                    </template>
+
                     <InputError :message="form.errors.registration_opens_hours" />
+                    <InputError :message="form.errors.registration_opens_at" />
                 </div>
 
                 <!-- Equipos -->
@@ -563,28 +623,49 @@ function submitExistingVenueField() {
                 <div class="grid gap-1.5">
                     <Label>Auto-cancelar</Label>
                     <p class="text-xs text-muted-foreground">
-                        Si no hay suficientes jugadores 2 horas antes, el partido se cancela y se notifica a los confirmados.
+                        Si no hay suficientes jugadores antes del partido, se cancela automáticamente.
                     </p>
                     <div class="flex items-center gap-2">
                         <Checkbox id="auto_cancel" v-model="form.auto_cancel" />
                         <Label for="auto_cancel" class="font-normal">Auto-cancelar por falta de jugadores</Label>
                     </div>
-                    <div v-if="form.auto_cancel" class="mt-2 grid gap-1.5">
-                        <Label for="min_players_required">Mínimo de jugadores</Label>
-                        <div class="relative max-w-[200px]">
-                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <ShieldX class="size-4 text-muted-foreground" />
+                    <div v-if="form.auto_cancel" class="mt-2 grid gap-3">
+                        <div class="grid gap-1.5">
+                            <Label for="min_players_required">Mínimo de jugadores</Label>
+                            <div class="relative max-w-[200px]">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <ShieldX class="size-4 text-muted-foreground" />
+                                </div>
+                                <Input
+                                    id="min_players_required"
+                                    v-model="form.min_players_required"
+                                    type="number"
+                                    min="2"
+                                    :max="form.max_players"
+                                    class="pl-9"
+                                />
                             </div>
-                            <Input
-                                id="min_players_required"
-                                v-model="form.min_players_required"
-                                type="number"
-                                min="2"
-                                :max="form.max_players"
-                                class="pl-9"
-                            />
+                            <InputError :message="form.errors.min_players_required" />
                         </div>
-                        <InputError :message="form.errors.min_players_required" />
+                        <div class="grid gap-1.5">
+                            <Label for="cancel_hours_before">Horas antes para cancelar</Label>
+                            <p class="text-xs text-muted-foreground">Horas antes del partido para verificar y auto-cancelar.</p>
+                            <div class="relative max-w-[200px]">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <Clock class="size-4 text-muted-foreground" />
+                                </div>
+                                <Input
+                                    id="cancel_hours_before"
+                                    v-model="form.cancel_hours_before"
+                                    type="number"
+                                    min="1"
+                                    max="168"
+                                    placeholder="10"
+                                    class="pl-9"
+                                />
+                            </div>
+                            <InputError :message="form.errors.cancel_hours_before" />
+                        </div>
                     </div>
                 </div>
 

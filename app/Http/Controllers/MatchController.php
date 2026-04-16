@@ -66,6 +66,7 @@ class MatchController extends Controller
         return Inertia::render('clubs/matches/Create', [
             'club' => $club,
             'venues' => $club->venues()->with('fields')->where('is_active', true)->get(),
+            'defaultCancelHoursBefore' => FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE,
         ]);
     }
 
@@ -141,6 +142,7 @@ class MatchController extends Controller
             'videoUpload' => $videoUpload,
             'embedUrl' => $videoUpload?->embed_url,
             'streamUrl' => $videoUpload?->stream_url,
+            'defaultCancelHoursBefore' => FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE,
         ]);
     }
 

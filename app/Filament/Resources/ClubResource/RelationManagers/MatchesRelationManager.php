@@ -104,6 +104,7 @@ class MatchesRelationManager extends RelationManager
                     'arrival_minutes' => $lastMatch->arrival_minutes,
                     'registration_opens_hours' => $lastMatch->registration_opens_hours,
                     'field_id' => $lastMatch->field_id,
+                    'cancel_hours_before' => $lastMatch->cancel_hours_before,
                 ]);
             })
             ->schema([
@@ -150,6 +151,17 @@ class MatchesRelationManager extends RelationManager
                     ->numeric()
                     ->required()
                     ->minValue(0),
+                DateTimePicker::make('registration_opens_at')
+                    ->label('Apertura de registro (fecha exacta)')
+                    ->helperText('Deja vacío para usar el cálculo automático basado en horas.')
+                    ->nullable(),
+                TextInput::make('cancel_hours_before')
+                    ->label('Horas antes para auto-cancelar')
+                    ->helperText('Deja vacío para usar el valor por defecto (10 horas).')
+                    ->numeric()
+                    ->nullable()
+                    ->minValue(1)
+                    ->maxValue(168),
                 Select::make('field_id')
                     ->label('Cancha')
                     ->options(fn (): array => Field::query()
@@ -176,9 +188,11 @@ class MatchesRelationManager extends RelationManager
                     'duration_minutes' => $data['duration_minutes'],
                     'arrival_minutes' => $data['arrival_minutes'],
                     'registration_opens_hours' => $data['registration_opens_hours'],
+                    'registration_opens_at' => $data['registration_opens_at'] ?? null,
                     'field_id' => $data['field_id'],
                     'status' => MatchStatus::Upcoming,
                     'share_token' => Str::random(16),
+                    'cancel_hours_before' => $data['cancel_hours_before'] ?? null,
                 ]);
 
                 Notification::make()

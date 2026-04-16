@@ -14,8 +14,6 @@ class ProcessMatchSchedules extends Command
 
     protected $description = 'Auto-inicia partidos programados cuya hora ya pasó y auto-completa partidos iniciados por el sistema cuya duración ya terminó';
 
-    private const int AUTO_CANCEL_HOURS_BEFORE = 10;
-
     public function __construct(private readonly MatchService $matchService)
     {
         parent::__construct();
@@ -34,18 +32,20 @@ class ProcessMatchSchedules extends Command
 
     private function autoCancelMatches(): int
     {
-        $cancelWindow = now()->addHours(self::AUTO_CANCEL_HOURS_BEFORE);
-
         $matches = FootballMatch::query()
             ->where('status', MatchStatus::Upcoming)
             ->where('auto_cancel', true)
-            ->where('scheduled_at', '<=', $cancelWindow)
             ->where('scheduled_at', '>', now())
             ->withCount(['attendances as confirmed_count' => function ($query) {
                 $query->where('status', AttendanceStatus::Confirmed);
             }])
             ->get()
-            ->filter(fn (FootballMatch $match) => $match->confirmed_count === 0);
+            ->filter(function (FootballMatch $match) {
+                $cancelWindow = now()->addHours($match->effectiveCancelHoursBefore());
+
+                return $match->scheduled_at->lte($cancelWindow)
+                    && $match->confirmed_count < $match->min_players_required;
+            });
 
         $cancelled = 0;
 

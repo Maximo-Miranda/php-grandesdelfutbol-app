@@ -41,6 +41,7 @@ export type FootballMatch = {
     status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
     share_token: string | null;
     registration_opens_hours: number;
+    registration_opens_at: string | null;
     notes: string | null;
     video_upload?: MatchVideoUpload | null;
     active_video_service_request?: { status: 'pending' | 'contacted' | 'completed' | 'rejected' } | null;
@@ -57,6 +58,7 @@ export type FootballMatch = {
     recurrence_days: number;
     auto_cancel: boolean;
     min_players_required: number;
+    cancel_hours_before: number | null;
     club?: Club;
     field?: Field;
     attendances?: MatchAttendance[];

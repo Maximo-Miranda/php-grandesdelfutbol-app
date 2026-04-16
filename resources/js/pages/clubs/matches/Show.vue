@@ -115,6 +115,9 @@ const arrivalTime = computed(() => {
 
 // --- Registration gate ---
 const registrationOpensAt = computed(() => {
+    if (props.match.registration_opens_at) {
+        return new Date(props.match.registration_opens_at).getTime();
+    }
     const d = new Date(props.match.scheduled_at);
     d.setHours(d.getHours() - props.match.registration_opens_hours);
     return d.getTime();

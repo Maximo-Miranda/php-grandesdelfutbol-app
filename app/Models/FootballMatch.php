@@ -29,6 +29,7 @@ use Illuminate\Support\Collection;
  * @property MatchStatus $status
  * @property string|null $share_token
  * @property int $registration_opens_hours
+ * @property CarbonImmutable|null $registration_opens_at
  * @property string|null $notes
  * @property CarbonImmutable|null $started_at
  * @property CarbonImmutable|null $ended_at
@@ -86,6 +87,7 @@ use Illuminate\Support\Collection;
  * @property CarbonImmutable|null $next_match_created_at
  * @property bool $auto_cancel
  * @property int $min_players_required
+ * @property int|null $cancel_hours_before
  * @property-read MatchVideoUpload|null $videoUpload
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|FootballMatch whereAppliedStats($value)
@@ -99,6 +101,8 @@ class FootballMatch extends Model
 
     /** @use HasFactory<FootballMatchFactory> */
     use HasFactory;
+
+    public const int DEFAULT_CANCEL_HOURS_BEFORE = 10;
 
     /** @var string[] */
     public const array JERSEY_COLORS = [
@@ -124,6 +128,7 @@ class FootballMatch extends Model
         'auto_started',
         'share_token',
         'registration_opens_hours',
+        'registration_opens_at',
         'notes',
         'started_at',
         'ended_at',
@@ -141,6 +146,7 @@ class FootballMatch extends Model
         'next_match_created_at',
         'auto_cancel',
         'min_players_required',
+        'cancel_hours_before',
     ];
 
     protected function casts(): array
@@ -164,19 +170,50 @@ class FootballMatch extends Model
             'max_players' => 'integer',
             'max_substitutes' => 'integer',
             'registration_opens_hours' => 'integer',
+            'registration_opens_at' => 'immutable_datetime',
+            'cancel_hours_before' => 'integer',
         ];
+    }
+
+    public function effectiveRegistrationOpensAt(): CarbonImmutable
+    {
+        return $this->registration_opens_at
+            ?? $this->scheduled_at->subHours($this->registration_opens_hours);
+    }
+
+    public function effectiveCancelHoursBefore(): int
+    {
+        return $this->cancel_hours_before ?? self::DEFAULT_CANCEL_HOURS_BEFORE;
     }
 
     protected static function booted(): void
     {
         static::updating(function (FootballMatch $match) {
-            if (! $match->isDirty('scheduled_at') || $match->registration_notified_at === null) {
+            if ($match->isDirty('scheduled_at') && ! $match->auto_started) {
+                $endsAt = $match->scheduled_at->addMinutes($match->duration_minutes);
+
+                if ($match->scheduled_at->isFuture()) {
+                    $match->status = MatchStatus::Upcoming;
+                    $match->started_at = null;
+                    $match->ended_at = null;
+                    $match->next_match_created_at = null;
+                } elseif ($endsAt->isFuture()) {
+                    $match->status = MatchStatus::InProgress;
+                    $match->started_at = $match->scheduled_at;
+                    $match->ended_at = null;
+                    $match->next_match_created_at = null;
+                }
+            }
+
+            if ($match->registration_notified_at === null) {
                 return;
             }
 
-            $newOpensAt = $match->scheduled_at->copy()->subHours($match->registration_opens_hours);
+            if (! $match->isDirty(['scheduled_at', 'registration_opens_at', 'registration_opens_hours'])) {
+                return;
+            }
 
-            if (now()->lt($newOpensAt)) {
+            if (now()->lt($match->effectiveRegistrationOpensAt())) {
                 $match->registration_notified_at = null;
             }
         });
