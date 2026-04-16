@@ -24,6 +24,7 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import CountdownClock from '@/components/CountdownClock.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -125,19 +126,6 @@ const registrationOpensAt = computed(() => {
 
 const isRegistrationOpen = computed(() => now.value >= registrationOpensAt.value);
 
-const registrationCountdown = computed(() => {
-    if (isRegistrationOpen.value) return null;
-    const diff = registrationOpensAt.value - now.value;
-    if (diff <= 0) return null;
-    const totalSecs = Math.floor(diff / 1000);
-    return {
-        days: Math.floor(totalSecs / 86400),
-        hours: Math.floor((totalSecs % 86400) / 3600),
-        minutes: Math.floor((totalSecs % 3600) / 60),
-        seconds: totalSecs % 60,
-    };
-});
-
 // --- Attendance ---
 const confirmedAttendances = computed(() =>
     props.match.attendances?.filter(a => a.status === 'confirmed') ?? [],
@@ -202,17 +190,7 @@ const canStartMatch = computed(() => {
     const msUntilMatch = new Date(props.match.scheduled_at).getTime() - now.value;
     return msUntilMatch <= 30 * 60 * 1000;
 });
-const startMatchHint = computed(() => {
-    if (canStartMatch.value) return null;
-    const msUntil = new Date(props.match.scheduled_at).getTime() - now.value - 30 * 60 * 1000;
-    const mins = Math.ceil(msUntil / 60000);
-    if (mins >= 60) {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return `Se habilita en ${h}h ${m}min`;
-    }
-    return `Se habilita en ${mins} min`;
-});
+const startMatchOpensAt = computed(() => new Date(props.match.scheduled_at).getTime() - 30 * 60 * 1000);
 const isFull = computed(() => confirmedCount.value >= totalSlots.value);
 
 // --- Admin player search ---
@@ -314,10 +292,6 @@ function googleCalendarUrl(): string {
     const details = props.match.notes ?? '';
     const location = props.match.field?.venue?.address ?? '';
     return `https://calendar.google.com/calendar/event?action=TEMPLATE&text=${encodeURIComponent(props.match.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`;
-}
-
-function pad(n: number): string {
-    return String(n).padStart(2, '0');
 }
 
 const vsr = useVideoServiceRequest();
@@ -494,9 +468,10 @@ function dismissPush() {
                     <Play class="size-4" />
                     Iniciar partido
                 </Button>
-                <p v-if="startMatchHint" class="mt-1 text-center text-xs text-muted-foreground">
-                    {{ startMatchHint }}
-                </p>
+                <div v-if="!canStartMatch" class="mt-3">
+                    <p class="mb-1.5 text-center text-xs text-muted-foreground">Se habilita en</p>
+                    <CountdownClock :target="startMatchOpensAt" size="sm" />
+                </div>
             </div>
 
             <!-- Admin Panel Button -->
@@ -524,34 +499,12 @@ function dismissPush() {
 
             <!-- Registration Countdown (closed) -->
             <div
-                v-if="myPlayer && !isRegistrationOpen && registrationCountdown && match.status === 'upcoming'"
+                v-if="myPlayer && !isRegistrationOpen && match.status === 'upcoming'"
                 class="mt-4 rounded-xl border border-border bg-card p-5 text-center"
             >
                 <Lock class="mx-auto mb-2 size-6 text-muted-foreground" />
                 <p class="mb-4 text-sm text-muted-foreground">La confirmacion de asistencia se abre en</p>
-                <div class="flex items-center justify-center gap-1">
-                    <template v-if="registrationCountdown.days > 0">
-                        <div class="rounded-lg border border-border bg-muted/50 px-3 py-2">
-                            <p class="text-xl font-bold">{{ pad(registrationCountdown.days) }}</p>
-                            <p class="text-[10px] uppercase text-muted-foreground">Dias</p>
-                        </div>
-                        <span class="text-xl font-bold text-muted-foreground">:</span>
-                    </template>
-                    <div class="rounded-lg border border-border bg-muted/50 px-3 py-2">
-                        <p class="text-xl font-bold">{{ pad(registrationCountdown.hours) }}</p>
-                        <p class="text-[10px] uppercase text-muted-foreground">Hrs</p>
-                    </div>
-                    <span class="text-xl font-bold text-muted-foreground">:</span>
-                    <div class="rounded-lg border border-border bg-muted/50 px-3 py-2">
-                        <p class="text-xl font-bold">{{ pad(registrationCountdown.minutes) }}</p>
-                        <p class="text-[10px] uppercase text-muted-foreground">Min</p>
-                    </div>
-                    <span class="text-xl font-bold text-muted-foreground">:</span>
-                    <div class="rounded-lg border border-border bg-muted/50 px-3 py-2">
-                        <p class="text-xl font-bold">{{ pad(registrationCountdown.seconds) }}</p>
-                        <p class="text-[10px] uppercase text-muted-foreground">Seg</p>
-                    </div>
-                </div>
+                <CountdownClock :target="registrationOpensAt" />
             </div>
 
             <!-- Attendance Buttons (registration open) -->
