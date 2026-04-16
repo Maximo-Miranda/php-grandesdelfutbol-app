@@ -1,5 +1,6 @@
 <?php
 
+use App\Recorders\RequestCounts;
 use Laravel\Pulse\Http\Middleware\Authorize;
 use Laravel\Pulse\Pulse;
 use Laravel\Pulse\Recorders;
@@ -150,6 +151,17 @@ return [
                 '#^/'.env('PULSE_PATH', 'pulse').'$#',
                 '#^/telescope#',
                 '#^/horizon#',
+            ],
+        ],
+
+        RequestCounts::class => [
+            'enabled' => env('PULSE_REQUEST_COUNTS_ENABLED', true),
+            'sample_rate' => env('PULSE_REQUEST_COUNTS_SAMPLE_RATE', 1),
+            'ignore' => [
+                '#^/'.env('PULSE_PATH', 'pulse').'$#',
+                '#^/telescope#',
+                '#^/horizon#',
+                '#^/admin#',
             ],
         ],
     ],

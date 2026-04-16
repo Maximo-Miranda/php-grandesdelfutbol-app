@@ -1,7 +1,9 @@
 <x-pulse>
-    <livewire:pulse.servers cols="full" />
+    <livewire:pulse.servers cols="full" ignore-after="1 hour" />
 
     <livewire:pulse.usage cols="4" rows="2" />
+
+    <livewire:pulse.top-routes cols="4" rows="2" />
 
     <livewire:pulse.queues cols="4" />
 
