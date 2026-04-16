@@ -33,6 +33,7 @@ class ProcessMatchSchedules extends Command
     private function autoCancelMatches(): int
     {
         $matches = FootballMatch::query()
+            ->with('field')
             ->where('status', MatchStatus::Upcoming)
             ->where('auto_cancel', true)
             ->where('scheduled_at', '>', now())
@@ -99,6 +100,7 @@ class ProcessMatchSchedules extends Command
     private function autoCompleteMatches(): array
     {
         $matches = FootballMatch::query()
+            ->with('field')
             ->where('status', MatchStatus::InProgress)
             ->where('auto_started', true)
             ->whereNotNull('started_at')

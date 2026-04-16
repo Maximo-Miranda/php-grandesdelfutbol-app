@@ -17,7 +17,10 @@ class ValidateCancelHoursBeforeRegistration
             return;
         }
 
-        $cancelHours = (int) ($data['cancel_hours_before'] ?? FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE);
+        $rawCancelHours = $data['cancel_hours_before'] ?? null;
+        $cancelHours = $rawCancelHours !== null
+            ? (int) $rawCancelHours
+            : FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE;
         $scheduledAt = CarbonImmutable::parse($scheduledAt);
         $cancelAt = $scheduledAt->subHours($cancelHours);
 
