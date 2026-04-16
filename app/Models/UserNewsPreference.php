@@ -57,6 +57,14 @@ class UserNewsPreference extends Model
 
     public function hasPreferences(): bool
     {
-        return ! empty($this->competitions) || ! empty($this->teams) || ! empty($this->topics);
+        if (! empty($this->competitions) || ! empty($this->teams) || ! empty($this->topics)) {
+            return true;
+        }
+
+        $aiExtracted = $this->ai_extracted_entities ?? [];
+
+        return ! empty($aiExtracted['teams'])
+            || ! empty($aiExtracted['competitions'])
+            || ! empty($aiExtracted['topics']);
     }
 }

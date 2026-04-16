@@ -38,17 +38,11 @@ class ExtractUserNewsPreferences implements ShouldQueue
             return;
         }
 
-        // Normalize AI-extracted keys against existing dictionary aliases so
-        // "junior" resolves to "junior_barranquilla" instead of creating a
-        // duplicate entry that articles won't match.
         $teams = $this->normalizeKeys($response['teams'] ?? [], NewsDictionaryType::Team);
         $competitions = $this->normalizeKeys($response['competitions'] ?? [], NewsDictionaryType::Competition);
         $topics = $this->normalizeKeys($response['topics'] ?? [], NewsDictionaryType::Topic);
 
         $preference->update([
-            'teams' => $this->mergeUnique($preference->teams, $teams),
-            'competitions' => $this->mergeUnique($preference->competitions, $competitions),
-            'topics' => $this->mergeUnique($preference->topics, $topics),
             'ai_extracted_entities' => compact('teams', 'competitions', 'topics'),
         ]);
     }
@@ -119,17 +113,5 @@ class ExtractUserNewsPreferences implements ShouldQueue
         NewsDictionaryEntry::clearCache();
 
         return array_values(array_unique($normalized));
-    }
-
-    /**
-     * @param  list<string>|null  $existing
-     * @param  list<string>  $new
-     * @return list<string>|null
-     */
-    private function mergeUnique(?array $existing, array $new): ?array
-    {
-        $merged = array_values(array_unique([...$existing ?? [], ...$new]));
-
-        return $merged ?: null;
     }
 }

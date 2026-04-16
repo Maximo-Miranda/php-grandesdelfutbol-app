@@ -32,28 +32,21 @@ let debounceTimer: ReturnType<typeof setTimeout>;
 watch(searchQuery, (value) => {
     clearTimeout(debounceTimer);
 
+    const isEmpty = !value.trim();
+
     debounceTimer = setTimeout(() => {
-        // `reset: ['articles']` is REQUIRED: per Inertia v2 docs, when
-        // filter parameters change the InfiniteScroll merges new results
-        // into the existing list instead of replacing them. Without it,
-        // users searching "junior" would still see the prior feed's
-        // unrelated items at the top of the list.
         router.visit('/news', {
-            data: value.trim() ? { search: value.trim() } : {},
+            data: isEmpty ? {} : { search: value.trim() },
             preserveScroll: true,
             preserveState: true,
             only: ['articles', 'search'],
             reset: ['articles'],
         });
-    }, 400);
+    }, isEmpty ? 0 : 400);
 });
 
-function clearSearch() {
+function clearSearch(): void {
     searchQuery.value = '';
-    router.visit('/news', {
-        preserveScroll: true,
-        reset: ['articles'],
-    });
 }
 
 const isSearching = computed(() => !!props.search);
@@ -65,10 +58,6 @@ const emptyMessage = computed(() => {
     return 'No hay noticias disponibles.';
 });
 
-// When the user posts or deletes a comment (or toggles like) on the detail
-// page and hits back, upsert the affected cards without touching scroll or
-// the already-loaded infinite scroll pages. Works together with the
-// matchOn('data.ulid') config on Inertia::scroll() in the backend.
 const { consumeDirty } = useNewsFeedDirty();
 
 function refreshIfDirty(): void {
@@ -76,10 +65,6 @@ function refreshIfDirty(): void {
         return;
     }
 
-    // router.reload preserves scroll position and local state by default
-    // (ReloadOptions explicitly omits preserveScroll/preserveState). The
-    // matchOn('data.ulid') on the backend handles upserting the affected
-    // card into the already-loaded infinite scroll pages.
     router.reload({ only: ['articles'] });
 }
 

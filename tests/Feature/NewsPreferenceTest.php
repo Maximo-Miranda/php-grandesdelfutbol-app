@@ -41,8 +41,14 @@ test('user can save competition preferences', function () {
     expect($preference->competitions)->toBe(['la_liga', 'champions_league']);
 });
 
-test('free text dispatches AI extraction job', function () {
-    Queue::fake();
+test('free text triggers synchronous AI extraction on save', function () {
+    ExtractNewsPreferences::fake([
+        [
+            'teams' => ['real_madrid'],
+            'competitions' => [],
+            'topics' => ['transfers'],
+        ],
+    ]);
 
     $user = User::factory()->create();
 
@@ -53,10 +59,11 @@ test('free text dispatches AI extraction job', function () {
         ])
         ->assertRedirect(route('news.feed'));
 
-    Queue::assertPushed(ExtractUserNewsPreferences::class, function ($job) use ($user) {
-        return $job->user->id === $user->id
-            && $job->freeText === 'Me interesa el Real Madrid y los fichajes del Barcelona';
-    });
+    $preference = $user->fresh()->newsPreference;
+
+    expect($preference->ai_extracted_entities)->not->toBeNull();
+    expect($preference->ai_extracted_entities['teams'])->toContain('real_madrid');
+    expect($preference->ai_extracted_entities['topics'])->toContain('transfers');
 });
 
 test('empty free text does not dispatch AI job', function () {
@@ -103,7 +110,7 @@ test('free text is limited to 500 characters', function () {
         ->assertSessionHasErrors('free_text_input');
 });
 
-test('AI extraction job updates preference with structured response', function () {
+test('AI extraction job writes only to ai_extracted_entities without touching user pill selections', function () {
     ExtractNewsPreferences::fake([
         [
             'teams' => ['junior_de_barranquilla'],
@@ -125,26 +132,60 @@ test('AI extraction job updates preference with structured response', function (
 
     $preference->refresh();
 
-    expect($preference->teams)->toContain('junior_de_barranquilla');
-    expect($preference->competitions)->toContain('la_liga');
-    expect($preference->competitions)->toContain('liga_betplay');
+    // User's explicit pill selections stay as-is — AI does not override them.
+    expect($preference->competitions)->toBe(['la_liga']);
+    expect($preference->teams)->toBeNull();
+    expect($preference->topics)->toBeNull();
+
+    // AI-derived entities live in their own column.
     expect($preference->ai_extracted_entities)->not->toBeNull();
     expect($preference->ai_extracted_entities['teams'])->toContain('junior_de_barranquilla');
+    expect($preference->ai_extracted_entities['competitions'])->toContain('liga_betplay');
 
     ExtractNewsPreferences::assertPrompted(fn ($prompt) => $prompt->contains('Junior'));
 });
 
-test('clearing free text also clears AI-extracted teams and topics', function () {
+test('deselecting a competition persists an empty array even with free text', function () {
+    ExtractNewsPreferences::fake([
+        [
+            'teams' => [],
+            'competitions' => ['mundial'],
+            'topics' => [],
+        ],
+    ]);
+
+    $user = User::factory()->create();
+    UserNewsPreference::factory()->create([
+        'user_id' => $user->id,
+        'competitions' => ['mundial'],
+        'free_text_input' => 'me interesa mundial',
+    ]);
+
+    // User unchecks the "Mundial" pill and saves, keeping the free-text.
+    $this->actingAs($user)
+        ->post(route('news.preferences.store'), [
+            'competitions' => [],
+            'free_text_input' => 'me interesa mundial',
+        ])
+        ->assertRedirect(route('news.feed'));
+
+    $preference = $user->fresh()->newsPreference;
+
+    expect($preference->competitions)->toBe([]);
+    expect($preference->ai_extracted_entities['competitions'])->toContain('mundial');
+});
+
+test('clearing free text wipes ai_extracted_entities but preserves the pill columns', function () {
     Queue::fake();
 
     $user = User::factory()->create();
     UserNewsPreference::factory()->create([
         'user_id' => $user->id,
         'competitions' => ['la_liga'],
-        'teams' => ['junior_de_barranquilla'],
+        'teams' => ['real_madrid'],
         'topics' => ['transfers'],
         'free_text_input' => 'Me interesa Junior y los fichajes',
-        'ai_extracted_entities' => ['teams' => ['junior_de_barranquilla'], 'topics' => ['transfers']],
+        'ai_extracted_entities' => ['teams' => ['junior_de_barranquilla'], 'competitions' => [], 'topics' => []],
     ]);
 
     $this->actingAs($user)
@@ -157,8 +198,8 @@ test('clearing free text also clears AI-extracted teams and topics', function ()
     $preference = $user->fresh()->newsPreference;
 
     expect($preference->competitions)->toBe(['champions_league']);
-    expect($preference->teams)->toBeNull();
-    expect($preference->topics)->toBeNull();
+    expect($preference->teams)->toBe(['real_madrid']);
+    expect($preference->topics)->toBe(['transfers']);
     expect($preference->ai_extracted_entities)->toBeNull();
     expect($preference->free_text_input)->toBeNull();
 

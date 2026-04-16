@@ -35,7 +35,7 @@ test('search finds articles by title substring', function () {
 
     $results = $this->service->search('clásico');
 
-    expect($results->total())->toBe(1);
+    expect($results->items())->toHaveCount(1);
     expect($results->first()->title)->toContain('clásico');
 });
 
@@ -50,7 +50,7 @@ test('search is case-insensitive and matches snippet', function () {
 
     $results = $this->service->search('golazo');
 
-    expect($results->total())->toBe(1);
+    expect($results->items())->toHaveCount(1);
 });
 
 test('search matches words that only appear in full_content', function () {
@@ -73,7 +73,7 @@ test('search matches words that only appear in full_content', function () {
 
     $results = $this->service->search('Quintero');
 
-    expect($results->total())->toBe(1);
+    expect($results->items())->toHaveCount(1);
     expect($results->first()->full_content)->toContain('Quintero');
 });
 

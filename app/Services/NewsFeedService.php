@@ -9,6 +9,7 @@ use App\Models\NewsDictionaryEntry;
 use App\Models\User;
 use App\Models\UserNewsPreference;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -41,24 +42,13 @@ class NewsFeedService
         return $this->paginateFeed($query, $perPage);
     }
 
-    public function search(string $query, int $perPage = 15, ?User $user = null): LengthAwarePaginator
+    public function search(string $query, int $perPage = 15, ?User $user = null): Paginator
     {
-        // Scout's database engine applies `to_tsvector('spanish', ...) @@
-        // plainto_tsquery('spanish', ?)` across title/snippet/full_content
-        // (see NewsArticle::toSearchableArray) and orders by ts_rank
-        // automatically when running on Postgres. The `query` callback
-        // hydrates the same relations/counts/bookmarks the feed uses so
-        // article cards render identically to the regular feed.
         return NewsArticle::search($query)
             ->query(fn (Builder $q) => $this->applyCardSelections($q, $user))
-            ->paginate($perPage);
+            ->simplePaginate($perPage);
     }
 
-    /**
-     * Eager-load the relations and aggregate columns a NewsArticleCard needs.
-     * Matches `baseQuery()` but takes an existing builder so Scout's
-     * `query()` callback can layer it onto the search query.
-     */
     private function applyCardSelections(Builder $query, ?User $user = null): Builder
     {
         $query->with('source:id,name,slug,logo_url')
@@ -208,16 +198,21 @@ class NewsFeedService
 
     private function applyPreferenceFilter(Builder $query, UserNewsPreference $preference): void
     {
-        $query->where(function (Builder $q) use ($preference) {
-            foreach ($preference->teams ?? [] as $team) {
+        $aiExtracted = $preference->ai_extracted_entities ?? [];
+        $teams = array_values(array_unique([...$preference->teams ?? [], ...$aiExtracted['teams'] ?? []]));
+        $competitions = array_values(array_unique([...$preference->competitions ?? [], ...$aiExtracted['competitions'] ?? []]));
+        $topics = array_values(array_unique([...$preference->topics ?? [], ...$aiExtracted['topics'] ?? []]));
+
+        $query->where(function (Builder $q) use ($teams, $competitions, $topics) {
+            foreach ($teams as $team) {
                 $q->orWhereJsonContains('news_articles.teams', $team);
             }
 
-            foreach ($preference->competitions ?? [] as $comp) {
+            foreach ($competitions as $comp) {
                 $q->orWhereJsonContains('news_articles.competitions', $comp);
             }
 
-            foreach ($preference->topics ?? [] as $topic) {
+            foreach ($topics as $topic) {
                 $q->orWhereJsonContains('news_articles.topics', $topic);
             }
         });
@@ -238,8 +233,6 @@ class NewsFeedService
      */
     private function deduplicateByStoryGroup(Builder $query): Builder
     {
-        // Bound the window function to the cleanup retention window so it
-        // never scans the entire table as article volume grows.
         $maxAgeDays = (int) config('news.feed.max_article_age_days', 30);
 
         $ranked = NewsArticle::query()
