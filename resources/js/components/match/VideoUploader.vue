@@ -6,7 +6,6 @@ import DrivePlayer from '@/components/match/DrivePlayer.vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import YouTubePlayer from '@/components/match/YouTubePlayer.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogClose,
@@ -16,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
     deletePendingUpload,
     executeUpload,
