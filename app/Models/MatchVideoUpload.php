@@ -122,4 +122,12 @@ class MatchVideoUpload extends Model
             ? "https://www.youtube.com/embed/{$this->youtube_video_id}"
             : null;
     }
+
+    public function markAsFailed(string $errorMessage): void
+    {
+        $this->update([
+            'status' => VideoUploadStatus::Failed,
+            'error_message' => $errorMessage,
+        ]);
+    }
 }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
-import { AlertTriangle, CheckCircle, CloudUpload, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
+import { router, useForm } from '@inertiajs/vue3';
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, CloudUpload, FolderOpen, HardDriveUpload, Link2, Loader2, Pause, Play, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import DrivePlayer from '@/components/match/DrivePlayer.vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
 import YouTubePlayer from '@/components/match/YouTubePlayer.vue';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogClose,
@@ -571,19 +572,155 @@ onBeforeUnmount(() => {
     driveAbortController?.abort();
     driveAbortController = null;
 });
+
+// --- Drive link import (primary UX) ---
+const driveLinkForm = useForm({ drive_url: '' });
+const uploadTab = ref<'drive' | 'local'>('drive');
+const showDriveHelp = ref(false);
+
+const DRIVE_HOST_REGEX = /^(.+\.)?(drive|docs)\.google\.com$/i;
+const DRIVE_FILE_ID_REGEX = /\/d\/|[?&]id=/;
+
+const driveLinkError = computed(() => driveLinkForm.errors.drive_url ?? '');
+
+const parsedDriveUrl = computed(() => {
+    const v = driveLinkForm.drive_url.trim();
+    if (v === '') return null;
+    try {
+        return new URL(v);
+    } catch {
+        return null;
+    }
+});
+
+const driveLinkLooksValid = computed(() => {
+    const u = parsedDriveUrl.value;
+    if (! u) return false;
+    if (! DRIVE_HOST_REGEX.test(u.hostname)) return false;
+    return DRIVE_FILE_ID_REGEX.test(driveLinkForm.drive_url);
+});
+
+const driveUrlFormatHint = computed(() => {
+    const v = driveLinkForm.drive_url.trim();
+    if (v === '') return '';
+    const u = parsedDriveUrl.value;
+    if (! u) return 'Pegá un link válido (debe empezar con https://)';
+    if (! DRIVE_HOST_REGEX.test(u.hostname)) return 'El link debe ser de drive.google.com';
+    if (! DRIVE_FILE_ID_REGEX.test(v)) return 'El link no parece tener un ID de archivo válido';
+    return '';
+});
+
+function submitDriveLink() {
+    if (! driveLinkLooksValid.value) return;
+
+    driveLinkForm.post(`${driveUploadBaseUrl.value}/from-link`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            driveLinkForm.reset('drive_url');
+            emit('uploaded');
+        },
+    });
+}
 </script>
 
 <template>
     <div class="space-y-3">
         <!-- Idle: No video -->
-        <div v-if="status === 'idle'" class="rounded-lg border-2 border-dashed border-border p-6 text-center">
-            <CloudUpload class="mx-auto mb-2 size-10 text-muted-foreground" />
-            <p class="mb-3 text-sm text-muted-foreground">Sube el video del partido directamente.</p>
-            <Button type="button" variant="outline" class="gap-2" @click="selectFile">
-                <Upload class="size-4" />
-                Seleccionar video
-            </Button>
-            <p class="mt-2 text-xs text-muted-foreground">Maximo 25 GB. Formatos: MP4, MOV, AVI, MKV</p>
+        <div v-if="status === 'idle'" class="rounded-lg border border-border bg-card">
+            <!-- Tabs -->
+            <div class="grid grid-cols-2 gap-1 border-b border-border p-1">
+                <button
+                    type="button"
+                    class="flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                    :class="uploadTab === 'drive' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+                    @click="uploadTab = 'drive'"
+                >
+                    <FolderOpen class="size-4" />
+                    Google Drive
+                </button>
+                <button
+                    type="button"
+                    class="flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                    :class="uploadTab === 'local' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+                    @click="uploadTab = 'local'"
+                >
+                    <HardDriveUpload class="size-4" />
+                    Subir archivo
+                </button>
+            </div>
+
+            <!-- Drive tab content -->
+            <div v-if="uploadTab === 'drive'" class="p-4">
+                <form class="space-y-2" @submit.prevent="submitDriveLink">
+                    <Input
+                        v-model="driveLinkForm.drive_url"
+                        type="url"
+                        placeholder="Pegá el link público de Google Drive"
+                        :disabled="driveLinkForm.processing"
+                        autocomplete="off"
+                        inputmode="url"
+                    />
+                    <p v-if="driveUrlFormatHint" class="text-xs text-amber-500">{{ driveUrlFormatHint }}</p>
+                    <p v-else-if="driveLinkError" class="text-xs text-red-400">{{ driveLinkError }}</p>
+                    <Button
+                        type="submit"
+                        class="w-full gap-2"
+                        :disabled="! driveLinkLooksValid || driveLinkForm.processing"
+                    >
+                        <Loader2 v-if="driveLinkForm.processing" class="size-4 animate-spin" />
+                        <Link2 v-else class="size-4" />
+                        {{ driveLinkForm.processing ? 'Guardando en nuestro Drive...' : 'Procesar video' }}
+                    </Button>
+                </form>
+
+                <!-- Collapsible help -->
+                <button
+                    type="button"
+                    class="mt-3 flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground"
+                    @click="showDriveHelp = ! showDriveHelp"
+                >
+                    <span>¿Cómo subir tu video?</span>
+                    <ChevronUp v-if="showDriveHelp" class="size-4" />
+                    <ChevronDown v-else class="size-4" />
+                </button>
+
+                <ol v-if="showDriveHelp" class="mt-3 space-y-3 text-xs">
+                    <li class="flex gap-3">
+                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted font-semibold text-foreground">1</span>
+                        <div class="flex-1 pt-0.5">
+                            <p class="font-medium text-foreground">Subí el video a Google Drive</p>
+                            <p class="mt-0.5 text-muted-foreground">Desde la app de Drive en tu celular, tocá el <strong>+</strong> y subí el video de tu galería. Si ya está en Drive, pasá al paso 2.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted font-semibold text-foreground">2</span>
+                        <div class="flex-1 pt-0.5">
+                            <p class="font-medium text-foreground">Hacelo accesible con el link</p>
+                            <p class="mt-0.5 text-muted-foreground">Abrí el archivo → <strong>Compartir</strong>. En <em>Acceso general</em> cambiá <strong>Restringido</strong> a <strong>Cualquiera con el link</strong>. Sin este paso no podemos procesarlo.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted font-semibold text-foreground">3</span>
+                        <div class="flex-1 pt-0.5">
+                            <p class="font-medium text-foreground">Copiá el link y pegalo acá</p>
+                            <p class="mt-0.5 text-muted-foreground">Tocá <strong>Copiar link</strong> y volvé a este campo.</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+
+            <!-- Local upload tab content -->
+            <div v-else class="p-4">
+                <div class="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                    <CloudUpload class="mx-auto mb-2 size-10 text-muted-foreground" />
+                    <p class="mb-3 text-sm text-muted-foreground">Seleccioná el video desde este dispositivo.</p>
+                    <Button type="button" variant="outline" class="gap-2" @click="selectFile">
+                        <Upload class="size-4" />
+                        Seleccionar video
+                    </Button>
+                    <p class="mt-2 text-xs text-muted-foreground">Máximo 25 GB · MP4, MOV, AVI, MKV</p>
+                </div>
+            </div>
         </div>
 
         <!-- Resumable: Pending Drive upload found -->

@@ -58,6 +58,9 @@ class GoogleAuthService
         $client->setPrompt('consent');
         $client->addScope(YouTube::YOUTUBE);
         $client->addScope(Drive::DRIVE_FILE);
+        // drive.readonly is required to read public files by their shared link.
+        // Without it, files.get returns 404 for any file not created/opened by the app.
+        $client->addScope(Drive::DRIVE_READONLY);
 
         return $client->createAuthUrl();
     }
@@ -78,6 +81,19 @@ class GoogleAuthService
     public function isConfigured(): bool
     {
         return YouTubeToken::current() !== null;
+    }
+
+    public function hasScope(string $scope): bool
+    {
+        $tokenRecord = YouTubeToken::current();
+
+        if (! $tokenRecord) {
+            return false;
+        }
+
+        $grantedScopes = explode(' ', (string) ($tokenRecord->token['scope'] ?? ''));
+
+        return in_array($scope, $grantedScopes, true);
     }
 
     /** @return array{access_token: string, expires_at: int} */

@@ -10,13 +10,26 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleDriveService;
+use App\Support\GoogleDriveUrlParser;
+use Google\Service\Drive;
+use Google\Service\Exception as GoogleServiceException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
+use Illuminate\Support\Str;
 
 class DriveUploadController extends Controller
 {
+    /** @var array<int, int> Backoff delays (ms) between retries. */
+    private const DRIVE_RETRY_BACKOFF_MS = [200, 1000, 3000];
+
+    /** @var array<int, string> Reasons considered transient (worth retrying). */
+    private const TRANSIENT_DRIVE_REASONS = ['rateLimitExceeded', 'userRateLimitExceeded', 'backendError'];
+
     public function __construct(
         private GoogleDriveService $driveService,
         private GoogleAuthService $authService,
@@ -174,5 +187,215 @@ class DriveUploadController extends Controller
         return response()->json([
             'video_upload' => $videoUpload->fresh(),
         ]);
+    }
+
+    /**
+     * Import a video by pasting a public Google Drive link.
+     *
+     * Validates accessibility via files.get, copies to our folder via
+     * server-side files.copy (no bytes flow through our server),
+     * then dispatches the existing encoding pipeline.
+     */
+    public function fromLink(Request $request, Club $club, FootballMatch $match): RedirectResponse
+    {
+        Gate::authorize('update', $match);
+
+        $validated = $request->validate([
+            'drive_url' => ['required', 'string', 'url', 'max:500'],
+        ]);
+
+        $fileId = GoogleDriveUrlParser::extractFileId($validated['drive_url']);
+
+        if (! $fileId) {
+            return back()->withErrors([
+                'drive_url' => 'Link de Google Drive inválido. Debe tener el formato https://drive.google.com/file/d/...',
+            ]);
+        }
+
+        if (! $this->authService->hasScope(Drive::DRIVE_READONLY)) {
+            return back()->withErrors([
+                'drive_url' => 'La app necesita un permiso adicional de Google Drive para leer archivos públicos por link. Pedile al super-admin que reautorice la cuenta en /admin/youtube/authorize (se abrirá una pantalla de Google pidiendo el nuevo permiso).',
+            ]);
+        }
+
+        $lock = Cache::lock("drive-import:match:{$match->id}", 120);
+
+        if (! $lock->get()) {
+            return back()->withErrors([
+                'drive_url' => 'Ya hay una importación en curso para este partido. Esperá unos segundos e intentá de nuevo.',
+            ]);
+        }
+
+        try {
+            return $this->performDriveImport($request, $club, $match, $fileId);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function performDriveImport(Request $request, Club $club, FootballMatch $match, string $fileId): RedirectResponse
+    {
+        Log::info('drive.import.started', [
+            'match_id' => $match->id,
+            'user_id' => $request->user()->id,
+            'source_file_id' => $fileId,
+        ]);
+
+        try {
+            $metadata = $this->retryDriveCall(fn () => $this->driveService->getFileMetadata($fileId));
+        } catch (GoogleServiceException $e) {
+            $this->logDriveFailure('drive.import.metadata_failed', $e, $match->id, $request->user()->id, $fileId);
+
+            return back()->withErrors(['drive_url' => $this->humanizeDriveError($e)]);
+        } catch (\Throwable $e) {
+            Log::error('drive.import.metadata_error', [
+                'match_id' => $match->id,
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'drive_url' => 'Ocurrió un error al verificar el archivo. Intentá en unos minutos.',
+            ]);
+        }
+
+        if (! Str::startsWith((string) ($metadata['mimeType'] ?? ''), 'video/')) {
+            return back()->withErrors([
+                'drive_url' => "El archivo no es un video (tipo detectado: {$metadata['mimeType']}).",
+            ]);
+        }
+
+        $maxBytes = (int) config('youtube.drive.max_file_bytes');
+        $sizeBytes = (int) ($metadata['size'] ?? 0);
+
+        if ($sizeBytes === 0) {
+            return back()->withErrors([
+                'drive_url' => 'No pudimos determinar el tamaño del video. Verificá que el link sea accesible.',
+            ]);
+        }
+
+        if ($sizeBytes > $maxBytes) {
+            return back()->withErrors([
+                'drive_url' => 'El video pesa '.Number::fileSize($sizeBytes, precision: 1)
+                    .'. El máximo permitido es '.Number::fileSize($maxBytes, precision: 0)
+                    .'. Editá el video o subí una versión más corta.',
+            ]);
+        }
+
+        $folderId = $this->driveService->ensureClubFolder($club);
+        $extension = pathinfo($metadata['name'] ?? 'video.mp4', PATHINFO_EXTENSION) ?: 'mp4';
+        $newName = "{$match->ulid}-original.{$extension}";
+
+        try {
+            $copiedFileId = $this->retryDriveCall(fn () => $this->driveService->copyFile($fileId, $newName, $folderId));
+        } catch (GoogleServiceException $e) {
+            $this->logDriveFailure('drive.import.copy_failed', $e, $match->id, $request->user()->id, $fileId);
+
+            return back()->withErrors(['drive_url' => $this->humanizeDriveError($e)]);
+        }
+
+        $existing = $match->videoUpload;
+
+        if ($existing?->drive_file_id && $existing->drive_file_id !== $copiedFileId) {
+            rescue(fn () => $this->driveService->deleteFile($existing->drive_file_id));
+        }
+
+        $upload = $match->videoUpload()->updateOrCreate(
+            ['football_match_id' => $match->id],
+            [
+                'ulid' => $existing?->ulid ?? (string) Str::ulid(),
+                'uploaded_by' => $request->user()->id,
+                'drive_file_id' => $copiedFileId,
+                'original_filename' => $metadata['name'] ?? $newName,
+                'original_size_bytes' => $sizeBytes,
+                'status' => VideoUploadStatus::Encoding,
+                'uploaded_at' => now(),
+                'error_message' => null,
+            ],
+        );
+
+        Log::info('drive.import.copied', [
+            'match_id' => $match->id,
+            'user_id' => $request->user()->id,
+            'source_file_id' => $fileId,
+            'copied_file_id' => $copiedFileId,
+            'size_bytes' => $sizeBytes,
+        ]);
+
+        rescue(function () use ($copiedFileId, $upload) {
+            $this->driveService->shareFilePublicly($copiedFileId);
+            $upload->update(['drive_shared_at' => now()]);
+        });
+
+        ProcessUploadedVideo::dispatch($upload);
+
+        return back()->with('success', 'Video guardado en nuestro Drive. Preparando para publicación...');
+    }
+
+    /** Run a Drive API call with exponential backoff on transient errors. */
+    private function retryDriveCall(callable $call): mixed
+    {
+        return retry(
+            self::DRIVE_RETRY_BACKOFF_MS,
+            $call,
+            0,
+            fn (\Throwable $e) => $this->isTransientDriveError($e),
+        );
+    }
+
+    /** Permission/not-found/auth errors are deterministic and not retried. */
+    private function isTransientDriveError(\Throwable $e): bool
+    {
+        if (! $e instanceof GoogleServiceException) {
+            return false;
+        }
+
+        $code = $e->getCode();
+
+        if ($code >= 500 || $code === 429) {
+            return true;
+        }
+
+        if ($code === 403) {
+            $reason = $e->getErrors()[0]['reason'] ?? '';
+
+            return in_array($reason, self::TRANSIENT_DRIVE_REASONS, true);
+        }
+
+        return false;
+    }
+
+    private function logDriveFailure(string $event, GoogleServiceException $e, int $matchId, int $userId, string $sourceFileId): void
+    {
+        Log::warning($event, [
+            'match_id' => $matchId,
+            'user_id' => $userId,
+            'source_file_id' => $sourceFileId,
+            'code' => $e->getCode(),
+            'reason' => $e->getErrors()[0]['reason'] ?? null,
+        ]);
+    }
+
+    /**
+     * Map Google Drive API errors to user-friendly Spanish messages.
+     *
+     * @see https://developers.google.com/workspace/drive/api/guides/handle-errors
+     */
+    private function humanizeDriveError(GoogleServiceException $e): string
+    {
+        $reason = $e->getErrors()[0]['reason'] ?? '';
+        $code = $e->getCode();
+
+        $permissionReasons = ['insufficientFilePermissions', 'forbidden'];
+        $rateLimitReasons = ['rateLimitExceeded', 'userRateLimitExceeded'];
+
+        return match (true) {
+            $code === 404 => 'Este link no es público. Abrí el archivo en Drive → Compartir → cambiá el acceso a "Cualquiera con el link" y pegá el link otra vez.',
+            $code === 403 && $reason === 'cannotCopyFile' => 'El dueño del archivo no permite copiarlo. En Drive → Compartir → Configuración, activá "Los lectores pueden descargar, imprimir y copiar".',
+            $code === 403 && in_array($reason, $permissionReasons, true) => 'El archivo está compartido solo con cuentas específicas. En Drive → Compartir, cambiá "Acceso general" a "Cualquiera con el link".',
+            $code === 403 && in_array($reason, $rateLimitReasons, true) => 'Google Drive está recibiendo muchas solicitudes en este momento. Esperá un minuto y volvé a intentar.',
+            $code === 401 => 'La autorización de Google expiró. Pedile al super-admin que reautorice la cuenta en /admin/youtube/authorize.',
+            default => "Google Drive rechazó la solicitud (código {$code}). Asegurate de que el link sea de acceso público (Cualquiera con el link).",
+        };
     }
 }

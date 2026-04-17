@@ -209,6 +209,34 @@ class GoogleDriveService
     }
 
     /**
+     * Copy a file that's already on Google Drive into a target folder.
+     *
+     * Server-side operation: Google executes the copy internally — no bytes
+     * flow through our server. Returns the new Drive file ID.
+     *
+     * Requires the source to be readable by our OAuth user (public link, shared,
+     * or owned).
+     *
+     * @see https://developers.google.com/workspace/drive/api/reference/rest/v3/files/copy
+     */
+    public function copyFile(string $sourceFileId, string $newName, string $targetFolderId): string
+    {
+        $drive = $this->driveService();
+
+        $copy = new DriveFile([
+            'name' => $newName,
+            'parents' => [$targetFolderId],
+        ]);
+
+        $copied = $drive->files->copy($sourceFileId, $copy, [
+            'fields' => 'id,size,mimeType',
+            'supportsAllDrives' => true,
+        ]);
+
+        return $copied->getId();
+    }
+
+    /**
      * Get file metadata from Google Drive.
      *
      * @return array{id: string, name: string, size: int, mimeType: string}
@@ -219,6 +247,7 @@ class GoogleDriveService
 
         $file = $drive->files->get($fileId, [
             'fields' => 'id,name,size,mimeType',
+            'supportsAllDrives' => true,
         ]);
 
         return [

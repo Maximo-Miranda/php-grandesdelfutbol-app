@@ -71,6 +71,7 @@ return [
         'root_folder_id' => env('DRIVE_ROOT_FOLDER_ID'),
         'root_folder_name' => env('DRIVE_ROOT_FOLDER_NAME', 'Grandes del Futbol'),
         'chunk_size_mb' => (int) env('DRIVE_UPLOAD_CHUNK_SIZE_MB', 10),
+        'max_file_bytes' => (int) env('DRIVE_MAX_FILE_BYTES', 25 * 1024 * 1024 * 1024),
     ],
 
     /*

@@ -150,6 +150,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('drive-upload/refresh-token', [DriveUploadController::class, 'refreshToken'])->middleware('throttle:google-api')->name('driveUpload.refreshToken');
         Route::post('matches/{match}/drive-upload/probe', [DriveUploadController::class, 'probeStatus'])->middleware('throttle:google-api')->name('matches.driveUpload.probe');
         Route::post('matches/{match}/drive-upload/complete', [DriveUploadController::class, 'completeUpload'])->middleware('throttle:expensive-action')->name('matches.driveUpload.complete');
+        Route::post('matches/{match}/drive-upload/from-link', [DriveUploadController::class, 'fromLink'])->middleware('throttle:expensive-action')->name('matches.driveUpload.fromLink');
 
         Route::post('matches/{match}/reels/generate', [MatchReelController::class, 'generate'])->middleware('throttle:expensive-action')->name('matches.reels.generate');
         Route::post('matches/{match}/reels', [MatchReelController::class, 'store'])->name('matches.reels.store');

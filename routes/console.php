@@ -16,3 +16,4 @@ Schedule::command('news:fetch')->everyFifteenMinutes()->withoutOverlapping()->on
 Schedule::command('news:cleanup --days=7')->weekly()->withoutOverlapping()->onOneServer();
 Schedule::command('news:cleanup-dictionary --days=60')->weekly()->withoutOverlapping()->onOneServer();
 Schedule::command('matches:process-schedules')->everyMinute()->withoutOverlapping()->onOneServer();
+Schedule::command('videos:recover-stuck')->hourly()->withoutOverlapping()->onOneServer();
