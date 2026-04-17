@@ -73,7 +73,7 @@ export type MatchAttendance = {
     ulid: string;
     match_id: number;
     player_id: number;
-    status: 'confirmed' | 'declined';
+    status: 'confirmed' | 'declined' | 'waitlisted';
     role: 'pending' | 'starter' | 'substitute';
     team: 'a' | 'b' | null;
     confirmed_at: string | null;

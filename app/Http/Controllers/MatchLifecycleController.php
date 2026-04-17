@@ -78,6 +78,7 @@ class MatchLifecycleController extends Controller
         }
 
         $match->status = MatchStatus::Cancelled;
+        $this->matchService->clearWaitlistedAttendances($match);
         $this->matchService->recreateIfRecurring($match);
 
         return back()->with('success', 'Partido cancelado.');

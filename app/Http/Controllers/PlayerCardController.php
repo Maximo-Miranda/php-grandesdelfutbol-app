@@ -10,7 +10,6 @@ use App\Models\FootballMatch;
 use App\Models\MatchReel;
 use App\Models\Player;
 use App\Models\PlayerProfile;
-use App\Models\Scopes\ClubScope;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,7 +25,7 @@ class PlayerCardController extends Controller
 
         $clubIds = $clubs->pluck('id');
 
-        $userPlayersQuery = Player::withoutGlobalScope(ClubScope::class)
+        $userPlayersQuery = Player::anyClub()
             ->whereIn('club_id', $clubIds)
             ->where('user_id', $user->id);
 

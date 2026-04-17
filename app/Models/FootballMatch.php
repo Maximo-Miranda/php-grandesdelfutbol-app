@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\BelongsToClub;
 use App\Concerns\HasPublicUlid;
 use App\Enums\AttendanceStatus;
+use App\Enums\AttendanceTeam;
 use App\Enums\MatchStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\FootballMatchFactory;
@@ -184,6 +185,14 @@ class FootballMatch extends Model
     public function effectiveCancelHoursBefore(): int
     {
         return $this->cancel_hours_before ?? self::DEFAULT_CANCEL_HOURS_BEFORE;
+    }
+
+    public function teamName(AttendanceTeam $team): string
+    {
+        return match ($team) {
+            AttendanceTeam::A => $this->team_a_name,
+            AttendanceTeam::B => $this->team_b_name,
+        };
     }
 
     protected static function booted(): void

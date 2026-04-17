@@ -10,4 +10,9 @@ trait BelongsToClub
     {
         static::addGlobalScope(new ClubScope);
     }
+
+    public function scopeAnyClub($query)
+    {
+        return $query->withoutGlobalScope(ClubScope::class);
+    }
 }

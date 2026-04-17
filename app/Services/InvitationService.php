@@ -9,7 +9,6 @@ use App\Models\Club;
 use App\Models\ClubInvitation;
 use App\Models\ClubMember;
 use App\Models\Player;
-use App\Models\Scopes\ClubScope;
 use App\Models\User;
 use App\Notifications\ClubInvitationNotification;
 use App\Notifications\NewMemberRequestNotification;
@@ -102,7 +101,7 @@ class InvitationService
 
     private function ensurePlayerExists(int $clubId, User $user): Player
     {
-        return Player::withoutGlobalScope(ClubScope::class)->firstOrCreate(
+        return Player::anyClub()->firstOrCreate(
             [
                 'club_id' => $clubId,
                 'user_id' => $user->id,

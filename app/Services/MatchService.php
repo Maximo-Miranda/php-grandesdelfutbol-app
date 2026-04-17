@@ -12,8 +12,15 @@ use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\Player;
+use App\Models\User;
+use App\Notifications\WaitlistDemotedByGoalkeeperNotification;
+use App\Notifications\WaitlistPromotedNotification;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Notifications\Notification as LaravelNotification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class MatchService
@@ -160,32 +167,29 @@ class MatchService
         ?AttendanceTeam $team = null,
     ): MatchAttendance {
         $isConfirming = $status === AttendanceStatus::Confirmed;
-        $role = $isConfirming ? $this->determineRole($match, $player->id, $team) : AttendanceRole::Pending;
+
+        if ($isConfirming) {
+            try {
+                $role = $this->determineRole($match, $player->id, $team);
+            } catch (MatchFullException) {
+                return $this->handleFullMatchRegistration($match, $player, $team);
+            }
+        } else {
+            $role = AttendanceRole::Pending;
+        }
 
         $existing = $match->attendances()
             ->where('player_id', $player->id)
             ->first();
 
-        $wasStarter = $existing?->role === AttendanceRole::Starter;
-        $previousTeam = $existing?->team;
+        $wasConfirmed = $existing?->status === AttendanceStatus::Confirmed;
 
-        if ($existing) {
-            $existing->update([
-                'status' => $status,
-                'role' => $role,
-                'team' => $isConfirming ? $team : null,
-                'confirmed_at' => $isConfirming ? now() : null,
-            ]);
-            $attendance = $existing;
-        } else {
-            $attendance = $match->attendances()->create([
-                'player_id' => $player->id,
-                'status' => $status,
-                'role' => $role,
-                'team' => $isConfirming ? $team : null,
-                'confirmed_at' => $isConfirming ? now() : null,
-            ]);
-        }
+        $attendance = $this->upsertAttendance($match, $player, [
+            'status' => $status,
+            'role' => $role,
+            'team' => $isConfirming ? $team : null,
+            'confirmed_at' => $isConfirming ? now() : null,
+        ]);
 
         if (
             $isConfirming
@@ -198,8 +202,8 @@ class MatchService
             $attendance->refresh();
         }
 
-        if ($status === AttendanceStatus::Declined && $wasStarter && $previousTeam) {
-            $this->recalculateRoles($match);
+        if ($status === AttendanceStatus::Declined && $wasConfirmed) {
+            $this->promoteFromWaitlistAndNotify($match, $player);
         }
 
         return $attendance;
@@ -466,5 +470,263 @@ class MatchService
             PlayerPosition::Cdm, PlayerPosition::Cm, PlayerPosition::Cam => 'midfield',
             PlayerPosition::Lw, PlayerPosition::Rw, PlayerPosition::St, PlayerPosition::Cf => 'attack',
         };
+    }
+
+    /**
+     * Promote the earliest waitlisted player and notify them + admins.
+     */
+    public function promoteFromWaitlistAndNotify(FootballMatch $match, ?Player $canceler = null): ?MatchAttendance
+    {
+        $result = $this->promoteFromWaitlistWithContext($match);
+
+        $this->recalculateRoles($match);
+
+        if ($result === null) {
+            return null;
+        }
+
+        $promoted = $result['attendance'];
+        $preferredTeam = $result['preferredTeam'];
+
+        $promoted->loadMissing('player.user');
+
+        Log::info('waitlist.promoted', [
+            'match_id' => $match->id,
+            'player_id' => $promoted->player_id,
+            'role' => $promoted->role->value,
+            'preferred_team' => $preferredTeam?->value,
+            'assigned_team' => $promoted->team?->value,
+            'canceler_player_id' => $canceler?->id,
+        ]);
+
+        $this->notifyPlayerAndAdmins(
+            $match,
+            $promoted->player?->user,
+            new WaitlistPromotedNotification(
+                $match,
+                $promoted->player,
+                $promoted->role,
+                $canceler,
+                $preferredTeam,
+                $promoted->team,
+            ),
+        );
+
+        return $promoted;
+    }
+
+    /**
+     * Atomically promote the earliest waitlisted attendance to confirmed.
+     */
+    public function promoteFromWaitlist(FootballMatch $match): ?MatchAttendance
+    {
+        return $this->promoteFromWaitlistWithContext($match)['attendance'] ?? null;
+    }
+
+    /**
+     * @return array{attendance: MatchAttendance, preferredTeam: ?AttendanceTeam}|null
+     */
+    private function promoteFromWaitlistWithContext(FootballMatch $match): ?array
+    {
+        if ($match->status->isFinished()) {
+            return null;
+        }
+
+        $hasWaitlisted = $match->attendances()
+            ->where('status', AttendanceStatus::Waitlisted)
+            ->exists();
+
+        if (! $hasWaitlisted) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($match) {
+            $next = $match->attendances()
+                ->where('status', AttendanceStatus::Waitlisted)
+                ->orderBy('confirmed_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $next) {
+                return null;
+            }
+
+            $preferredTeam = $next->team;
+            $assignment = $this->findPromotionSlot($match, $next->player_id, $preferredTeam);
+
+            if ($assignment === null) {
+                return null;
+            }
+
+            $next->update([
+                'status' => AttendanceStatus::Confirmed,
+                'role' => $assignment['role'],
+                'team' => $assignment['team'],
+            ]);
+
+            return ['attendance' => $next, 'preferredTeam' => $preferredTeam];
+        });
+    }
+
+    /**
+     * Find a slot for a waitlisted player, falling back to the other team
+     * if their preferred team is still full.
+     *
+     * @return array{role: AttendanceRole, team: ?AttendanceTeam}|null
+     */
+    private function findPromotionSlot(FootballMatch $match, int $playerId, ?AttendanceTeam $preferredTeam): ?array
+    {
+        $slot = $this->tryAssignment($match, $playerId, $preferredTeam);
+
+        if ($slot !== null || $preferredTeam === null) {
+            return $slot;
+        }
+
+        return $this->tryAssignment($match, $playerId, $preferredTeam->opposite());
+    }
+
+    /** @return array{role: AttendanceRole, team: ?AttendanceTeam}|null */
+    private function tryAssignment(FootballMatch $match, int $playerId, ?AttendanceTeam $team): ?array
+    {
+        try {
+            return [
+                'role' => $this->determineRole($match, $playerId, $team),
+                'team' => $team,
+            ];
+        } catch (MatchFullException) {
+            return null;
+        }
+    }
+
+    private function handleFullMatchRegistration(
+        FootballMatch $match,
+        Player $player,
+        ?AttendanceTeam $team,
+    ): MatchAttendance {
+        if (
+            $team !== null
+            && $player->isGoalkeeper()
+            && ! $this->hasGoalkeeperStarter($match, $team, $player->id)
+        ) {
+            $cascadeResult = $this->applyGoalkeeperCascadeOnFullMatch($match, $player, $team);
+
+            if ($cascadeResult !== null) {
+                return $cascadeResult;
+            }
+        }
+
+        return $this->upsertAttendance($match, $player, [
+            'status' => AttendanceStatus::Waitlisted,
+            'role' => AttendanceRole::Pending,
+            'team' => $team,
+            'confirmed_at' => now(),
+        ]);
+    }
+
+    /**
+     * When a GK confirms to a full match and their team has no GK starter:
+     * last non-GK starter → substitute, last non-GK substitute → waitlist, GK → starter.
+     * Returns the GK attendance, or null if no cascade chain was available.
+     */
+    private function applyGoalkeeperCascadeOnFullMatch(
+        FootballMatch $match,
+        Player $goalkeeper,
+        AttendanceTeam $team,
+    ): ?MatchAttendance {
+        return DB::transaction(function () use ($match, $goalkeeper, $team) {
+            $lastStarter = $this->findLastNonGoalkeeper($match, $team, AttendanceRole::Starter);
+            $lastSubstitute = $this->findLastNonGoalkeeper($match, $team, AttendanceRole::Substitute);
+
+            if (! $lastStarter || ! $lastSubstitute) {
+                return null;
+            }
+
+            $demotedPlayer = $lastSubstitute->player;
+
+            $lastSubstitute->update([
+                'status' => AttendanceStatus::Waitlisted,
+                'role' => AttendanceRole::Pending,
+            ]);
+
+            $lastStarter->update(['role' => AttendanceRole::Substitute]);
+
+            $gkAttendance = $this->upsertAttendance($match, $goalkeeper, [
+                'status' => AttendanceStatus::Confirmed,
+                'role' => AttendanceRole::Starter,
+                'team' => $team,
+                'confirmed_at' => now(),
+            ]);
+
+            Log::info('waitlist.gk_cascade', [
+                'match_id' => $match->id,
+                'goalkeeper_player_id' => $goalkeeper->id,
+                'team' => $team->value,
+                'demoted_starter_id' => $lastStarter->player_id,
+                'demoted_to_waitlist_id' => $lastSubstitute->player_id,
+            ]);
+
+            if ($demotedPlayer) {
+                $this->notifyPlayerAndAdmins(
+                    $match,
+                    $demotedPlayer->user,
+                    new WaitlistDemotedByGoalkeeperNotification($match, $demotedPlayer, $goalkeeper, $team),
+                );
+            }
+
+            return $gkAttendance;
+        });
+    }
+
+    /**
+     * Mark all waitlisted attendances of a match as declined.
+     * Call on match cancellation to avoid zombie waitlist entries.
+     */
+    public function clearWaitlistedAttendances(FootballMatch $match): int
+    {
+        return $match->attendances()
+            ->where('status', AttendanceStatus::Waitlisted)
+            ->update([
+                'status' => AttendanceStatus::Declined,
+                'role' => AttendanceRole::Pending,
+                'team' => null,
+                'confirmed_at' => null,
+            ]);
+    }
+
+    private function notifyPlayerAndAdmins(FootballMatch $match, ?User $playerUser, LaravelNotification $notification): void
+    {
+        $recipients = collect([$playerUser])
+            ->filter()
+            ->merge($match->club->adminUsers())
+            ->unique('id');
+
+        Notification::send($recipients, $notification);
+    }
+
+    private function findLastNonGoalkeeper(
+        FootballMatch $match,
+        AttendanceTeam $team,
+        AttendanceRole $role,
+    ): ?MatchAttendance {
+        return $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('role', $role)
+            ->where('team', $team)
+            ->whereHas('player', fn ($q) => $q
+                ->where('position', '!=', PlayerPosition::Gk)
+                ->orWhereNull('position'))
+            ->with('player.user')
+            ->orderByDesc('confirmed_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function upsertAttendance(FootballMatch $match, Player $player, array $data): MatchAttendance
+    {
+        return $match->attendances()->updateOrCreate(
+            ['player_id' => $player->id],
+            $data,
+        );
     }
 }

@@ -63,6 +63,7 @@ class ProcessMatchSchedules extends Command
             $cancelled++;
             $match->status = MatchStatus::Cancelled;
 
+            $this->matchService->clearWaitlistedAttendances($match);
             $this->matchService->recreateIfRecurring($match);
         }
 

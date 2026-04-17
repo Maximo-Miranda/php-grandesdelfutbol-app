@@ -8,6 +8,7 @@ import {
     Check,
     EllipsisVertical,
     Gamepad2,
+    Hourglass,
     Lock,
     MapPin,
     Navigation,
@@ -135,6 +136,15 @@ const starters = computed(() => confirmedAttendances.value.filter(a => a.role ==
 const substitutes = computed(() => confirmedAttendances.value.filter(a => a.role === 'substitute'));
 const pendingRole = computed(() => confirmedAttendances.value.filter(a => a.role === 'pending'));
 const declined = computed(() => props.match.attendances?.filter(a => a.status === 'declined') ?? []);
+const waitlisted = computed(() =>
+    (props.match.attendances ?? [])
+        .filter(a => a.status === 'waitlisted')
+        .sort((a, b) => {
+            const aT = a.confirmed_at ? new Date(a.confirmed_at).getTime() : 0;
+            const bT = b.confirmed_at ? new Date(b.confirmed_at).getTime() : 0;
+            return aT - bT;
+        }),
+);
 
 const confirmedCount = computed(() => confirmedAttendances.value.length);
 const substituteCount = computed(() => substitutes.value.length);
@@ -174,6 +184,12 @@ const myAttendance = computed(() => {
 });
 
 const myStatus = computed(() => myAttendance.value?.status ?? null);
+
+const myWaitlistPosition = computed(() => {
+    if (myStatus.value !== 'waitlisted' || !myAttendance.value) return null;
+    const idx = waitlisted.value.findIndex(a => a.id === myAttendance.value!.id);
+    return idx >= 0 ? idx + 1 : null;
+});
 
 const myRoleLabel = computed(() => {
     if (!myAttendance.value || myStatus.value !== 'confirmed') return null;
@@ -513,6 +529,17 @@ function dismissPush() {
                 class="mt-4 flex gap-3"
             >
                 <Button
+                    v-if="isFull && myStatus !== 'confirmed'"
+                    class="flex-1 gap-2"
+                    :variant="myStatus === 'waitlisted' ? 'default' : 'outline'"
+                    :class="myStatus === 'waitlisted' ? 'bg-amber-500 hover:bg-amber-600' : ''"
+                    @click="confirmAttendance"
+                >
+                    <Hourglass class="size-4" />
+                    En espera
+                </Button>
+                <Button
+                    v-else
                     class="flex-1 gap-2"
                     :variant="myStatus === 'confirmed' ? 'default' : 'outline'"
                     :class="myStatus === 'confirmed' ? 'bg-emerald-600 hover:bg-emerald-700' : ''"
@@ -593,6 +620,15 @@ function dismissPush() {
                         {{ teamLabel(myAttendance.team) }}
                     </span>
                 </template>
+            </div>
+
+            <!-- Waitlisted alert -->
+            <div
+                v-if="myStatus === 'waitlisted' && myWaitlistPosition"
+                class="mt-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400"
+            >
+                <Hourglass class="size-4" />
+                <span>Estás en lista de espera — <strong>Posición #{{ myWaitlistPosition }}</strong></span>
             </div>
 
             <!-- Push notification prompt (just-in-time) -->
@@ -1018,6 +1054,43 @@ function dismissPush() {
                 </template>
 
                 <p v-if="!substitutes.length" class="text-sm text-muted-foreground">Nadie aun</p>
+            </div>
+
+            <!-- Lista de espera -->
+            <div v-if="waitlisted.length && (match.status === 'upcoming' || match.status === 'in_progress')" class="mt-5">
+                <div class="mb-3 flex items-center gap-2">
+                    <Hourglass class="size-4 text-amber-500" />
+                    <h3 class="font-semibold">Lista de espera ({{ waitlisted.length }})</h3>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-border">
+                    <div class="divide-y divide-border/50">
+                        <div
+                            v-for="(att, idx) in waitlisted"
+                            :key="att.id"
+                            class="flex items-center gap-3 bg-card px-4 py-2.5"
+                        >
+                            <span class="w-5 text-center text-xs font-bold text-amber-500">#{{ idx + 1 }}</span>
+                            <UserAvatar :src="att.player?.photo_url" :name="att.player?.display_name ?? '?'" class="size-8" />
+                            <div class="min-w-0 flex-1">
+                                <Link v-if="att.player" :href="`/clubs/${club.ulid}/players/${att.player.ulid}`" class="block truncate text-sm font-medium hover:text-primary hover:underline">{{ att.player.display_name }}</Link>
+                                <p v-if="att.player?.position_label" class="text-xs text-muted-foreground">{{ att.player.position_label }}</p>
+                            </div>
+                            <DropdownMenu v-if="canManage">
+                                <DropdownMenuTrigger as-child>
+                                    <button class="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                                        <EllipsisVertical class="size-4" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" class="w-48">
+                                    <DropdownMenuItem class="gap-2" @click="adminRemoveFromMatch(att.ulid)">
+                                        <Undo2 class="size-4" />
+                                        Quitar del partido
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- No van -->

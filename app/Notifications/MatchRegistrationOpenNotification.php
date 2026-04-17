@@ -3,16 +3,16 @@
 namespace App\Notifications;
 
 use App\Models\FootballMatch;
+use App\Notifications\Concerns\SendsMailAndWebPush;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
 class MatchRegistrationOpenNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsMailAndWebPush;
 
     public int $tries = 3;
 
@@ -29,18 +29,6 @@ class MatchRegistrationOpenNotification extends Notification implements ShouldQu
         $this->afterCommit();
         $this->matchTitle = $match->title;
         $this->matchUrl = route('clubs.matches.show', [$match->club, $match]);
-    }
-
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
-    {
-        $channels = ['mail'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage

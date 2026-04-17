@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\FootballMatch;
-use App\Models\Scopes\ClubScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -47,8 +46,7 @@ class VideoShareController extends Controller
             abort(403, 'Este enlace ha expirado o no es válido.');
         }
 
-        $match = FootballMatch::query()
-            ->withoutGlobalScope(ClubScope::class)
+        $match = FootballMatch::anyClub()
             ->where('ulid', $matchUlid)
             ->with('club', 'videoUpload')
             ->firstOrFail();

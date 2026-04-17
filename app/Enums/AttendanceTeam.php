@@ -14,4 +14,12 @@ enum AttendanceTeam: string
             self::B => 'Equipo B',
         };
     }
+
+    public function opposite(): self
+    {
+        return match ($this) {
+            self::A => self::B,
+            self::B => self::A,
+        };
+    }
 }

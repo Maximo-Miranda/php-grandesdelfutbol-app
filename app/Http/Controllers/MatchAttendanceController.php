@@ -6,10 +6,10 @@ use App\Enums\AttendanceRole;
 use App\Enums\AttendanceStatus;
 use App\Enums\AttendanceTeam;
 use App\Enums\MatchStatus;
-use App\Exceptions\MatchFullException;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
+use App\Models\Player;
 use App\Services\MatchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,18 +34,18 @@ class MatchAttendanceController extends Controller
 
         $team = isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null;
 
-        try {
-            $this->matchService->registerPlayer(
-                $match,
-                $player,
-                AttendanceStatus::from($validated['status']),
-                $team,
-            );
-        } catch (MatchFullException) {
-            return back()->with('error', 'El cupo del partido está lleno.');
-        }
+        $attendance = $this->matchService->registerPlayer(
+            $match,
+            $player,
+            AttendanceStatus::from($validated['status']),
+            $team,
+        );
 
-        return back()->with('success', 'Registro actualizado.');
+        $message = $attendance->status === AttendanceStatus::Waitlisted
+            ? 'Quedaste en lista de espera.'
+            : 'Registro actualizado.';
+
+        return back()->with('success', $message);
     }
 
     public function update(Request $request, Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
@@ -83,7 +83,7 @@ class MatchAttendanceController extends Controller
 
     private function declineAttendance(FootballMatch $match, MatchAttendance $attendance): RedirectResponse
     {
-        $shouldRecalculate = $attendance->role === AttendanceRole::Starter && $attendance->team !== null;
+        $wasConfirmed = $attendance->status === AttendanceStatus::Confirmed;
 
         $attendance->update([
             'status' => AttendanceStatus::Declined,
@@ -92,8 +92,9 @@ class MatchAttendanceController extends Controller
             'confirmed_at' => null,
         ]);
 
-        if ($shouldRecalculate) {
-            $this->matchService->recalculateRoles($match);
+        if ($wasConfirmed) {
+            $attendance->loadMissing('player');
+            $this->matchService->promoteFromWaitlistAndNotify($match, $attendance->player);
         }
 
         return back()->with('success', 'Asistencia actualizada.');
@@ -101,39 +102,28 @@ class MatchAttendanceController extends Controller
 
     private function confirmAttendance(FootballMatch $match, MatchAttendance $attendance, AttendanceStatus $status): RedirectResponse
     {
-        try {
-            $role = $this->matchService->determineRole($match, $attendance->player_id, $attendance->team);
-        } catch (MatchFullException) {
-            return back()->with('error', 'El cupo del partido está lleno.');
-        }
+        $player = Player::anyClub()->findOrFail($attendance->player_id);
 
-        $attendance->update([
-            'status' => $status,
-            'role' => $role,
-            'confirmed_at' => now(),
-        ]);
+        $result = $this->matchService->registerPlayer($match, $player, $status, $attendance->team);
 
-        if ($role === AttendanceRole::Substitute && $attendance->team) {
-            $attendance->load('player');
-            if ($attendance->player?->isGoalkeeper()) {
-                $this->matchService->recalculateRoles($match);
-            }
-        }
+        $message = $result->status === AttendanceStatus::Waitlisted
+            ? 'Jugador movido a lista de espera.'
+            : 'Asistencia actualizada.';
 
-        return back()->with('success', 'Asistencia actualizada.');
+        return back()->with('success', $message);
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
     {
         Gate::authorize('update', $match);
 
-        $wasStarter = $attendance->role === AttendanceRole::Starter;
-        $hadTeam = $attendance->team !== null;
+        $wasConfirmed = $attendance->status === AttendanceStatus::Confirmed;
+        $canceler = $wasConfirmed ? $attendance->loadMissing('player')->player : null;
 
         $attendance->delete();
 
-        if ($wasStarter && $hadTeam) {
-            $this->matchService->recalculateRoles($match);
+        if ($wasConfirmed) {
+            $this->matchService->promoteFromWaitlistAndNotify($match, $canceler);
         }
 
         return back()->with('success', 'Jugador removido del partido.');
