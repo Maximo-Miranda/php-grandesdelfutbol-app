@@ -55,9 +55,11 @@ test('team names are unique per season (case-insensitive)', function () {
             'name' => 'argentina',
             'color' => '#2563eb',
             'season_id' => $season->id,
-        ])->assertSessionHasErrors() // DB unique fail or validation
-        ->assertRedirect();
-})->skip('Unique DB constraint raises exception — acceptable for now; UI validates first.');
+        ])
+        ->assertSessionHasErrors('name');
+
+    expect(Team::query()->where('season_id', $season->id)->count())->toBe(1);
+});
 
 test('members can view a team page', function () {
     $user = User::factory()->create();

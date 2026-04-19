@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Team;
 
 use App\Models\Team;
+use App\Services\SeasonService;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTeamRequest extends FormRequest
@@ -25,6 +27,28 @@ class StoreTeamRequest extends FormRequest
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:10240'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            $name = $this->input('name');
+            if (! is_string($name) || $name === '') {
+                return;
+            }
+
+            $club = $this->route('club');
+            $seasonId = $this->input('season_id') ?? app(SeasonService::class)->activeFor($club)->id;
+
+            $exists = Team::query()
+                ->where('season_id', $seasonId)
+                ->where('normalized_name', Team::normalize($name))
+                ->exists();
+
+            if ($exists) {
+                $v->errors()->add('name', 'Ya existe un equipo con ese nombre en esta temporada.');
+            }
+        });
     }
 
     /** @return array<string, string> */

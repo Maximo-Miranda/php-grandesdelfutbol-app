@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Team;
 
+use App\Models\Team;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateTeamRequest extends FormRequest
@@ -27,6 +29,29 @@ class UpdateTeamRequest extends FormRequest
             'player_ids' => ['nullable', 'array'],
             'player_ids.*' => ['integer', 'exists:players,id'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            $name = $this->input('name');
+            if (! is_string($name) || $name === '') {
+                return;
+            }
+
+            /** @var Team $team */
+            $team = $this->route('team');
+
+            $exists = Team::query()
+                ->where('season_id', $team->season_id)
+                ->where('id', '!=', $team->id)
+                ->where('normalized_name', Team::normalize($name))
+                ->exists();
+
+            if ($exists) {
+                $v->errors()->add('name', 'Ya existe un equipo con ese nombre en esta temporada.');
+            }
+        });
     }
 
     /** @return array<string, string> */
