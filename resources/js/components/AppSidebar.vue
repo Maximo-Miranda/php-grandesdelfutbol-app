@@ -55,9 +55,9 @@ const clubNavItems = computed<NavItem[]>(() => {
     ];
 
     if (teamStandingsEnabled.value) {
-        items.push({ title: 'Posiciones', description: 'Equipos, jugadores y roster', href: `${base}/standings`, icon: Trophy });
+        items.push({ title: 'Posiciones', description: 'Equipos, jugadores y plantilla', href: `${base}/standings`, icon: Trophy });
     } else {
-        items.push({ title: 'Jugadores', description: 'Roster del club', href: `${base}/players`, icon: UsersRound });
+        items.push({ title: 'Jugadores', description: 'Plantilla del club', href: `${base}/players`, icon: UsersRound });
     }
 
     items.push(

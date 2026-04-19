@@ -85,7 +85,7 @@ class StandingsController extends Controller
                 'status' => $selected->status->value,
                 'is_active' => $selected->isActive(),
                 'starts_on' => $selected->startsOn()?->toIso8601String(),
-                'ends_on' => $selected->endsOn()?->toIso8601String(),
+                'ends_on' => $selected->projectedEndsOn()?->toIso8601String(),
             ],
             'progress' => $progress,
             'teamStandings' => $teamStandings,

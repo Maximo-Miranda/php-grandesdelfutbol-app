@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { Camera, Check, ImagePlus, Trash2, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
+import PlayerPicker from '@/components/PlayerPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +13,7 @@ import type { BreadcrumbItem, Club } from '@/types';
 type PlayerOption = { id: number; ulid: string; name: string; jersey_number: number | null; position: string | null };
 type Team = {
     id: number; ulid: string; name: string; color: string; bio: string | null;
+    is_tournament: boolean;
     logo_url: string | null; cover_url: string | null;
     coach: PlayerOption | null; captain: PlayerOption | null;
     players: PlayerOption[];
@@ -33,6 +35,7 @@ const form = useForm({
     coach_player_id: props.team.coach?.id ?? null,
     captain_player_id: props.team.captain?.id ?? null,
     bio: props.team.bio ?? '',
+    is_tournament: props.team.is_tournament,
     player_ids: selectedPlayerIds.value,
     logo: null as File | null,
     cover: null as File | null,
@@ -183,17 +186,11 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-sm font-medium">Director Técnico</label>
-                        <select v-model="form.coach_player_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                            <option :value="null">— Sin asignar —</option>
-                            <option v-for="p in players" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
+                        <PlayerPicker v-model="form.coach_player_id" :players="players" show-position />
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium">Capitán</label>
-                        <select v-model="form.captain_player_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                            <option :value="null">— Sin asignar —</option>
-                            <option v-for="p in players" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
+                        <PlayerPicker v-model="form.captain_player_id" :players="players" />
                     </div>
                 </div>
 
@@ -201,6 +198,20 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <label class="mb-1 block text-sm font-medium">Descripción</label>
                     <Textarea v-model="form.bio" maxlength="1000" rows="3" />
                 </div>
+
+                <label class="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/30">
+                    <input
+                        v-model="form.is_tournament"
+                        type="checkbox"
+                        class="mt-0.5 size-4 rounded border-border"
+                    />
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Equipo de torneo</p>
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            Los jugadores pueden estar en varias plantillas de torneo dentro del club. Los equipos regulares (sin marcar) tienen plantilla exclusiva: un jugador solo puede estar en uno.
+                        </p>
+                    </div>
+                </label>
 
                 <!-- Imágenes -->
                 <div class="grid gap-4 sm:grid-cols-[auto_1fr]">
@@ -287,7 +298,18 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <div>
                     <label class="mb-1 block text-sm font-medium">Plantilla</label>
                     <p class="mb-2 text-xs text-muted-foreground">Agrega o quita jugadores manualmente. Los que confirmen asistencia con este equipo se agregarán automáticamente.</p>
-                    <div class="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
+                    <div v-if="players.length === 0" class="rounded-md border border-dashed border-border/70 p-4 text-center">
+                        <p class="text-sm font-medium text-foreground">No hay jugadores disponibles</p>
+                        <p v-if="!form.is_tournament" class="mt-1 text-xs text-muted-foreground">
+                            Todos los jugadores del club ya pertenecen a otro equipo regular de esta temporada. Para mover alguno, primero quítalo del otro equipo o marca este como
+                            <span class="font-semibold text-foreground">Equipo de torneo</span>
+                            (permite plantilla compartida).
+                        </p>
+                        <p v-else class="mt-1 text-xs text-muted-foreground">
+                            Aún no hay jugadores registrados en este club. Invita miembros o crea jugadores desde la sección correspondiente.
+                        </p>
+                    </div>
+                    <div v-else class="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
                         <button
                             v-for="p in players"
                             :key="p.id"

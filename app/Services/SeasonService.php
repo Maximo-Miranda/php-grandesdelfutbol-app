@@ -9,6 +9,7 @@ use App\Models\Season;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SeasonService
 {
@@ -30,12 +31,21 @@ class SeasonService
     {
         $count = $this->seasonsQuery($club->id)->count();
 
-        return Season::query()->create([
+        $season = Season::query()->create([
             'club_id' => $club->id,
             'name' => 'Temporada #'.($count + 1),
             'matches_count' => $matchesCount ?? Season::DEFAULT_MATCHES_COUNT,
             'status' => SeasonStatus::Active,
         ]);
+
+        Log::info('season.created', [
+            'club_id' => $club->id,
+            'season_id' => $season->id,
+            'name' => $season->name,
+            'matches_count' => $season->matches_count,
+        ]);
+
+        return $season;
     }
 
     public function assignMatch(FootballMatch $match): void
@@ -83,6 +93,13 @@ class SeasonService
             'status' => SeasonStatus::Completed,
             'completed_at' => now(),
         ]);
+
+        Log::info('season.completed', [
+            'club_id' => $season->club_id,
+            'season_id' => $season->id,
+            'name' => $season->name,
+            'completed_count' => $season->completedMatchesCount(),
+        ]);
     }
 
     public function reopenIfIncomplete(Season $season): void
@@ -101,6 +118,14 @@ class SeasonService
             $season->update([
                 'status' => SeasonStatus::Active,
                 'completed_at' => null,
+            ]);
+
+            Log::info('season.reopened', [
+                'club_id' => $season->club_id,
+                'season_id' => $season->id,
+                'name' => $season->name,
+                'completed_count' => $season->completedMatchesCount(),
+                'matches_count' => $season->matches_count,
             ]);
         }
     }

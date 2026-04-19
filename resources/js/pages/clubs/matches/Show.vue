@@ -1183,12 +1183,30 @@ function dismissPush() {
                             <div class="flex shrink-0 gap-1">
                                 <!-- Team-restricted match: show ONLY the player's eligible team button -->
                                 <template v-if="isTeamRestricted">
+                                    <template v-if="player.eligible_team === 'either'">
+                                        <button
+                                            :disabled="isFull || addingPlayerKey === `${player.id}-a`"
+                                            :title="`Agregar a ${match.team_a_name}`"
+                                            class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                            @click="registerPlayer(player.id, 'confirmed', 'a')"
+                                        >
+                                            <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                        </button>
+                                        <button
+                                            :disabled="isFull || addingPlayerKey === `${player.id}-b`"
+                                            :title="`Agregar a ${match.team_b_name}`"
+                                            class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                            @click="registerPlayer(player.id, 'confirmed', 'b')"
+                                        >
+                                            <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                        </button>
+                                    </template>
                                     <button
-                                        v-if="player.eligible_team === 'a'"
+                                        v-else-if="player.eligible_team === 'a'"
                                         :disabled="isFull || addingPlayerKey === `${player.id}-a`"
                                         :title="`Agregar a ${match.team_a_name}`"
                                         class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
-                                        @click="registerPlayer(player.id, 'confirmed', null)"
+                                        @click="registerPlayer(player.id, 'confirmed', 'a')"
                                     >
                                         <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
                                     </button>
@@ -1197,7 +1215,7 @@ function dismissPush() {
                                         :disabled="isFull || addingPlayerKey === `${player.id}-b`"
                                         :title="`Agregar a ${match.team_b_name}`"
                                         class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
-                                        @click="registerPlayer(player.id, 'confirmed', null)"
+                                        @click="registerPlayer(player.id, 'confirmed', 'b')"
                                     >
                                         <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
                                     </button>

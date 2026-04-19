@@ -14,6 +14,7 @@ use App\Services\StandingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -88,6 +89,7 @@ class TeamController extends Controller
                 'coach_player_id' => $data['coach_player_id'] ?? null,
                 'captain_player_id' => $data['captain_player_id'] ?? null,
                 'bio' => $data['bio'] ?? null,
+                'is_tournament' => (bool) ($data['is_tournament'] ?? false),
             ]);
 
             if ($request->hasFile('logo')) {
@@ -143,7 +145,9 @@ class TeamController extends Controller
         return Inertia::render('clubs/teams/Edit', [
             'club' => $club,
             'team' => $this->presentTeam($team, full: true),
-            'players' => $club->players()->active()->orderBy('name')->get(['id', 'ulid', 'name', 'jersey_number', 'position']),
+            'players' => $team->is_tournament
+                ? $club->players()->active()->orderBy('name')->get(['id', 'ulid', 'name', 'jersey_number', 'position'])
+                : $this->availablePlayersFor($club, $team->season_id, $team->id),
         ]);
     }
 
@@ -152,7 +156,7 @@ class TeamController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($team, $data, $request) {
-            $team->update(Arr::only($data, ['name', 'color', 'coach_player_id', 'captain_player_id', 'bio']));
+            $team->update(Arr::only($data, ['name', 'color', 'coach_player_id', 'captain_player_id', 'bio', 'is_tournament']));
 
             if (array_key_exists('player_ids', $data)) {
                 $playerIds = $data['player_ids'] ?? [];
@@ -261,6 +265,36 @@ class TeamController extends Controller
         return $query->exists();
     }
 
+    /**
+     * Players of the club not yet in any non-tournament team of the given season.
+     * Used when editing a non-tournament team to enforce exclusive membership.
+     * The current team's roster is included so those players render as pre-selected.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function availablePlayersFor(Club $club, int $seasonId, ?int $excludingTeamId = null): Collection
+    {
+        $takenIds = DB::table('team_player')
+            ->join('teams', 'teams.id', '=', 'team_player.team_id')
+            ->where('teams.season_id', $seasonId)
+            ->where('teams.is_tournament', false)
+            ->when($excludingTeamId, fn ($q) => $q->where('teams.id', '!=', $excludingTeamId))
+            ->pluck('team_player.player_id');
+
+        return $club->players()
+            ->active()
+            ->whereNotIn('id', $takenIds)
+            ->orderBy('name')
+            ->get(['id', 'ulid', 'name', 'jersey_number', 'position'])
+            ->map(fn (Player $p) => [
+                'id' => $p->id,
+                'ulid' => $p->ulid,
+                'name' => $p->name,
+                'jersey_number' => $p->jersey_number,
+                'position' => $p->position?->value,
+            ]);
+    }
+
     /** @return array<string, mixed> */
     private function presentTeam(Team $team, bool $full = false): array
     {
@@ -270,6 +304,7 @@ class TeamController extends Controller
             'name' => $team->name,
             'color' => $team->color,
             'bio' => $team->bio,
+            'is_tournament' => $team->is_tournament,
             'logo_url' => $team->logo_url,
             'cover_url' => $team->cover_url,
             'season' => [

@@ -24,6 +24,7 @@ class StoreTeamRequest extends FormRequest
             'coach_player_id' => ['nullable', 'integer', 'exists:players,id'],
             'captain_player_id' => ['nullable', 'integer', 'exists:players,id'],
             'bio' => ['nullable', 'string', 'max:1000'],
+            'is_tournament' => ['nullable', 'boolean'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
             'cover' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:10240'],
         ];

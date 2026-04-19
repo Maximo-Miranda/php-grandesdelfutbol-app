@@ -137,9 +137,15 @@ class MatchAttendanceController extends Controller
             return $requestedTeam;
         }
 
-        $resolved = $match->resolveTeamForPlayer($player);
+        $resolved = $match->resolveTeamForPlayer($player, $requestedTeam);
         if ($resolved === null) {
             return back()->with('error', "{$player->display_name} no está en ninguno de los equipos de este partido.");
+        }
+
+        if ($requestedTeam !== null && $resolved !== $requestedTeam) {
+            $correctTeam = $match->teamName($resolved);
+
+            return back()->with('error', "{$player->display_name} pertenece al equipo {$correctTeam} en esta temporada. Cambia su equipo desde la gestión de equipos antes de reasignarlo.");
         }
 
         return $resolved;

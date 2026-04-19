@@ -138,24 +138,34 @@ class MatchController extends Controller
         $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
         $teamRestricted = $match->isTeamRestricted();
+        $isTournament = $match->isTournament();
         $teamALookup = $teamRestricted && $match->teamA ? array_flip($match->teamA->players()->pluck('players.id')->all()) : [];
         $teamBLookup = $teamRestricted && $match->teamB ? array_flip($match->teamB->players()->pluck('players.id')->all()) : [];
-        $teamAEmpty = $teamRestricted && $match->teamA && empty($teamALookup);
-        $teamBEmpty = $teamRestricted && $match->teamB && empty($teamBLookup);
+        $hasTeamA = $teamRestricted && $match->teamA !== null;
+        $hasTeamB = $teamRestricted && $match->teamB !== null;
 
-        $resolveEligibility = function ($players) use ($teamRestricted, $teamALookup, $teamBLookup, $teamAEmpty, $teamBEmpty) {
+        $resolveEligibility = function ($players) use ($teamRestricted, $isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB) {
             if (! $teamRestricted) {
                 return $players;
             }
 
-            return $players->each(function ($player) use ($teamALookup, $teamBLookup, $teamAEmpty, $teamBEmpty) {
+            return $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB) {
+                // Tournament matches: admin picks per match, even for rostered players.
+                if ($isTournament && $hasTeamA && $hasTeamB) {
+                    $player->eligible_team = 'either';
+
+                    return;
+                }
+
                 if (isset($teamALookup[$player->id])) {
                     $player->eligible_team = 'a';
                 } elseif (isset($teamBLookup[$player->id])) {
                     $player->eligible_team = 'b';
-                } elseif ($teamAEmpty) {
+                } elseif ($hasTeamA && $hasTeamB) {
+                    $player->eligible_team = 'either';
+                } elseif ($hasTeamA) {
                     $player->eligible_team = 'a';
-                } elseif ($teamBEmpty) {
+                } elseif ($hasTeamB) {
                     $player->eligible_team = 'b';
                 } else {
                     $player->eligible_team = null;

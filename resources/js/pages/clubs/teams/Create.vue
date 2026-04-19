@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { Camera, ImagePlus, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
+import PlayerPicker from '@/components/PlayerPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,6 +46,7 @@ const form = useForm({
     coach_player_id: null as number | null,
     captain_player_id: null as number | null,
     bio: '',
+    is_tournament: false,
     logo: null as File | null,
     cover: null as File | null,
 });
@@ -151,17 +153,11 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-sm font-medium">Director Técnico (opcional)</label>
-                        <select v-model="form.coach_player_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                            <option :value="null">— Sin asignar —</option>
-                            <option v-for="p in players" :key="p.id" :value="p.id">{{ p.name }}{{ p.position ? ` (${p.position})` : '' }}</option>
-                        </select>
+                        <PlayerPicker v-model="form.coach_player_id" :players="players" show-position />
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium">Capitán (opcional)</label>
-                        <select v-model="form.captain_player_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                            <option :value="null">— Sin asignar —</option>
-                            <option v-for="p in players" :key="p.id" :value="p.id">{{ p.name }}{{ p.jersey_number ? ` #${p.jersey_number}` : '' }}</option>
-                        </select>
+                        <PlayerPicker v-model="form.captain_player_id" :players="players" />
                     </div>
                 </div>
 
@@ -169,6 +165,20 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <label class="mb-1 block text-sm font-medium">Descripción (opcional)</label>
                     <Textarea v-model="form.bio" maxlength="1000" rows="3" placeholder="Historia, estilo, frase..." />
                 </div>
+
+                <label class="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/30">
+                    <input
+                        v-model="form.is_tournament"
+                        type="checkbox"
+                        class="mt-0.5 size-4 rounded border-border"
+                    />
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Equipo de torneo</p>
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            Los jugadores pueden estar en varias plantillas de torneo dentro del club. Los equipos regulares (sin marcar) tienen plantilla exclusiva: un jugador solo puede estar en uno.
+                        </p>
+                    </div>
+                </label>
 
                 <!-- Imágenes -->
                 <div class="grid gap-4 sm:grid-cols-[auto_1fr]">

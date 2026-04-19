@@ -115,6 +115,60 @@ class Season extends Model
         return $date ? CarbonImmutable::parse($date) : null;
     }
 
+    /**
+     * Projected season end based on cadence × remaining matches.
+     * - Uses recurrence_days from the latest recurring match when available.
+     * - Falls back to average gap between scheduled matches.
+     * - Returns null when no countable matches exist (nothing to project from).
+     */
+    public function projectedEndsOn(): ?CarbonImmutable
+    {
+        $matches = $this->countableMatches()
+            ->orderBy('scheduled_at')
+            ->get(['scheduled_at', 'is_recurring', 'recurrence_days']);
+
+        if ($matches->isEmpty()) {
+            return null;
+        }
+
+        $latestDate = CarbonImmutable::parse($matches->last()->scheduled_at);
+        $remaining = $this->matches_count - $matches->count();
+
+        if ($remaining <= 0) {
+            return $latestDate;
+        }
+
+        $cadence = $this->resolveCadenceDays($matches);
+
+        if ($cadence === null) {
+            return $latestDate;
+        }
+
+        return $latestDate->addDays($remaining * $cadence);
+    }
+
+    /**
+     * @param  Collection<int, FootballMatch>  $matches
+     */
+    private function resolveCadenceDays(Collection $matches): ?int
+    {
+        $latest = $matches->last();
+
+        if ($latest->is_recurring && $latest->recurrence_days > 0) {
+            return $latest->recurrence_days;
+        }
+
+        if ($matches->count() < 2) {
+            return null;
+        }
+
+        $first = CarbonImmutable::parse($matches->first()->scheduled_at);
+        $last = CarbonImmutable::parse($matches->last()->scheduled_at);
+        $gaps = $matches->count() - 1;
+
+        return max(1, (int) round($first->diffInDays($last) / $gaps));
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', SeasonStatus::Active);

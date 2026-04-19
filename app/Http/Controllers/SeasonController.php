@@ -85,7 +85,7 @@ class SeasonController extends Controller
             'played' => (int) ($aggregate->played ?? 0),
             'completed' => (int) ($aggregate->completed ?? 0),
             'starts_on' => isset($aggregate->starts_on) ? CarbonImmutable::parse($aggregate->starts_on)->toIso8601String() : null,
-            'ends_on' => isset($aggregate->ends_on) ? CarbonImmutable::parse($aggregate->ends_on)->toIso8601String() : null,
+            'ends_on' => $season->projectedEndsOn()?->toIso8601String(),
         ];
     }
 }

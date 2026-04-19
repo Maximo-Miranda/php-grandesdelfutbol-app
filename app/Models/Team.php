@@ -59,9 +59,17 @@ class Team extends Model
         'coach_player_id',
         'captain_player_id',
         'bio',
+        'is_tournament',
     ];
 
     protected $appends = ['logo_url', 'cover_url'];
+
+    protected function casts(): array
+    {
+        return [
+            'is_tournament' => 'boolean',
+        ];
+    }
 
     public static function normalize(string $name): string
     {
@@ -103,13 +111,18 @@ class Team extends Model
     }
 
     /**
-     * Detach the given player IDs from every other team in the same season.
-     * Used to enforce "a player can only be on one team per season".
+     * Detach the given player IDs from every other NON-TOURNAMENT team in the same season.
+     * Non-tournament teams (casual pickup) enforce exclusivity — a player can only be on one.
+     * Tournament teams allow shared rosters (players can be in multiple tournament squads).
      *
      * @param  array<int>|int  $playerIds
      */
     public function detachPlayersFromSiblings(array|int $playerIds): void
     {
+        if ($this->is_tournament) {
+            return;
+        }
+
         $ids = (array) $playerIds;
         if (empty($ids)) {
             return;
@@ -119,14 +132,15 @@ class Team extends Model
             ->whereIn('player_id', $ids)
             ->whereIn('team_id', static::query()
                 ->where('season_id', $this->season_id)
+                ->where('is_tournament', false)
                 ->where('id', '!=', $this->id)
                 ->select('id'))
             ->delete();
     }
 
     /**
-     * Attach a player to this team and remove them from any other team in the same season.
-     * Idempotent: if the player is already in this team, only the sibling cleanup runs.
+     * Attach a player to this team. Non-tournament teams first remove the player from
+     * any other non-tournament team in the season. Tournament teams just attach.
      */
     public function attachPlayerExclusively(int $playerId): void
     {
