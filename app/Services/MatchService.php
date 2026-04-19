@@ -264,6 +264,38 @@ class MatchService
     }
 
     /**
+     * Re-credit events to the correct team based on player roster membership.
+     * Used when a match transitions from free-text teams to team-restricted teams,
+     * because pre-existing events may have an arbitrary team label that doesn't
+     * match the player's actual roster team.
+     *
+     * Returns the number of events whose team was changed.
+     */
+    public function realignEventTeamsToRosters(FootballMatch $match): int
+    {
+        if (! $match->isTeamRestricted()) {
+            return 0;
+        }
+
+        $changed = 0;
+        $events = $match->events()->whereNotNull('player_id')->with('player')->get();
+
+        foreach ($events as $event) {
+            if (! $event->player) {
+                continue;
+            }
+
+            $resolvedTeam = $match->resolveTeamForPlayer($event->player);
+            if ($resolvedTeam !== null && $event->team !== $resolvedTeam) {
+                $event->update(['team' => $resolvedTeam]);
+                $changed++;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
      * Sort attendances so that the first goalkeeper gets priority placement,
      * then fall back to confirmed_at ASC for the rest.
      *

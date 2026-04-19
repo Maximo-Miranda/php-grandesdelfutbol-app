@@ -11,6 +11,7 @@ use App\Models\FootballMatch;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\MatchService;
+use App\Services\MatchStatService;
 use App\Services\SeasonService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,11 @@ use Inertia\Response;
 
 class MatchController extends Controller
 {
-    public function __construct(private MatchService $matchService, private SeasonService $seasonService) {}
+    public function __construct(
+        private MatchService $matchService,
+        private SeasonService $seasonService,
+        private MatchStatService $statService,
+    ) {}
 
     /** @return array<int, array<string, mixed>> */
     private function teamsForActiveSeason(Club $club): array
@@ -213,19 +218,35 @@ class MatchController extends Controller
         $previousMaxPlayers = $match->max_players;
         $previousMaxSubs = $match->max_substitutes;
         $previousStatus = $match->status;
+        $previousTeamAId = $match->team_a_id;
+        $previousTeamBId = $match->team_b_id;
 
         $match->update($data);
         $fresh = $match->fresh();
 
         $capacityChanged = $fresh->max_players !== $previousMaxPlayers || $fresh->max_substitutes !== $previousMaxSubs;
         $reactivated = $previousStatus->isFinished() && ! $fresh->status->isFinished();
+        $teamsChanged = $fresh->team_a_id !== $previousTeamAId || $fresh->team_b_id !== $previousTeamBId;
 
         if ($capacityChanged || $reactivated) {
             $this->matchService->rebalanceCapacity($fresh);
         }
 
+        $extraMessage = null;
+        if ($teamsChanged && $fresh->isTeamRestricted()) {
+            $realigned = $this->matchService->realignEventTeamsToRosters($fresh);
+            if ($realigned > 0) {
+                // Score depends on event teams; recalc + re-finalize stats so player goals stay consistent
+                $this->statService->recalculateScore($fresh);
+                if ($fresh->stats_finalized_at) {
+                    $this->statService->finalizeStats($fresh->fresh());
+                }
+                $extraMessage = " {$realigned} ".($realigned === 1 ? 'evento se reasignó' : 'eventos se reasignaron').' al equipo correcto del jugador.';
+            }
+        }
+
         return redirect()->route('clubs.matches.show', [$club, $match])
-            ->with('success', 'Partido actualizado.');
+            ->with('success', 'Partido actualizado.'.($extraMessage ?? ''));
     }
 
     public function destroy(Club $club, FootballMatch $match): RedirectResponse
