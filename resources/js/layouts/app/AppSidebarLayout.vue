@@ -38,6 +38,15 @@ watch(
     },
 );
 
+watch(
+    () => (page.props.flash as { success?: string; error?: string })?.error,
+    (message) => {
+        if (message) {
+            showToast({ message, variant: 'error' });
+        }
+    },
+);
+
 const showBack = computed(() => props.breadcrumbs.length >= 2);
 const backFallback = computed(() => {
     if (props.breadcrumbs.length >= 2) {

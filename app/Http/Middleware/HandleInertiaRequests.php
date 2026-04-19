@@ -48,6 +48,9 @@ class HandleInertiaRequests extends Middleware
             },
             'vapidPublicKey' => config('webpush.vapid.public_key'),
             'googleAuthEnabled' => config('services.google.enabled'),
+            'features' => [
+                'team_standings' => (bool) config('features.team_standings'),
+            ],
             'newsUnreadCount' => fn () => app(NewsBadgeService::class)->forUser($user),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

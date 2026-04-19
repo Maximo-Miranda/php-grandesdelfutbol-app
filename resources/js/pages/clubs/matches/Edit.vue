@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Bell, CalendarClock, Clock, MapPin, Pencil, Plus, Repeat, Save, ShieldX, Trophy, WandSparkles } from 'lucide-vue-next';
+import { Bell, CalendarClock, Check, Clock, Handshake, MapPin, Pencil, Plus, Repeat, RotateCcw, Save, ShieldX, Trophy, User, WandSparkles } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import InputError from '@/components/InputError.vue';
@@ -27,8 +27,9 @@ type VideoUploadData = {
     error_message: string | null;
 };
 
-type Props = { club: Club; match: FootballMatch; venues: Venue[]; videoUpload?: VideoUploadData | null; embedUrl?: string | null; streamUrl?: string | null; defaultCancelHoursBefore: number };
-const props = defineProps<Props>();
+type TeamOption = { id: number; ulid: string; name: string; color: string; logo_url: string | null };
+type Props = { club: Club; match: FootballMatch; venues: Venue[]; videoUpload?: VideoUploadData | null; embedUrl?: string | null; streamUrl?: string | null; defaultCancelHoursBefore: number; availableTeams?: TeamOption[] };
+const props = withDefaults(defineProps<Props>(), { availableTeams: () => [] });
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubes', href: '/clubs' },
@@ -65,6 +66,33 @@ const {
     autoTitleOnInit: false,
     defaultCancelHoursBefore: props.defaultCancelHoursBefore,
 });
+
+function onTeamAChange(value: string): void {
+    const id = value === 'none' ? null : Number(value);
+    form.team_a_id = id;
+    const team = id ? props.availableTeams.find(t => t.id === id) : null;
+    if (team) {
+        form.team_a_name = team.name;
+        form.team_a_color = team.color;
+    }
+}
+
+function onTeamBChange(value: string): void {
+    const id = value === 'none' ? null : Number(value);
+    form.team_b_id = id;
+    const team = id ? props.availableTeams.find(t => t.id === id) : null;
+    if (team) {
+        form.team_b_name = team.name;
+        form.team_b_color = team.color;
+    }
+}
+
+function toggleSingleTeam(): void {
+    form.single_team = !form.single_team;
+    if (form.single_team) {
+        form.team_b_id = null;
+    }
+}
 
 function submit() {
     resolveBeforeSubmit();
@@ -217,6 +245,15 @@ function submitExistingVenueField() {
         <div class="mx-auto w-full max-w-2xl px-4 py-6">
             <h1 class="text-2xl font-bold">Editar Partido</h1>
             <p class="mb-6 text-sm text-muted-foreground">Modifica los detalles del partido.</p>
+
+            <!-- Alerta solo para partidos cancelados — explica cómo reactivar -->
+            <div v-if="match.status === 'cancelled'" class="mb-6 flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <RotateCcw class="mt-0.5 size-4 shrink-0 text-amber-500" />
+                <div class="text-amber-600 dark:text-amber-400">
+                    <p class="font-semibold">Este partido está cancelado.</p>
+                    <p class="mt-0.5 text-xs">Para reactivarlo, cambia la fecha y hora abajo a una futura y guarda. Volverá automáticamente al estado "Próximo".</p>
+                </div>
+            </div>
 
             <form class="space-y-5" @submit.prevent="submit">
                 <!-- Cancha -->
@@ -522,20 +559,109 @@ function submitExistingVenueField() {
                 </div>
 
                 <!-- Equipos -->
-                <div class="grid gap-1.5">
-                    <Label>Equipos</Label>
-                    <p class="text-xs text-muted-foreground">Nombres y colores de camiseta para cada equipo.</p>
-                    <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-3">
+                    <div>
+                        <Label>Equipos</Label>
+                        <p class="mt-0.5 text-xs text-muted-foreground">Selecciona equipos existentes de la temporada o define nombres manualmente. Los equipos seleccionados aportan a la tabla de posiciones.</p>
+                    </div>
+
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            class="group relative flex items-start gap-3 rounded-lg border p-3 text-left transition active:scale-[0.99]"
+                            :class="form.single_team ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-muted-foreground/40'"
+                            @click="toggleSingleTeam()"
+                        >
+                            <span
+                                class="flex size-8 shrink-0 items-center justify-center rounded-md border"
+                                :class="form.single_team ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-muted text-muted-foreground'"
+                            >
+                                <User class="size-4" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium">Un solo equipo</span>
+                                    <span
+                                        class="flex size-4 shrink-0 items-center justify-center rounded-full border transition"
+                                        :class="form.single_team ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30 bg-background'"
+                                    >
+                                        <Check v-if="form.single_team" class="size-3" />
+                                    </span>
+                                </span>
+                                <span class="mt-0.5 block text-xs text-muted-foreground">
+                                    Para clubes donde los miembros juegan contra un rival externo.
+                                </span>
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="group relative flex items-start gap-3 rounded-lg border p-3 text-left transition active:scale-[0.99]"
+                            :class="form.is_friendly ? 'border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/20' : 'border-border hover:border-muted-foreground/40'"
+                            @click="form.is_friendly = !form.is_friendly"
+                        >
+                            <span
+                                class="flex size-8 shrink-0 items-center justify-center rounded-md border"
+                                :class="form.is_friendly ? 'border-amber-500/40 bg-amber-500/10 text-amber-600' : 'border-border bg-muted text-muted-foreground'"
+                            >
+                                <Handshake class="size-4" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium">Amistoso</span>
+                                    <span
+                                        class="flex size-4 shrink-0 items-center justify-center rounded-full border transition"
+                                        :class="form.is_friendly ? 'border-amber-500 bg-amber-500 text-white' : 'border-muted-foreground/30 bg-background'"
+                                    >
+                                        <Check v-if="form.is_friendly" class="size-3" />
+                                    </span>
+                                </span>
+                                <span class="mt-0.5 block text-xs text-muted-foreground">
+                                    No suma en la tabla de posiciones, pero se muestra en Últimos 5.
+                                </span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div v-if="availableTeams.length > 0" class="grid gap-4" :class="form.single_team ? 'sm:grid-cols-1' : 'sm:grid-cols-2'">
+                        <div class="grid gap-2">
+                            <Label class="text-xs text-muted-foreground">Equipo A</Label>
+                            <Select :model-value="form.team_a_id ? String(form.team_a_id) : 'none'" @update:model-value="onTeamAChange">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona equipo A" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">— Usar nombre manual —</SelectItem>
+                                    <SelectItem v-for="t in availableTeams" :key="t.id" :value="String(t.id)">{{ t.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div v-if="!form.single_team" class="grid gap-2">
+                            <Label class="text-xs text-muted-foreground">Equipo B</Label>
+                            <Select :model-value="form.team_b_id ? String(form.team_b_id) : 'none'" @update:model-value="onTeamBChange">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona equipo B" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">— Usar nombre manual —</SelectItem>
+                                    <SelectItem v-for="t in availableTeams" :key="t.id" :value="String(t.id)">{{ t.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4" :class="form.single_team ? 'sm:grid-cols-1' : 'sm:grid-cols-2'">
                         <div class="grid gap-2 rounded-md border border-border p-3">
                             <div class="relative">
                                 <Input
                                     id="team_a_name"
                                     v-model="form.team_a_name"
                                     class="pr-9"
-                                    :readonly="autoTeamA"
-                                    :class="autoTeamA ? 'bg-muted/50' : ''"
+                                    :readonly="autoTeamA || !!form.team_a_id"
+                                    :class="autoTeamA || form.team_a_id ? 'bg-muted/50' : ''"
                                 />
                                 <button
+                                    v-if="!form.team_a_id"
                                     type="button"
                                     class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                                     @click="autoTeamA ? enableManualTeamName('a') : enableAutoTeamName('a')"
@@ -546,16 +672,17 @@ function submitExistingVenueField() {
                             </div>
                             <ColorSwatchPicker v-model="form.team_a_color" />
                         </div>
-                        <div class="grid gap-2 rounded-md border border-border p-3">
+                        <div v-if="!form.single_team" class="grid gap-2 rounded-md border border-border p-3">
                             <div class="relative">
                                 <Input
                                     id="team_b_name"
                                     v-model="form.team_b_name"
                                     class="pr-9"
-                                    :readonly="autoTeamB"
-                                    :class="autoTeamB ? 'bg-muted/50' : ''"
+                                    :readonly="autoTeamB || !!form.team_b_id"
+                                    :class="autoTeamB || form.team_b_id ? 'bg-muted/50' : ''"
                                 />
                                 <button
+                                    v-if="!form.team_b_id"
                                     type="button"
                                     class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                                     @click="autoTeamB ? enableManualTeamName('b') : enableAutoTeamName('b')"

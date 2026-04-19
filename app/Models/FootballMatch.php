@@ -119,6 +119,10 @@ class FootballMatch extends Model
     protected $fillable = [
         'club_id',
         'field_id',
+        'season_id',
+        'team_a_id',
+        'team_b_id',
+        'is_friendly',
         'title',
         'scheduled_at',
         'duration_minutes',
@@ -173,6 +177,7 @@ class FootballMatch extends Model
             'registration_opens_hours' => 'integer',
             'registration_opens_at' => 'immutable_datetime',
             'cancel_hours_before' => 'integer',
+            'is_friendly' => 'boolean',
         ];
     }
 
@@ -187,7 +192,7 @@ class FootballMatch extends Model
         return $this->cancel_hours_before ?? self::DEFAULT_CANCEL_HOURS_BEFORE;
     }
 
-    public function teamName(AttendanceTeam $team): string
+    public function teamName(AttendanceTeam $team): ?string
     {
         return match ($team) {
             AttendanceTeam::A => $this->team_a_name,
@@ -195,10 +200,66 @@ class FootballMatch extends Model
         };
     }
 
+    public function isSingleTeam(): bool
+    {
+        return $this->team_a_id !== null && $this->team_b_id === null;
+    }
+
+    /**
+     * Whether this match restricts attendance to specific Team rosters
+     * (i.e., team_a_id and/or team_b_id were selected from the team list).
+     */
+    public function isTeamRestricted(): bool
+    {
+        return $this->team_a_id !== null || $this->team_b_id !== null;
+    }
+
+    /**
+     * Resolve the AttendanceTeam slot for a given player on a team-restricted match.
+     * Returns:
+     *  - The team slot (A/B) the player is rostered in
+     *  - The team slot whose roster is still empty (auto-populate behavior)
+     *  - null if the match is not team-restricted, or if the player is not eligible
+     */
+    public function resolveTeamForPlayer(Player $player): ?AttendanceTeam
+    {
+        if (! $this->isTeamRestricted()) {
+            return null;
+        }
+
+        $this->loadMissing(['teamA.players', 'teamB.players']);
+
+        $aHasPlayer = $this->teamA?->players->contains('id', $player->id) ?? false;
+        $bHasPlayer = $this->teamB?->players->contains('id', $player->id) ?? false;
+        $aIsEmpty = $this->teamA && $this->teamA->players->isEmpty();
+        $bIsEmpty = $this->teamB && $this->teamB->players->isEmpty();
+
+        return match (true) {
+            $aHasPlayer => AttendanceTeam::A,
+            $bHasPlayer => AttendanceTeam::B,
+            $aIsEmpty => AttendanceTeam::A,
+            $bIsEmpty => AttendanceTeam::B,
+            default => null,
+        };
+    }
+
+    /**
+     * For team-restricted matches: whether the given player is eligible to confirm.
+     * For non-restricted matches: always true.
+     */
+    public function isPlayerEligible(Player $player): bool
+    {
+        if (! $this->isTeamRestricted()) {
+            return true;
+        }
+
+        return $this->resolveTeamForPlayer($player) !== null;
+    }
+
     protected static function booted(): void
     {
         static::updating(function (FootballMatch $match) {
-            if ($match->isDirty('scheduled_at') && ! $match->auto_started) {
+            if ($match->isDirty('scheduled_at')) {
                 $endsAt = $match->scheduled_at->addMinutes($match->duration_minutes);
 
                 if ($match->scheduled_at->isFuture()) {
@@ -206,7 +267,9 @@ class FootballMatch extends Model
                     $match->started_at = null;
                     $match->ended_at = null;
                     $match->next_match_created_at = null;
-                } elseif ($endsAt->isFuture()) {
+                    // Manual reschedule clears the auto-managed flag so the scheduler treats it as a fresh match
+                    $match->auto_started = false;
+                } elseif ($endsAt->isFuture() && ! $match->auto_started) {
                     $match->status = MatchStatus::InProgress;
                     $match->started_at = $match->scheduled_at;
                     $match->ended_at = null;
@@ -236,6 +299,21 @@ class FootballMatch extends Model
     public function field(): BelongsTo
     {
         return $this->belongsTo(Field::class);
+    }
+
+    public function season(): BelongsTo
+    {
+        return $this->belongsTo(Season::class);
+    }
+
+    public function teamA(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_a_id');
+    }
+
+    public function teamB(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_b_id');
     }
 
     public function attendances(): HasMany

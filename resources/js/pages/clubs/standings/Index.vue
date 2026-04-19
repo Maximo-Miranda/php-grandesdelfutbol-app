@@ -1,0 +1,206 @@
+<script setup lang="ts">
+import { Head, Link, router, usePoll } from '@inertiajs/vue3';
+import { Plus, RefreshCw, Settings, Trophy, UserPlus, Users } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem, Club, Player } from '@/types';
+import PlayerStandingsTable from './partials/PlayerStandingsTable.vue';
+import SeasonSelector from './partials/SeasonSelector.vue';
+import TeamStandingsTable from './partials/TeamStandingsTable.vue';
+
+type Season = {
+    ulid: string;
+    name: string;
+    matches_count: number;
+    status: string;
+    completed_at: string | null;
+    is_active: boolean;
+};
+
+type SelectedSeason = Season & {
+    starts_on: string | null;
+    ends_on: string | null;
+};
+
+type StandingRow = {
+    team_id: number;
+    team_ulid: string;
+    name: string;
+    color: string;
+    logo_url: string | null;
+    PJ: number;
+    G: number;
+    E: number;
+    P: number;
+    GF: number;
+    GC: number;
+    DG: number;
+    Pts: number;
+    last5: Array<'W' | 'D' | 'L' | 'F'>;
+};
+
+const props = defineProps<{
+    club: Club;
+    isAdmin: boolean;
+    tab: string;
+    seasons: Season[];
+    selectedSeason: SelectedSeason;
+    progress: { played: number; completed: number; total: number };
+    teamStandings: StandingRow[];
+    players: { data: Player[] };
+    goalkeepers: Player[];
+}>();
+
+const activeTab = computed(() => (props.tab === 'players' ? 'players' : 'teams'));
+
+const progressPct = computed(() =>
+    props.progress.total > 0 ? Math.min(100, Math.round((props.progress.completed / props.progress.total) * 100)) : 0,
+);
+
+function changeTab(value: 'teams' | 'players'): void {
+    router.get(window.location.pathname, { tab: value, season: props.selectedSeason.ulid }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
+const STANDINGS_PROPS = ['teamStandings', 'players', 'goalkeepers', 'progress', 'selectedSeason'];
+
+// Auto-refresh every 30s in case match events change in another tab/page.
+// Returns a controller so we can pause/resume on visibility changes.
+const poll = usePoll(30000, { only: STANDINGS_PROPS }, { autoStart: true });
+
+const refreshing = ref(false);
+
+function manualRefresh(): void {
+    refreshing.value = true;
+    router.reload({
+        only: STANDINGS_PROPS,
+        onFinish: () => { refreshing.value = false; },
+    });
+}
+
+function handleVisibility(): void {
+    if (document.visibilityState === 'visible') {
+        router.reload({ only: STANDINGS_PROPS });
+        poll.start();
+    } else {
+        poll.stop();
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibility);
+});
+onUnmounted(() => {
+    document.removeEventListener('visibilitychange', handleVisibility);
+});
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Clubes', href: '/clubs' },
+    { title: props.club.name, href: `/clubs/${props.club.ulid}` },
+    { title: 'Posiciones', href: `/clubs/${props.club.ulid}/standings` },
+];
+</script>
+
+<template>
+    <Head :title="`${club.name} - Posiciones`" />
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <div class="mx-auto w-full max-w-2xl px-4 py-6">
+            <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Posiciones</h1>
+                    <p class="text-sm text-muted-foreground">Tabla de equipos y jugadores por temporada</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        :disabled="refreshing"
+                        :title="refreshing ? 'Actualizando...' : 'Actualizar datos'"
+                        @click="manualRefresh"
+                    >
+                        <RefreshCw class="size-4" :class="{ 'animate-spin': refreshing }" />
+                    </Button>
+                    <SeasonSelector :seasons="seasons" :selected="selectedSeason.ulid" :tab="activeTab" />
+                </div>
+            </div>
+
+            <div class="mb-6 rounded-lg border border-border bg-card p-4">
+                <div class="mb-2 flex items-center justify-between text-sm">
+                    <div>
+                        <span class="font-semibold">{{ selectedSeason.name }}</span>
+                        <span
+                            v-if="selectedSeason.is_active"
+                            class="ml-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500"
+                        >Activa</span>
+                        <span v-else class="ml-2 rounded-full border border-muted bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Completada</span>
+                    </div>
+                    <span class="text-muted-foreground">
+                        Partidos: <span class="font-semibold text-foreground">{{ progress.completed }}/{{ progress.total }}</span>
+                    </span>
+                </div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                        class="h-full bg-primary transition-all"
+                        :style="{ width: `${progressPct}%` }"
+                    />
+                </div>
+            </div>
+
+            <div class="mb-6 flex gap-2 border-b border-border">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="rounded-none border-b-2"
+                    :class="activeTab === 'teams' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'"
+                    @click="changeTab('teams')"
+                >
+                    <Trophy class="mr-2 size-4" />
+                    Equipos
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="rounded-none border-b-2"
+                    :class="activeTab === 'players' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'"
+                    @click="changeTab('players')"
+                >
+                    <Users class="mr-2 size-4" />
+                    Jugadores
+                </Button>
+            </div>
+
+            <template v-if="activeTab === 'teams'">
+                <div v-if="isAdmin" class="mb-4 flex flex-wrap justify-end gap-2">
+                    <Link :href="`/clubs/${club.ulid}/teams/create`">
+                        <Button size="sm"><Plus class="mr-1.5 size-4" />Crear equipo</Button>
+                    </Link>
+                    <Link :href="`/clubs/${club.ulid}/teams`">
+                        <Button size="sm" variant="outline"><Settings class="mr-1.5 size-4" />Gestionar equipos</Button>
+                    </Link>
+                </div>
+                <TeamStandingsTable :club="club" :standings="teamStandings" />
+            </template>
+
+            <template v-else>
+                <div v-if="isAdmin" class="mb-4 flex flex-wrap justify-end gap-2">
+                    <Link :href="`/clubs/${club.ulid}/players/create`">
+                        <Button size="sm"><Plus class="mr-1.5 size-4" />Crear jugador</Button>
+                    </Link>
+                    <Link :href="`/clubs/${club.ulid}/members`">
+                        <Button size="sm" variant="outline"><UserPlus class="mr-1.5 size-4" />Invitar</Button>
+                    </Link>
+                </div>
+                <PlayerStandingsTable
+                    :club="club"
+                    :players="players"
+                    :goalkeepers="goalkeepers"
+                    :is-admin="isAdmin"
+                />
+            </template>
+        </div>
+    </AppLayout>
+</template>

@@ -19,6 +19,8 @@ trait MatchRequestDefaults
             }),
         ]);
 
+        $teamScope = Rule::exists('teams', 'id')->where(fn ($q) => $q->where('club_id', $club->id));
+
         return [
             'title' => ['required', 'string', 'min:2', 'max:100'],
             'scheduled_at' => ['required', 'date'],
@@ -29,10 +31,14 @@ trait MatchRequestDefaults
             'max_substitutes' => ['required', 'integer', 'min:0', 'max:50'],
             'registration_opens_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'team_a_id' => ['nullable', 'integer', $teamScope],
+            'team_b_id' => ['nullable', 'integer', $teamScope, 'different:team_a_id'],
             'team_a_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_b_name' => ['nullable', 'string', 'max:50', Rule::notIn($this->reservedTeamNames())],
             'team_a_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
             'team_b_color' => ['nullable', 'string', Rule::in(FootballMatch::JERSEY_COLORS)],
+            'single_team' => ['boolean'],
+            'is_friendly' => ['boolean'],
             'is_recurring' => ['boolean'],
             'recurrence_days' => ['required_if:is_recurring,true', 'integer', 'min:1', 'max:90'],
             'registration_opens_at' => ['nullable', 'date', 'before:scheduled_at'],
@@ -79,6 +85,9 @@ trait MatchRequestDefaults
             'notes.max' => 'Las notas no pueden tener mas de :max caracteres.',
             'team_a_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
             'team_b_name.not_in' => 'El nombre del equipo no puede ser una palabra reservada (Titular, Suplente, etc.).',
+            'team_a_id.exists' => 'El equipo A seleccionado no pertenece a este club.',
+            'team_b_id.exists' => 'El equipo B seleccionado no pertenece a este club.',
+            'team_b_id.different' => 'El equipo B debe ser diferente al equipo A.',
             'recurrence_days.required_if' => 'Los días de recurrencia son obligatorios cuando se activa auto-recrear.',
             'recurrence_days.min' => 'Mínimo :min día.',
             'recurrence_days.max' => 'Máximo :max días.',

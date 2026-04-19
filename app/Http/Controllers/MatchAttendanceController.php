@@ -31,15 +31,15 @@ class MatchAttendanceController extends Controller
         ]);
 
         $player = $club->players()->findOrFail($validated['player_id']);
+        $status = AttendanceStatus::from($validated['status']);
+        $requestedTeam = isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null;
 
-        $team = isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null;
+        $resolved = $this->resolveTeamOrError($match, $player, $status, $requestedTeam);
+        if ($resolved instanceof RedirectResponse) {
+            return $resolved;
+        }
 
-        $attendance = $this->matchService->registerPlayer(
-            $match,
-            $player,
-            AttendanceStatus::from($validated['status']),
-            $team,
-        );
+        $attendance = $this->matchService->registerPlayer($match, $player, $status, $resolved);
 
         $message = $attendance->status === AttendanceStatus::Waitlisted
             ? 'Quedaste en lista de espera.'
@@ -66,6 +66,15 @@ class MatchAttendanceController extends Controller
             'team' => isset($validated['team']) ? AttendanceTeam::from($validated['team']) : null,
             'role' => isset($validated['role']) ? AttendanceRole::from($validated['role']) : null,
         ], fn ($value) => $value !== null);
+
+        // For team-restricted matches, the team is determined by roster membership — admin cannot override
+        if (isset($data['team']) && $match->isTeamRestricted()) {
+            $attendance->loadMissing('player');
+            $resolvedTeam = $match->resolveTeamForPlayer($attendance->player);
+            if ($resolvedTeam !== null && $resolvedTeam !== $data['team']) {
+                return back()->with('error', "{$attendance->player->display_name} pertenece al {$match->teamName($resolvedTeam)}. No se puede asignar a otro equipo en partidos con equipos seleccionados.");
+            }
+        }
 
         $attendance->update($data);
 
@@ -104,13 +113,36 @@ class MatchAttendanceController extends Controller
     {
         $player = Player::anyClub()->findOrFail($attendance->player_id);
 
-        $result = $this->matchService->registerPlayer($match, $player, $status, $attendance->team);
+        $resolved = $this->resolveTeamOrError($match, $player, $status, $attendance->team);
+        if ($resolved instanceof RedirectResponse) {
+            return $resolved;
+        }
+
+        $result = $this->matchService->registerPlayer($match, $player, $status, $resolved);
 
         $message = $result->status === AttendanceStatus::Waitlisted
             ? 'Jugador movido a lista de espera.'
             : 'Asistencia actualizada.';
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * For team-restricted matches, override the requested team with the player's actual roster team.
+     * Returns a RedirectResponse with an error if the player is not eligible.
+     */
+    private function resolveTeamOrError(FootballMatch $match, Player $player, AttendanceStatus $status, ?AttendanceTeam $requestedTeam): AttendanceTeam|RedirectResponse|null
+    {
+        if (! $match->isTeamRestricted() || $status !== AttendanceStatus::Confirmed) {
+            return $requestedTeam;
+        }
+
+        $resolved = $match->resolveTeamForPlayer($player);
+        if ($resolved === null) {
+            return back()->with('error', "{$player->display_name} no está en ninguno de los equipos de este partido.");
+        }
+
+        return $resolved;
     }
 
     public function destroy(Club $club, FootballMatch $match, MatchAttendance $attendance): RedirectResponse
