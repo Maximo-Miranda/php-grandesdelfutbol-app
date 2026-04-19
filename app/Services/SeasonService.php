@@ -38,12 +38,7 @@ class SeasonService
             'status' => SeasonStatus::Active,
         ]);
 
-        Log::info('season.created', [
-            'club_id' => $club->id,
-            'season_id' => $season->id,
-            'name' => $season->name,
-            'matches_count' => $season->matches_count,
-        ]);
+        $this->logSeasonEvent('season.created', $season, ['matches_count' => $season->matches_count]);
 
         return $season;
     }
@@ -94,12 +89,7 @@ class SeasonService
             'completed_at' => now(),
         ]);
 
-        Log::info('season.completed', [
-            'club_id' => $season->club_id,
-            'season_id' => $season->id,
-            'name' => $season->name,
-            'completed_count' => $season->completedMatchesCount(),
-        ]);
+        $this->logSeasonEvent('season.completed', $season, ['completed_count' => $season->completedMatchesCount()]);
     }
 
     public function reopenIfIncomplete(Season $season): void
@@ -114,20 +104,32 @@ class SeasonService
             return;
         }
 
-        if ($season->completedMatchesCount() < $season->matches_count) {
-            $season->update([
-                'status' => SeasonStatus::Active,
-                'completed_at' => null,
-            ]);
-
-            Log::info('season.reopened', [
-                'club_id' => $season->club_id,
-                'season_id' => $season->id,
-                'name' => $season->name,
-                'completed_count' => $season->completedMatchesCount(),
-                'matches_count' => $season->matches_count,
-            ]);
+        if ($season->completedMatchesCount() >= $season->matches_count) {
+            return;
         }
+
+        $season->update([
+            'status' => SeasonStatus::Active,
+            'completed_at' => null,
+        ]);
+
+        $this->logSeasonEvent('season.reopened', $season, [
+            'completed_count' => $season->completedMatchesCount(),
+            'matches_count' => $season->matches_count,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function logSeasonEvent(string $event, Season $season, array $extra = []): void
+    {
+        Log::info($event, [
+            'club_id' => $season->club_id,
+            'season_id' => $season->id,
+            'name' => $season->name,
+            ...$extra,
+        ]);
     }
 
     /**

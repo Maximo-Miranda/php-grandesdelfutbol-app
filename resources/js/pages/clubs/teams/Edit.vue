@@ -4,6 +4,7 @@ import { Camera, Check, ImagePlus, Trash2, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ColorSwatchPicker from '@/components/ColorSwatchPicker.vue';
 import PlayerPicker from '@/components/PlayerPicker.vue';
+import TournamentToggle from '@/components/TournamentToggle.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -199,19 +200,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <Textarea v-model="form.bio" maxlength="1000" rows="3" />
                 </div>
 
-                <label class="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/30">
-                    <input
-                        v-model="form.is_tournament"
-                        type="checkbox"
-                        class="mt-0.5 size-4 rounded border-border"
-                    />
-                    <div class="flex-1">
-                        <p class="text-sm font-medium">Equipo de torneo</p>
-                        <p class="mt-0.5 text-xs text-muted-foreground">
-                            Los jugadores pueden estar en varias plantillas de torneo dentro del club. Los equipos regulares (sin marcar) tienen plantilla exclusiva: un jugador solo puede estar en uno.
-                        </p>
-                    </div>
-                </label>
+                <TournamentToggle v-model="form.is_tournament" />
 
                 <!-- Imágenes -->
                 <div class="grid gap-4 sm:grid-cols-[auto_1fr]">

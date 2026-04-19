@@ -138,45 +138,12 @@ class MatchController extends Controller
         $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
         $teamRestricted = $match->isTeamRestricted();
-        $isTournament = $match->isTournament();
-        $teamALookup = $teamRestricted && $match->teamA ? array_flip($match->teamA->players()->pluck('players.id')->all()) : [];
-        $teamBLookup = $teamRestricted && $match->teamB ? array_flip($match->teamB->players()->pluck('players.id')->all()) : [];
-        $hasTeamA = $teamRestricted && $match->teamA !== null;
-        $hasTeamB = $teamRestricted && $match->teamB !== null;
-
-        $resolveEligibility = function ($players) use ($teamRestricted, $isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB) {
-            if (! $teamRestricted) {
-                return $players;
-            }
-
-            return $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB) {
-                // Tournament matches: admin picks per match, even for rostered players.
-                if ($isTournament && $hasTeamA && $hasTeamB) {
-                    $player->eligible_team = 'either';
-
-                    return;
-                }
-
-                if (isset($teamALookup[$player->id])) {
-                    $player->eligible_team = 'a';
-                } elseif (isset($teamBLookup[$player->id])) {
-                    $player->eligible_team = 'b';
-                } elseif ($hasTeamA && $hasTeamB) {
-                    $player->eligible_team = 'either';
-                } elseif ($hasTeamA) {
-                    $player->eligible_team = 'a';
-                } elseif ($hasTeamB) {
-                    $player->eligible_team = 'b';
-                } else {
-                    $player->eligible_team = null;
-                }
-            });
-        };
+        $tagEligibility = $this->eligibilityTagger($match, $teamRestricted);
 
         return Inertia::render('clubs/matches/Show', [
             'club' => $club,
             'match' => $match,
-            'players' => $resolveEligibility($club->players()->active()->with('user.playerProfile')->get()),
+            'players' => $tagEligibility($club->players()->active()->with('user.playerProfile')->get()),
             'isAdmin' => $isAdmin,
             'isTeamRestricted' => $teamRestricted,
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
@@ -189,11 +156,71 @@ class MatchController extends Controller
                             ->whereNotIn('id', $registeredPlayerIds)
                             ->orderBy('name')
                             ->simplePaginate(15, pageName: 'jugadores'),
-                        fn ($paginator) => $resolveEligibility($paginator->getCollection()),
+                        fn ($paginator) => $tagEligibility($paginator->getCollection()),
                     ),
                 )
                 : null,
         ]);
+    }
+
+    /**
+     * Build a closure that tags each player in a collection with `eligible_team`.
+     * Returns the collection unchanged when the match is not team-restricted.
+     */
+    private function eligibilityTagger(FootballMatch $match, bool $teamRestricted): \Closure
+    {
+        if (! $teamRestricted) {
+            return fn ($players) => $players;
+        }
+
+        $isTournament = $match->isTournament();
+        $teamALookup = $match->teamA ? array_flip($match->teamA->players()->pluck('players.id')->all()) : [];
+        $teamBLookup = $match->teamB ? array_flip($match->teamB->players()->pluck('players.id')->all()) : [];
+        $hasTeamA = $match->teamA !== null;
+        $hasTeamB = $match->teamB !== null;
+
+        return fn ($players) => $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB): void {
+            $player->eligible_team = $this->resolveEligibleTeam(
+                $player->id,
+                $isTournament,
+                $teamALookup,
+                $teamBLookup,
+                $hasTeamA,
+                $hasTeamB,
+            );
+        });
+    }
+
+    /**
+     * @param  array<int, int>  $teamALookup
+     * @param  array<int, int>  $teamBLookup
+     */
+    private function resolveEligibleTeam(
+        int $playerId,
+        bool $isTournament,
+        array $teamALookup,
+        array $teamBLookup,
+        bool $hasTeamA,
+        bool $hasTeamB,
+    ): ?string {
+        if ($isTournament && $hasTeamA && $hasTeamB) {
+            return 'either';
+        }
+
+        if (isset($teamALookup[$playerId])) {
+            return 'a';
+        }
+
+        if (isset($teamBLookup[$playerId])) {
+            return 'b';
+        }
+
+        return match (true) {
+            $hasTeamA && $hasTeamB => 'either',
+            $hasTeamA => 'a',
+            $hasTeamB => 'b',
+            default => null,
+        };
     }
 
     public function edit(Club $club, FootballMatch $match): Response

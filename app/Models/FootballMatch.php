@@ -241,36 +241,22 @@ class FootballMatch extends Model
 
         $this->loadMissing(['teamA.players', 'teamB.players']);
 
-        $aHasPlayer = $this->teamA?->players->contains('id', $player->id) ?? false;
-        $bHasPlayer = $this->teamB?->players->contains('id', $player->id) ?? false;
-
-        // Tournament matches allow overlapping rosters — admin's explicit choice always wins.
-        if ($this->isTournament()) {
-            if ($preferred === AttendanceTeam::A && $this->teamA !== null) {
-                return AttendanceTeam::A;
-            }
-            if ($preferred === AttendanceTeam::B && $this->teamB !== null) {
-                return AttendanceTeam::B;
-            }
+        // Tournament matches allow overlapping rosters — admin's explicit choice wins over roster membership.
+        if ($this->isTournament() && ($slot = $this->slotForPreferred($preferred)) !== null) {
+            return $slot;
         }
 
-        // Non-tournament matches: roster membership is authoritative, prevents silent team swaps.
-        if ($aHasPlayer) {
+        if ($this->teamA?->players->contains('id', $player->id)) {
             return AttendanceTeam::A;
         }
-        if ($bHasPlayer) {
+        if ($this->teamB?->players->contains('id', $player->id)) {
             return AttendanceTeam::B;
         }
 
-        // Not in any roster — honor admin's preferred choice if that team exists.
-        if ($preferred === AttendanceTeam::A && $this->teamA !== null) {
-            return AttendanceTeam::A;
-        }
-        if ($preferred === AttendanceTeam::B && $this->teamB !== null) {
-            return AttendanceTeam::B;
+        if (($slot = $this->slotForPreferred($preferred)) !== null) {
+            return $slot;
         }
 
-        // No preference — pick a sensible default:
         if ($this->teamA !== null && $this->teamB === null) {
             return AttendanceTeam::A;
         }
@@ -278,16 +264,21 @@ class FootballMatch extends Model
             return AttendanceTeam::B;
         }
 
-        // Both teams exist + outsider + no preference:
-        // If BOTH rosters are empty (admin is building on the fly), auto-populate team A.
-        // Otherwise reject — rosters exist, admin must specify the target team explicitly.
-        $aIsEmpty = $this->teamA && $this->teamA->players->isEmpty();
-        $bIsEmpty = $this->teamB && $this->teamB->players->isEmpty();
-        if ($aIsEmpty && $bIsEmpty) {
+        // Both teams exist + outsider: auto-populate A only when both rosters are empty (admin is building on the fly).
+        if ($this->teamA?->players->isEmpty() && $this->teamB?->players->isEmpty()) {
             return AttendanceTeam::A;
         }
 
         return null;
+    }
+
+    private function slotForPreferred(?AttendanceTeam $preferred): ?AttendanceTeam
+    {
+        return match ($preferred) {
+            AttendanceTeam::A => $this->teamA !== null ? AttendanceTeam::A : null,
+            AttendanceTeam::B => $this->teamB !== null ? AttendanceTeam::B : null,
+            default => null,
+        };
     }
 
     /**

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { onClickOutside } from '@vueuse/core';
 import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import { stripDiacritics } from '@/lib/utils';
 
 type PlayerOption = {
     id: number;
@@ -37,14 +39,11 @@ const selected = computed<PlayerOption | null>(
     () => props.players.find(p => p.id === model.value) ?? null,
 );
 
-const normalized = (s: string): string =>
-    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
 const filtered = computed<PlayerOption[]>(() => {
-    const q = normalized(query.value.trim());
+    const q = stripDiacritics(query.value.trim());
     if (!q) return props.players;
     return props.players.filter(p => {
-        const haystack = normalized(`${p.name} ${p.jersey_number ?? ''} ${p.position ?? ''}`);
+        const haystack = stripDiacritics(`${p.name} ${p.jersey_number ?? ''} ${p.position ?? ''}`);
         return haystack.includes(q);
     });
 });
@@ -87,11 +86,6 @@ function commit(): void {
     if (item) select(item);
 }
 
-function onClickOutside(e: MouseEvent): void {
-    if (!open.value) return;
-    if (root.value && !root.value.contains(e.target as Node)) close();
-}
-
 watch(open, async (value) => {
     if (value) {
         highlight.value = 0;
@@ -102,8 +96,9 @@ watch(open, async (value) => {
 
 watch(query, () => { highlight.value = 0; });
 
-onMounted(() => document.addEventListener('mousedown', onClickOutside));
-onBeforeUnmount(() => document.removeEventListener('mousedown', onClickOutside));
+onClickOutside(root, () => {
+    if (open.value) close();
+});
 </script>
 
 <template>

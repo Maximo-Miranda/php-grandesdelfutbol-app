@@ -69,7 +69,7 @@ class TeamController extends Controller
                 'ulid' => $activeSeason->ulid,
                 'name' => $activeSeason->name,
             ],
-            'players' => $club->players()->active()->orderBy('name')->get(['id', 'ulid', 'name', 'jersey_number', 'position']),
+            'players' => $this->allActivePlayers($club),
         ]);
     }
 
@@ -145,9 +145,7 @@ class TeamController extends Controller
         return Inertia::render('clubs/teams/Edit', [
             'club' => $club,
             'team' => $this->presentTeam($team, full: true),
-            'players' => $team->is_tournament
-                ? $club->players()->active()->orderBy('name')->get(['id', 'ulid', 'name', 'jersey_number', 'position'])
-                : $this->availablePlayersFor($club, $team->season_id, $team->id),
+            'players' => $this->playersForTeamForm($club, $team),
         ]);
     }
 
@@ -265,6 +263,23 @@ class TeamController extends Controller
         return $query->exists();
     }
 
+    private function allActivePlayers(Club $club): Collection
+    {
+        return $club->players()
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'ulid', 'name', 'jersey_number', 'position']);
+    }
+
+    private function playersForTeamForm(Club $club, Team $team): Collection
+    {
+        if ($team->is_tournament) {
+            return $this->allActivePlayers($club);
+        }
+
+        return $this->availablePlayersFor($club, $team->season_id, $team->id);
+    }
+
     /**
      * Players of the club not yet in any non-tournament team of the given season.
      * Used when editing a non-tournament team to enforce exclusive membership.
@@ -274,16 +289,16 @@ class TeamController extends Controller
      */
     private function availablePlayersFor(Club $club, int $seasonId, ?int $excludingTeamId = null): Collection
     {
-        $takenIds = DB::table('team_player')
-            ->join('teams', 'teams.id', '=', 'team_player.team_id')
-            ->where('teams.season_id', $seasonId)
-            ->where('teams.is_tournament', false)
-            ->when($excludingTeamId, fn ($q) => $q->where('teams.id', '!=', $excludingTeamId))
-            ->pluck('team_player.player_id');
-
         return $club->players()
             ->active()
-            ->whereNotIn('id', $takenIds)
+            ->whereNotExists(fn ($q) => $q
+                ->from('team_player')
+                ->join('teams', 'teams.id', '=', 'team_player.team_id')
+                ->whereColumn('team_player.player_id', 'players.id')
+                ->where('teams.season_id', $seasonId)
+                ->where('teams.is_tournament', false)
+                ->when($excludingTeamId, fn ($qq, $id) => $qq->where('teams.id', '!=', $id))
+            )
             ->orderBy('name')
             ->get(['id', 'ulid', 'name', 'jersey_number', 'position'])
             ->map(fn (Player $p) => [

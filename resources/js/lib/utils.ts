@@ -89,6 +89,10 @@ export function getCsrfToken(): string {
     );
 }
 
+export function stripDiacritics(value: string): string {
+    return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export function teamInitials(name: string): string {
     return name
         .split(/\s+/)
