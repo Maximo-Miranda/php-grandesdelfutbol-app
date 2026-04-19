@@ -124,6 +124,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('teams', TeamController::class);
         Route::get('seasons', [SeasonController::class, 'index'])->name('seasons.index');
         Route::patch('seasons/{season}', [SeasonController::class, 'update'])->name('seasons.update');
+        Route::post('seasons/{season}/close', [SeasonController::class, 'close'])->name('seasons.close');
 
         Route::post('venues/quick-create', [VenueController::class, 'storeQuick'])->name('venues.storeQuick');
         Route::resource('venues', VenueController::class);

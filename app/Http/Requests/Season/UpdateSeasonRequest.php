@@ -17,13 +17,18 @@ class UpdateSeasonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'matches_count' => ['required', 'integer', 'min:1', 'max:99'],
+            'name' => ['sometimes', 'required', 'string', 'max:50'],
+            'matches_count' => ['sometimes', 'required', 'integer', 'min:1', 'max:99'],
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            if (! $this->has('matches_count')) {
+                return;
+            }
+
             $count = (int) $this->input('matches_count');
 
             if ($count % 2 === 0) {
@@ -37,5 +42,18 @@ class UpdateSeasonRequest extends FormRequest
                 $v->errors()->add('matches_count', "No puede ser menor a los partidos ya jugados ({$played}).");
             }
         });
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'El nombre es obligatorio.',
+            'name.max' => 'El nombre no puede tener más de :max caracteres.',
+            'matches_count.required' => 'El número de partidos es obligatorio.',
+            'matches_count.integer' => 'El número de partidos debe ser un número entero.',
+            'matches_count.min' => 'El mínimo es :min partido.',
+            'matches_count.max' => 'El máximo es :max partidos.',
+        ];
     }
 }

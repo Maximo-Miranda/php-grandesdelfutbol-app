@@ -20,6 +20,11 @@ class SeasonPolicy
 
     public function update(User $user, Season $season): bool
     {
+        return $season->club->isAdminOrOwner($user);
+    }
+
+    public function close(User $user, Season $season): bool
+    {
         return $season->club->isAdminOrOwner($user) && $season->isActive();
     }
 }

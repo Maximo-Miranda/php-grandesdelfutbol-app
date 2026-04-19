@@ -67,10 +67,28 @@ class SeasonController extends Controller
 
     public function update(UpdateSeasonRequest $request, Club $club, Season $season): RedirectResponse
     {
-        $season->update(['matches_count' => (int) $request->input('matches_count')]);
+        $data = $request->validated();
 
-        $this->seasons->finalizeIfComplete($season);
+        if (isset($data['matches_count']) && ! $season->isActive()) {
+            return back()->with('error', 'Solo puedes cambiar el número de partidos de una temporada activa.');
+        }
+
+        $season->update(array_intersect_key($data, array_flip(['name', 'matches_count'])));
+
+        if (isset($data['matches_count'])) {
+            $this->seasons->finalizeIfComplete($season);
+        }
 
         return redirect()->route('clubs.seasons.index', $club)->with('success', 'Temporada actualizada.');
+    }
+
+    public function close(Club $club, Season $season): RedirectResponse
+    {
+        Gate::authorize('close', $season);
+
+        $newSeason = $this->seasons->closeAndStartNext($season);
+
+        return redirect()->route('clubs.seasons.index', $club)
+            ->with('success', "{$season->name} cerrada. Se creó {$newSeason->name} como temporada activa.");
     }
 }

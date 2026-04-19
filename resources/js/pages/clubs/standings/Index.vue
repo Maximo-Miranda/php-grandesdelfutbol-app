@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { Head, Link, router, usePoll } from '@inertiajs/vue3';
-import { Plus, RefreshCw, Settings, Trophy, UserPlus, Users } from 'lucide-vue-next';
+import { CalendarRange, ChevronDown, Plus, RefreshCw, Settings, Trophy, UserPlus, Users } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Club, Player } from '@/types';
 import PlayerStandingsTable from './partials/PlayerStandingsTable.vue';
@@ -174,25 +182,58 @@ const breadcrumbs: BreadcrumbItem[] = [
             </div>
 
             <template v-if="activeTab === 'teams'">
-                <div v-if="isAdmin" class="mb-4 flex flex-wrap justify-end gap-2">
+                <div v-if="isAdmin" class="mb-4 flex items-center justify-end gap-1">
                     <Link :href="`/clubs/${club.ulid}/teams/create`">
-                        <Button size="sm"><Plus class="mr-1.5 size-4" />Crear equipo</Button>
+                        <Button size="sm" class="h-8"><Plus class="mr-1 size-3.5" />Crear equipo</Button>
                     </Link>
-                    <Link :href="`/clubs/${club.ulid}/teams`">
-                        <Button size="sm" variant="outline"><Settings class="mr-1.5 size-4" />Gestionar equipos</Button>
-                    </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button variant="outline" size="sm" class="h-8">
+                                Más
+                                <ChevronDown class="ml-1 size-3.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-52">
+                            <DropdownMenuLabel>Administración</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem as-child>
+                                <Link :href="`/clubs/${club.ulid}/teams`" class="flex w-full items-center">
+                                    <Settings class="mr-2 size-4" />Gestionar equipos
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem as-child>
+                                <Link :href="`/clubs/${club.ulid}/seasons`" class="flex w-full items-center">
+                                    <CalendarRange class="mr-2 size-4" />Temporadas
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 <TeamStandingsTable :club="club" :standings="teamStandings" />
             </template>
 
             <template v-else>
-                <div v-if="isAdmin" class="mb-4 flex flex-wrap justify-end gap-2">
+                <div v-if="isAdmin" class="mb-4 flex items-center justify-end gap-1">
                     <Link :href="`/clubs/${club.ulid}/players/create`">
-                        <Button size="sm"><Plus class="mr-1.5 size-4" />Crear jugador</Button>
+                        <Button size="sm" class="h-8"><Plus class="mr-1 size-3.5" />Crear jugador</Button>
                     </Link>
-                    <Link :href="`/clubs/${club.ulid}/members`">
-                        <Button size="sm" variant="outline"><UserPlus class="mr-1.5 size-4" />Invitar</Button>
-                    </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button variant="outline" size="sm" class="h-8">
+                                Más
+                                <ChevronDown class="ml-1 size-3.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-52">
+                            <DropdownMenuLabel>Administración</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem as-child>
+                                <Link :href="`/clubs/${club.ulid}/members`" class="flex w-full items-center">
+                                    <UserPlus class="mr-2 size-4" />Invitar miembros
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 <PlayerStandingsTable
                     :club="club"

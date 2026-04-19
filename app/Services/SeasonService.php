@@ -70,13 +70,33 @@ class SeasonService
         $completed = $season->completedMatchesCount();
 
         if ($completed >= $season->matches_count) {
-            DB::transaction(function () use ($season) {
-                $season->update([
-                    'status' => SeasonStatus::Completed,
-                    'completed_at' => now(),
-                ]);
-            });
+            $this->markCompleted($season);
         }
+    }
+
+    /**
+     * Force-close a season (admin action) and open the next one.
+     * Returns the new active season.
+     */
+    public function closeAndStartNext(Season $season): Season
+    {
+        return DB::transaction(function () use ($season) {
+            if ($season->isActive()) {
+                $this->markCompleted($season);
+            }
+
+            return $this->createNextSeasonFor($season->club);
+        });
+    }
+
+    private function markCompleted(Season $season): void
+    {
+        DB::transaction(function () use ($season) {
+            $season->update([
+                'status' => SeasonStatus::Completed,
+                'completed_at' => now(),
+            ]);
+        });
     }
 
     /**
