@@ -6,6 +6,7 @@ use App\Enums\SeasonStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Models\Season;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -13,29 +14,21 @@ class SeasonService
 {
     public function activeFor(Club $club): Season
     {
-        $existing = Season::query()->withoutGlobalScopes()
-            ->where('club_id', $club->id)
-            ->where('status', SeasonStatus::Active)
-            ->first();
+        $existing = $this->activeSeasonQuery($club->id)->first();
 
         if ($existing) {
             return $existing;
         }
 
-        return Cache::lock("season-active-{$club->id}", 10)->block(5, function () use ($club) {
-            return Season::query()->withoutGlobalScopes()
-                ->where('club_id', $club->id)
-                ->where('status', SeasonStatus::Active)
-                ->first()
+        return Cache::lock("season-active-{$club->id}", 10)->block(5, function () use ($club): Season {
+            return $this->activeSeasonQuery($club->id)->first()
                 ?? $this->createNextSeasonFor($club);
         });
     }
 
     public function createNextSeasonFor(Club $club, ?int $matchesCount = null): Season
     {
-        $count = Season::query()->withoutGlobalScopes()
-            ->where('club_id', $club->id)
-            ->count();
+        $count = $this->seasonsQuery($club->id)->count();
 
         return Season::query()->create([
             'club_id' => $club->id,
@@ -52,6 +45,7 @@ class SeasonService
         }
 
         $club = $match->club ?? Club::find($match->club_id);
+
         if (! $club) {
             return;
         }
@@ -67,20 +61,14 @@ class SeasonService
             return;
         }
 
-        $completed = $season->completedMatchesCount();
-
-        if ($completed >= $season->matches_count) {
+        if ($season->completedMatchesCount() >= $season->matches_count) {
             $this->markCompleted($season);
         }
     }
 
-    /**
-     * Force-close a season (admin action) and open the next one.
-     * Returns the new active season.
-     */
     public function closeAndStartNext(Season $season): Season
     {
-        return DB::transaction(function () use ($season) {
+        return DB::transaction(function () use ($season): Season {
             if ($season->isActive()) {
                 $this->markCompleted($season);
             }
@@ -97,10 +85,6 @@ class SeasonService
         ]);
     }
 
-    /**
-     * Reopens a season that was closed but no longer meets the completion criteria
-     * (e.g., a match was cancelled or marked friendly after closure).
-     */
     public function reopenIfIncomplete(Season $season): void
     {
         $season->refresh();
@@ -109,12 +93,7 @@ class SeasonService
             return;
         }
 
-        $hasAnotherActive = Season::query()->withoutGlobalScopes()
-            ->where('club_id', $season->club_id)
-            ->where('status', SeasonStatus::Active)
-            ->exists();
-
-        if ($hasAnotherActive) {
+        if ($this->activeSeasonQuery($season->club_id)->exists()) {
             return;
         }
 
@@ -136,5 +115,15 @@ class SeasonService
             'completed' => $season->completedMatchesCount(),
             'total' => $season->matches_count,
         ];
+    }
+
+    private function seasonsQuery(int $clubId): Builder
+    {
+        return Season::query()->withoutGlobalScopes()->where('club_id', $clubId);
+    }
+
+    private function activeSeasonQuery(int $clubId): Builder
+    {
+        return $this->seasonsQuery($clubId)->where('status', SeasonStatus::Active);
     }
 }

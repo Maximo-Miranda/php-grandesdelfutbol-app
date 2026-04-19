@@ -26,7 +26,6 @@ class SeasonController extends Controller
 
         $seasons = $club->seasons()->orderByDesc('created_at')->get();
 
-        // Single aggregate query avoids N+1 (played/completed/starts_on/ends_on per season)
         $aggregates = FootballMatch::query()->withoutGlobalScopes()
             ->whereIn('season_id', $seasons->pluck('id'))
             ->where('is_friendly', false)
@@ -41,27 +40,10 @@ class SeasonController extends Controller
             ->get()
             ->keyBy('season_id');
 
-        $seasons = $seasons->map(function (Season $s) use ($aggregates) {
-            $agg = $aggregates->get($s->id);
-
-            return [
-                'ulid' => $s->ulid,
-                'name' => $s->name,
-                'matches_count' => $s->matches_count,
-                'status' => $s->status->value,
-                'completed_at' => $s->completed_at?->toIso8601String(),
-                'is_active' => $s->isActive(),
-                'played' => (int) ($agg->played ?? 0),
-                'completed' => (int) ($agg->completed ?? 0),
-                'starts_on' => $agg?->starts_on ? CarbonImmutable::parse($agg->starts_on)->toIso8601String() : null,
-                'ends_on' => $agg?->ends_on ? CarbonImmutable::parse($agg->ends_on)->toIso8601String() : null,
-            ];
-        });
-
         return Inertia::render('clubs/seasons/Index', [
             'club' => $club,
             'isAdmin' => $club->isAdminOrOwner(request()->user()),
-            'seasons' => $seasons,
+            'seasons' => $seasons->map(fn (Season $season): array => $this->presentSeason($season, $aggregates->get($season->id))),
         ]);
     }
 
@@ -86,5 +68,24 @@ class SeasonController extends Controller
 
         return redirect()->route('clubs.seasons.index', $club)
             ->with('success', "{$season->name} cerrada. Se creó {$newSeason->name} como temporada activa.");
+    }
+
+    /**
+     * @return array{ulid: string, name: string, matches_count: int, status: string, completed_at: ?string, is_active: bool, played: int, completed: int, starts_on: ?string, ends_on: ?string}
+     */
+    private function presentSeason(Season $season, mixed $aggregate): array
+    {
+        return [
+            'ulid' => $season->ulid,
+            'name' => $season->name,
+            'matches_count' => $season->matches_count,
+            'status' => $season->status->value,
+            'completed_at' => $season->completed_at?->toIso8601String(),
+            'is_active' => $season->isActive(),
+            'played' => (int) ($aggregate->played ?? 0),
+            'completed' => (int) ($aggregate->completed ?? 0),
+            'starts_on' => isset($aggregate->starts_on) ? CarbonImmutable::parse($aggregate->starts_on)->toIso8601String() : null,
+            'ends_on' => isset($aggregate->ends_on) ? CarbonImmutable::parse($aggregate->ends_on)->toIso8601String() : null,
+        ];
     }
 }

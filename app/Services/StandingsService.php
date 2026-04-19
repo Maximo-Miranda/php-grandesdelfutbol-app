@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\MatchStatus;
 use App\Models\FootballMatch;
 use App\Models\Season;
+use App\Models\Team;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class StandingsService
@@ -16,46 +18,30 @@ class StandingsService
      */
     public function forSeason(Season $season): Collection
     {
-        $matches = FootballMatch::query()->withoutGlobalScopes()
-            ->where('season_id', $season->id)
-            ->where('status', MatchStatus::Completed)
-            ->where('is_friendly', false)
+        $completedMatches = $this->completedMatchesQuery($season)
             ->whereNotNull('team_a_id')
             ->whereNotNull('team_b_id')
-            ->whereNotNull('team_a_score')
-            ->whereNotNull('team_b_score')
-            ->get(['id', 'team_a_id', 'team_b_id', 'team_a_score', 'team_b_score']);
+            ->orderByDesc('scheduled_at')
+            ->get(['team_a_id', 'team_b_id', 'team_a_score', 'team_b_score', 'is_friendly']);
 
-        $teams = $season->teams()->with('attachments')->get()->keyBy('id');
+        $stats = $season->teams()->with('attachments')->get()
+            ->mapWithKeys(fn ($team) => [$team->id => $this->initialRow($team)])
+            ->all();
 
-        $stats = [];
-        foreach ($teams as $team) {
-            $stats[$team->id] = [
-                'team_id' => $team->id,
-                'team_ulid' => $team->ulid,
-                'name' => $team->name,
-                'color' => $team->color,
-                'logo_url' => $team->logo_url,
-                'PJ' => 0,
-                'G' => 0,
-                'E' => 0,
-                'P' => 0,
-                'GF' => 0,
-                'GC' => 0,
-                'DG' => 0,
-                'Pts' => 0,
-                'last5' => [],
-            ];
+        foreach ($completedMatches as $match) {
+            if ($match->is_friendly) {
+                continue;
+            }
+
+            $this->apply($stats, $match->team_a_id, $match->team_a_score, $match->team_b_score);
+            $this->apply($stats, $match->team_b_id, $match->team_b_score, $match->team_a_score);
         }
 
-        foreach ($matches as $match) {
-            $this->apply($stats, $match->team_a_id, $match->team_b_id, $match->team_a_score, $match->team_b_score);
-            $this->apply($stats, $match->team_b_id, $match->team_a_id, $match->team_b_score, $match->team_a_score);
-        }
+        $last5ByTeam = $this->last5Map($completedMatches, array_keys($stats));
 
-        foreach ($stats as &$row) {
+        foreach ($stats as $teamId => &$row) {
             $row['DG'] = $row['GF'] - $row['GC'];
-            $row['last5'] = $this->last5For($season, $row['team_id']);
+            $row['last5'] = $last5ByTeam[$teamId] ?? [];
         }
         unset($row);
 
@@ -70,32 +56,6 @@ class StandingsService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $stats
-     */
-    private function apply(array &$stats, int $teamId, int $opponentId, int $gf, int $gc): void
-    {
-        if (! isset($stats[$teamId])) {
-            return;
-        }
-
-        $stats[$teamId]['PJ']++;
-        $stats[$teamId]['GF'] += $gf;
-        $stats[$teamId]['GC'] += $gc;
-
-        if ($gf > $gc) {
-            $stats[$teamId]['G']++;
-            $stats[$teamId]['Pts'] += 3;
-        } elseif ($gf === $gc) {
-            $stats[$teamId]['E']++;
-            $stats[$teamId]['Pts'] += 1;
-        } else {
-            $stats[$teamId]['P']++;
-        }
-    }
-
-    /**
-     * Match list for a season — used by the calendar view.
-     *
      * @return Collection<int, array{
      *     ulid: string,
      *     scheduled_at: string,
@@ -107,7 +67,7 @@ class StandingsService
      */
     public function matchesForSeason(Season $season): Collection
     {
-        $matches = FootballMatch::query()->withoutGlobalScopes()
+        return FootballMatch::query()->withoutGlobalScopes()
             ->where('season_id', $season->id)
             ->with(['teamA.attachments', 'teamB.attachments'])
             ->orderByDesc('scheduled_at')
@@ -117,59 +77,121 @@ class StandingsService
                 'team_a_name', 'team_b_name',
                 'team_a_color', 'team_b_color',
                 'team_a_score', 'team_b_score',
+            ])
+            ->map(fn (FootballMatch $m) => [
+                'ulid' => $m->ulid,
+                'scheduled_at' => $m->scheduled_at?->toIso8601String(),
+                'status' => $m->status->value,
+                'is_friendly' => $m->is_friendly,
+                'team_a' => [
+                    'name' => $m->teamA?->name ?? $m->team_a_name,
+                    'color' => $m->teamA?->color ?? $m->team_a_color,
+                    'logo_url' => $m->teamA?->logo_url,
+                    'score' => $m->team_a_score,
+                ],
+                'team_b' => $m->team_b_id || $m->team_b_name ? [
+                    'name' => $m->teamB?->name ?? $m->team_b_name,
+                    'color' => $m->teamB?->color ?? $m->team_b_color,
+                    'logo_url' => $m->teamB?->logo_url,
+                    'score' => $m->team_b_score,
+                ] : null,
             ]);
+    }
 
-        return $matches->map(fn (FootballMatch $m) => [
-            'ulid' => $m->ulid,
-            'scheduled_at' => $m->scheduled_at?->toIso8601String(),
-            'status' => $m->status->value,
-            'is_friendly' => (bool) $m->is_friendly,
-            'team_a' => [
-                'name' => $m->teamA?->name ?? $m->team_a_name,
-                'color' => $m->teamA?->color ?? $m->team_a_color,
-                'logo_url' => $m->teamA?->logo_url,
-                'score' => $m->team_a_score,
-            ],
-            'team_b' => $m->team_b_id || $m->team_b_name ? [
-                'name' => $m->teamB?->name ?? $m->team_b_name,
-                'color' => $m->teamB?->color ?? $m->team_b_color,
-                'logo_url' => $m->teamB?->logo_url,
-                'score' => $m->team_b_score,
-            ] : null,
-        ]);
+    private function completedMatchesQuery(Season $season): Builder
+    {
+        return FootballMatch::query()->withoutGlobalScopes()
+            ->where('season_id', $season->id)
+            ->where('status', MatchStatus::Completed)
+            ->whereNotNull('team_a_score')
+            ->whereNotNull('team_b_score');
     }
 
     /**
-     * @return array<int, string> W|D|L|F (F = friendly)
+     * @return array<string, mixed>
      */
-    private function last5For(Season $season, int $teamId): array
+    private function initialRow(Team $team): array
     {
-        $matches = FootballMatch::query()->withoutGlobalScopes()
-            ->where('season_id', $season->id)
-            ->where('status', MatchStatus::Completed)
-            ->where(function ($q) use ($teamId) {
-                $q->where('team_a_id', $teamId)->orWhere('team_b_id', $teamId);
-            })
-            ->whereNotNull('team_a_score')
-            ->whereNotNull('team_b_score')
-            ->orderByDesc('scheduled_at')
-            ->limit(5)
-            ->get(['team_a_id', 'team_b_id', 'team_a_score', 'team_b_score', 'is_friendly']);
+        return [
+            'team_id' => $team->id,
+            'team_ulid' => $team->ulid,
+            'name' => $team->name,
+            'color' => $team->color,
+            'logo_url' => $team->logo_url,
+            'PJ' => 0,
+            'G' => 0,
+            'E' => 0,
+            'P' => 0,
+            'GF' => 0,
+            'GC' => 0,
+            'DG' => 0,
+            'Pts' => 0,
+            'last5' => [],
+        ];
+    }
 
-        return $matches->map(function (FootballMatch $match) use ($teamId) {
-            if ($match->is_friendly) {
-                return 'F';
+    /**
+     * @param  array<int, array<string, mixed>>  $stats
+     */
+    private function apply(array &$stats, int $teamId, int $gf, int $gc): void
+    {
+        if (! isset($stats[$teamId])) {
+            return;
+        }
+
+        $row = &$stats[$teamId];
+        $row['PJ']++;
+        $row['GF'] += $gf;
+        $row['GC'] += $gc;
+
+        if ($gf > $gc) {
+            $row['G']++;
+            $row['Pts'] += 3;
+        } elseif ($gf === $gc) {
+            $row['E']++;
+            $row['Pts'] += 1;
+        } else {
+            $row['P']++;
+        }
+    }
+
+    /**
+     * Build last-5 results per team from a single pre-loaded match collection (W|D|L|F, F = friendly).
+     *
+     * @param  Collection<int, FootballMatch>  $matches  ordered desc by scheduled_at
+     * @param  array<int, int>  $teamIds
+     * @return array<int, array<int, string>>
+     */
+    private function last5Map(Collection $matches, array $teamIds): array
+    {
+        $result = array_fill_keys($teamIds, []);
+
+        foreach ($matches as $match) {
+            foreach ([$match->team_a_id, $match->team_b_id] as $teamId) {
+                if (! isset($result[$teamId]) || count($result[$teamId]) >= 5) {
+                    continue;
+                }
+                $result[$teamId][] = $this->resultFor($match, $teamId);
             }
+        }
 
-            $isA = $match->team_a_id === $teamId;
-            $gf = $isA ? $match->team_a_score : $match->team_b_score;
-            $gc = $isA ? $match->team_b_score : $match->team_a_score;
+        return array_map(fn (array $codes) => array_reverse($codes), $result);
+    }
 
-            return match (true) {
-                $gf > $gc => 'W',
-                $gf === $gc => 'D',
-                default => 'L',
-            };
-        })->reverse()->values()->all();
+    private function resultFor(FootballMatch $match, int $teamId): string
+    {
+        if ($match->is_friendly) {
+            return 'F';
+        }
+
+        $isA = $match->team_a_id === $teamId;
+        $gf = $isA ? $match->team_a_score : $match->team_b_score;
+        $gc = $isA ? $match->team_b_score : $match->team_a_score;
+
+        return match ($gf <=> $gc) {
+            1 => 'W',
+            0 => 'D',
+            -1 => 'L',
+        };
     }
 }

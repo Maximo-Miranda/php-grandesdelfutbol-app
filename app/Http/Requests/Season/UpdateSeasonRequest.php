@@ -24,31 +24,35 @@ class UpdateSeasonRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->after(function (Validator $v) {
-            if (! $this->has('matches_count')) {
-                return;
-            }
+        $validator->after(fn (Validator $v) => $this->validateMatchesCount($v));
+    }
 
-            /** @var Season $season */
-            $season = $this->route('season');
+    private function validateMatchesCount(Validator $validator): void
+    {
+        if (! $this->has('matches_count')) {
+            return;
+        }
 
-            if (! $season->isActive()) {
-                $v->errors()->add('matches_count', 'Solo puedes cambiar el número de partidos de una temporada activa.');
+        /** @var Season $season */
+        $season = $this->route('season');
 
-                return;
-            }
+        if (! $season->isActive()) {
+            $validator->errors()->add('matches_count', 'Solo puedes cambiar el número de partidos de una temporada activa.');
 
-            $count = (int) $this->input('matches_count');
+            return;
+        }
 
-            if ($count % 2 === 0) {
-                $v->errors()->add('matches_count', 'El número de partidos debe ser impar.');
-            }
+        $count = (int) $this->input('matches_count');
 
-            $played = $season->completedMatchesCount();
-            if ($count < $played) {
-                $v->errors()->add('matches_count', "No puede ser menor a los partidos ya jugados ({$played}).");
-            }
-        });
+        if ($count % 2 === 0) {
+            $validator->errors()->add('matches_count', 'El número de partidos debe ser impar.');
+        }
+
+        $played = $season->completedMatchesCount();
+
+        if ($count < $played) {
+            $validator->errors()->add('matches_count', "No puede ser menor a los partidos ya jugados ({$played}).");
+        }
     }
 
     /** @return array<string, string> */
