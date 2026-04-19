@@ -29,14 +29,21 @@ class UpdateSeasonRequest extends FormRequest
                 return;
             }
 
+            /** @var Season $season */
+            $season = $this->route('season');
+
+            if (! $season->isActive()) {
+                $v->errors()->add('matches_count', 'Solo puedes cambiar el número de partidos de una temporada activa.');
+
+                return;
+            }
+
             $count = (int) $this->input('matches_count');
 
             if ($count % 2 === 0) {
                 $v->errors()->add('matches_count', 'El número de partidos debe ser impar.');
             }
 
-            /** @var Season $season */
-            $season = $this->route('season');
             $played = $season->completedMatchesCount();
             if ($count < $played) {
                 $v->errors()->add('matches_count', "No puede ser menor a los partidos ya jugados ({$played}).");

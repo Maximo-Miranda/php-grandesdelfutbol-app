@@ -54,7 +54,7 @@ class MatchController extends Controller
         $filter = $request->enum('filter', MatchStatus::class) ?? 'all';
 
         $query = $club->matches()
-            ->with('field')
+            ->with(['field', 'season:id,name', 'teamA.attachments', 'teamB.attachments'])
             ->withCount('attendances');
 
         if ($filter === MatchStatus::Upcoming) {
@@ -116,7 +116,7 @@ class MatchController extends Controller
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
+        $match->load('field.venue', 'season:id,name', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
 
         if ($match->status === MatchStatus::InProgress && $isAdmin) {
             return Inertia::render('clubs/matches/Live', $this->liveProps($club, $match));
@@ -272,7 +272,7 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
+        $match->load('field.venue', 'season:id,name', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
 
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);

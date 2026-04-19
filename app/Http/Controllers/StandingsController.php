@@ -89,6 +89,7 @@ class StandingsController extends Controller
             ],
             'progress' => $progress,
             'teamStandings' => $teamStandings,
+            'seasonMatches' => Inertia::defer(fn () => $this->standings->matchesForSeason($selected)),
             'players' => Inertia::scroll(
                 fn () => $playerBase()
                     ->where(fn ($q) => $q->whereNull('position')->orWhere('position', '!=', PlayerPosition::Gk))

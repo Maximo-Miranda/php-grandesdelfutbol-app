@@ -1,11 +1,32 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Clock, MapPin, Plus, Users } from 'lucide-vue-next';
+import { CalendarDays, Clock, MapPin, Plus, Trophy, Users } from 'lucide-vue-next';
+import MatchTeamsScore from '@/components/match/MatchTeamsScore.vue';
 import { Button } from '@/components/ui/button';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate as fmtDate, formatTime as fmtTime } from '@/lib/utils';
 import type { BreadcrumbItem, Club, FootballMatch } from '@/types';
+
+function teamASide(m: FootballMatch) {
+    return {
+        name: m.team_a?.name ?? m.team_a_name,
+        color: m.team_a?.color ?? m.team_a_color,
+        logo_url: m.team_a?.logo_url ?? null,
+        score: m.team_a_score,
+    };
+}
+
+function teamBSide(m: FootballMatch) {
+    const hasB = m.team_b || m.team_b_name;
+    if (!hasB) return null;
+    return {
+        name: m.team_b?.name ?? m.team_b_name,
+        color: m.team_b?.color ?? m.team_b_color,
+        logo_url: m.team_b?.logo_url ?? null,
+        score: m.team_b_score,
+    };
+}
 
 type Paginated<T> = { data: T[]; next_page_url: string | null };
 
@@ -30,13 +51,6 @@ function switchTab(tab: string) {
         preserveState: false,
     });
 }
-
-const statusConfig: Record<string, { label: string; class: string }> = {
-    upcoming: { label: 'Proximo', class: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400' },
-    in_progress: { label: 'En juego', class: 'border-orange-500/40 bg-orange-500/15 text-orange-400 animate-pulse' },
-    completed: { label: 'Finalizado', class: 'border-blue-500/40 bg-blue-500/15 text-blue-400' },
-    cancelled: { label: 'Cancelado', class: 'border-zinc-500/40 bg-zinc-500/15 text-zinc-400' },
-};
 
 function formatDate(dateStr: string): string {
     return fmtDate(dateStr, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -81,20 +95,40 @@ function formatTime(dateStr: string): string {
                         v-for="m in matches.data"
                         :key="m.ulid"
                         :href="`/clubs/${club.ulid}/matches/${m.ulid}`"
-                        class="block rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+                        class="block overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
                     >
-                        <div class="flex items-start justify-between">
-                            <h3 class="font-semibold">{{ m.title }}</h3>
+                        <div class="flex flex-col gap-1.5 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                            <h3 class="min-w-0 truncate font-semibold leading-tight sm:flex-1">{{ m.title }}</h3>
                             <span
-                                class="shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase"
-                                :class="statusConfig[m.status]?.class ?? 'border-border text-muted-foreground'"
-                            >{{ statusConfig[m.status]?.label ?? m.status }}</span>
+                                v-if="m.season"
+                                class="inline-flex max-w-full items-center gap-1 self-end rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-400 sm:max-w-[55%] sm:shrink-0"
+                                :title="m.season.name"
+                            >
+                                <Trophy class="size-2.5 shrink-0" />
+                                <span class="truncate">{{ m.season.name }}</span>
+                            </span>
                         </div>
-                        <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+
+                        <div class="px-4 py-4">
+                            <MatchTeamsScore
+                                :team-a="teamASide(m)"
+                                :team-b="teamBSide(m)"
+                                :status="m.status"
+                                :is-friendly="m.is_friendly ?? false"
+                                :scheduled-at="m.scheduled_at"
+                                variant="compact"
+                            />
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/50 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
                             <span class="flex items-center gap-1"><CalendarDays class="size-3.5" />{{ formatDate(m.scheduled_at) }}</span>
                             <span class="flex items-center gap-1"><Clock class="size-3.5" />{{ formatTime(m.scheduled_at) }}</span>
                             <span v-if="m.field" class="flex items-center gap-1"><MapPin class="size-3.5" />{{ m.field.name }}</span>
                             <span class="flex items-center gap-1"><Users class="size-3.5" />{{ m.attendances_count ?? 0 }}/{{ m.max_players }}</span>
+                            <span
+                                v-if="m.is_friendly"
+                                class="ml-auto rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500"
+                            >Amistoso</span>
                         </div>
                     </Link>
                 </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePoll } from '@inertiajs/vue3';
-import { CalendarRange, ChevronDown, Plus, RefreshCw, Settings, Trophy, UserPlus, Users } from 'lucide-vue-next';
+import { CalendarDays, CalendarRange, ChevronDown, Plus, RefreshCw, Settings, Trophy, UserPlus, Users } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,8 +12,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem, Club, Player } from '@/types';
+import { formatDate } from '@/lib/utils';
+import type { BreadcrumbItem, Club, MatchStatus, Player, TeamSide } from '@/types';
 import PlayerStandingsTable from './partials/PlayerStandingsTable.vue';
+import SeasonMatchesView from './partials/SeasonMatchesView.vue';
 import SeasonSelector from './partials/SeasonSelector.vue';
 import TeamStandingsTable from './partials/TeamStandingsTable.vue';
 
@@ -29,6 +31,15 @@ type Season = {
 type SelectedSeason = Season & {
     starts_on: string | null;
     ends_on: string | null;
+};
+
+type SeasonMatch = {
+    ulid: string;
+    scheduled_at: string;
+    status: MatchStatus;
+    is_friendly: boolean;
+    team_a: TeamSide;
+    team_b: TeamSide | null;
 };
 
 type StandingRow = {
@@ -56,17 +67,32 @@ const props = defineProps<{
     selectedSeason: SelectedSeason;
     progress: { played: number; completed: number; total: number };
     teamStandings: StandingRow[];
+    seasonMatches?: SeasonMatch[];
     players: { data: Player[] };
     goalkeepers: Player[];
 }>();
 
-const activeTab = computed(() => (props.tab === 'players' ? 'players' : 'teams'));
+type TabKey = 'teams' | 'players' | 'matches';
+
+const activeTab = computed<TabKey>(() => {
+    if (props.tab === 'players') return 'players';
+    if (props.tab === 'matches') return 'matches';
+    return 'teams';
+});
 
 const progressPct = computed(() =>
     props.progress.total > 0 ? Math.min(100, Math.round((props.progress.completed / props.progress.total) * 100)) : 0,
 );
 
-function changeTab(value: 'teams' | 'players'): void {
+const seasonRange = computed(() => {
+    const start = props.selectedSeason.starts_on;
+    const end = props.selectedSeason.ends_on;
+    if (!start && !end) return null;
+    const fmt = (iso: string) => formatDate(iso, { day: 'numeric', month: 'short' });
+    return `${start ? fmt(start) : '?'} — ${end ? fmt(end) : '?'}`;
+});
+
+function changeTab(value: TabKey): void {
     router.get(window.location.pathname, { tab: value, season: props.selectedSeason.ulid }, {
         preserveState: true,
         preserveScroll: true,
@@ -74,7 +100,7 @@ function changeTab(value: 'teams' | 'players'): void {
     });
 }
 
-const STANDINGS_PROPS = ['teamStandings', 'players', 'goalkeepers', 'progress', 'selectedSeason'];
+const STANDINGS_PROPS = ['teamStandings', 'seasonMatches', 'players', 'goalkeepers', 'progress', 'selectedSeason'];
 
 // Auto-refresh every 30s in case match events change in another tab/page.
 // Returns a controller so we can pause/resume on visibility changes.
@@ -137,19 +163,21 @@ const breadcrumbs: BreadcrumbItem[] = [
             </div>
 
             <div class="mb-6 rounded-lg border border-border bg-card p-4">
-                <div class="mb-2 flex items-center justify-between text-sm">
-                    <div>
+                <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span class="font-semibold">{{ selectedSeason.name }}</span>
                         <span
                             v-if="selectedSeason.is_active"
-                            class="ml-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500"
+                            class="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500"
                         >Activa</span>
-                        <span v-else class="ml-2 rounded-full border border-muted bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Completada</span>
+                        <span v-else class="rounded-full border border-muted bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Completada</span>
+                        <span v-if="seasonRange" class="hidden text-xs text-muted-foreground sm:inline">· {{ seasonRange }}</span>
                     </div>
                     <span class="text-muted-foreground">
                         Partidos: <span class="font-semibold text-foreground">{{ progress.completed }}/{{ progress.total }}</span>
                     </span>
                 </div>
+                <p v-if="seasonRange" class="mb-2 text-xs text-muted-foreground sm:hidden">{{ seasonRange }}</p>
                 <div class="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                         class="h-full bg-primary transition-all"
@@ -178,6 +206,16 @@ const breadcrumbs: BreadcrumbItem[] = [
                 >
                     <Users class="mr-2 size-4" />
                     Jugadores
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="rounded-none border-b-2"
+                    :class="activeTab === 'matches' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'"
+                    @click="changeTab('matches')"
+                >
+                    <CalendarDays class="mr-2 size-4" />
+                    Calendario
                 </Button>
             </div>
 
@@ -212,7 +250,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <TeamStandingsTable :club="club" :standings="teamStandings" />
             </template>
 
-            <template v-else>
+            <template v-else-if="activeTab === 'players'">
                 <div v-if="isAdmin" class="mb-4 flex items-center justify-end gap-1">
                     <Link :href="`/clubs/${club.ulid}/players/create`">
                         <Button size="sm" class="h-8"><Plus class="mr-1 size-3.5" />Crear jugador</Button>
@@ -241,6 +279,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                     :goalkeepers="goalkeepers"
                     :is-admin="isAdmin"
                 />
+            </template>
+
+            <template v-else>
+                <SeasonMatchesView :club="club" :matches="seasonMatches" />
             </template>
         </div>
     </AppLayout>

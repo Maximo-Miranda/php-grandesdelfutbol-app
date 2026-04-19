@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate } from '@/lib/utils';
 import type { BreadcrumbItem, Club } from '@/types';
 
 type Season = {
@@ -68,12 +70,16 @@ function confirmClose(): void {
     });
 }
 
-function fmt(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+function formatRange(iso: string | null): string {
+    return iso ? formatDate(iso, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 }
 
 const minMatchesCount = computed(() => editing.value ? Math.max(1, editing.value.completed) : 1);
+
+const closingOpen = computed({
+    get: () => closingSeason.value !== null,
+    set: (v) => { if (!v) closingSeason.value = null; },
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clubes', href: '/clubs' },
@@ -122,7 +128,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 </span>
                             </div>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                {{ fmt(s.starts_on) }} — {{ fmt(s.ends_on) }}
+                                {{ formatRange(s.starts_on) }} — {{ formatRange(s.ends_on) }}
                             </p>
                         </div>
 
@@ -165,7 +171,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </div>
             </div>
 
-            <!-- Edit dialog -->
             <Dialog :open="editing !== null" @update:open="editing = null">
                 <DialogContent>
                     <DialogHeader>
@@ -214,32 +219,22 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </DialogContent>
             </Dialog>
 
-            <!-- Close confirmation dialog -->
-            <Dialog :open="closingSeason !== null" @update:open="closingSeason = null">
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Cerrar {{ closingSeason?.name }}</DialogTitle>
-                        <DialogDescription>
-                            <span class="block">
-                                Se marcará como <strong>Completada</strong> y se creará inmediatamente una nueva temporada activa.
-                            </span>
-                            <span class="mt-2 block">
-                                Todos los partidos nuevos que crees desde ahora quedarán en la nueva temporada.
-                            </span>
-                            <span v-if="closingSeason && closingSeason.completed < closingSeason.matches_count" class="mt-3 block rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-600 dark:text-amber-400">
-                                ⚠ Esta temporada solo lleva <strong>{{ closingSeason.completed }}</strong> de <strong>{{ closingSeason.matches_count }}</strong> partidos. Los partidos faltantes quedarán sin jugar.
-                            </span>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" @click="closingSeason = null">Cancelar</Button>
-                        <Button type="button" @click="confirmClose">
-                            <Flag class="mr-1.5 size-4" />
-                            Cerrar y empezar nueva
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                v-model:open="closingOpen"
+                :title="`Cerrar ${closingSeason?.name ?? 'temporada'}`"
+                confirm-label="Cerrar y empezar nueva"
+                @confirm="confirmClose"
+            >
+                <p class="text-sm text-muted-foreground">
+                    Se marcará como <strong class="text-foreground">Completada</strong> y se creará inmediatamente una nueva temporada activa. Los partidos nuevos quedarán en la nueva temporada.
+                </p>
+                <p
+                    v-if="closingSeason && closingSeason.completed < closingSeason.matches_count"
+                    class="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-600 dark:text-amber-400"
+                >
+                    Esta temporada solo lleva <strong>{{ closingSeason.completed }}</strong> de <strong>{{ closingSeason.matches_count }}</strong> partidos. Los faltantes quedarán sin jugar.
+                </p>
+            </ConfirmDialog>
         </div>
     </AppLayout>
 </template>

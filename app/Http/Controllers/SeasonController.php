@@ -69,11 +69,7 @@ class SeasonController extends Controller
     {
         $data = $request->validated();
 
-        if (isset($data['matches_count']) && ! $season->isActive()) {
-            return back()->with('error', 'Solo puedes cambiar el número de partidos de una temporada activa.');
-        }
-
-        $season->update(array_intersect_key($data, array_flip(['name', 'matches_count'])));
+        $season->update($data);
 
         if (isset($data['matches_count'])) {
             $this->seasons->finalizeIfComplete($season);

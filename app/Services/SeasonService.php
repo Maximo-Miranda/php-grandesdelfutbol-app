@@ -91,12 +91,10 @@ class SeasonService
 
     private function markCompleted(Season $season): void
     {
-        DB::transaction(function () use ($season) {
-            $season->update([
-                'status' => SeasonStatus::Completed,
-                'completed_at' => now(),
-            ]);
-        });
+        $season->update([
+            'status' => SeasonStatus::Completed,
+            'completed_at' => now(),
+        ]);
     }
 
     /**

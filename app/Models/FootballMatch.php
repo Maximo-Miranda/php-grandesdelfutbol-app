@@ -178,6 +178,8 @@ class FootballMatch extends Model
             'registration_opens_at' => 'immutable_datetime',
             'cancel_hours_before' => 'integer',
             'is_friendly' => 'boolean',
+            'team_a_score' => 'integer',
+            'team_b_score' => 'integer',
         ];
     }
 
