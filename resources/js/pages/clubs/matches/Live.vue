@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, usePoll } from '@inertiajs/vue3';
+import { Head, Link, router, usePoll } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ArrowLeftRight,
@@ -13,6 +13,7 @@ import {
     Maximize,
     Minimize,
     Pause,
+    Pencil,
     Play,
     RectangleVertical,
     Share2,
@@ -528,6 +529,11 @@ watch(subOutPlayerId, (val) => {
                         <Button variant="outline" size="sm" class="flex-1 min-h-[44px]" @click="completeMatch">
                             <Check class="mr-1.5 size-3.5" />Terminar
                         </Button>
+                        <Link :href="`${base}/${match.ulid}/edit`">
+                            <Button variant="outline" size="sm" class="min-h-[44px]" title="Editar partido">
+                                <Pencil class="size-3.5" />
+                            </Button>
+                        </Link>
                         <Button v-if="match.share_token" variant="outline" size="sm" class="min-h-[44px]" @click="shareMatch">
                             <Check v-if="linkCopied" class="size-3.5 text-emerald-400" />
                             <Share2 v-else class="size-3.5" />

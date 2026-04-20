@@ -88,3 +88,30 @@ export function getCsrfToken(): string {
         document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '',
     );
 }
+
+export function stripDiacritics(value: string): string {
+    return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function teamInitials(name: string): string {
+    return name
+        .split(/\s+/)
+        .map(w => w.charAt(0).toUpperCase())
+        .join('')
+        .slice(0, 2) || '?';
+}
+
+function relativeLuminance(hex: string): number {
+    const m = hex.replace('#', '').match(/.{2}/g);
+    if (!m) return 0;
+    const [r, g, b] = m.map(h => {
+        const v = parseInt(h, 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function contrastTextColor(bgColor: string | null | undefined): string {
+    if (!bgColor) return '#fafafa';
+    return relativeLuminance(bgColor) > 0.55 ? '#18181b' : '#fafafa';
+}

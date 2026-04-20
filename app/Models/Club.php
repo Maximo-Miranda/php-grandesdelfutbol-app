@@ -133,6 +133,16 @@ class Club extends Model
         return $this->hasMany(FootballMatch::class);
     }
 
+    public function seasons(): HasMany
+    {
+        return $this->hasMany(Season::class);
+    }
+
+    public function teams(): HasMany
+    {
+        return $this->hasMany(Team::class);
+    }
+
     public function scopeForUser($query, User $user)
     {
         if ($user->isSuperAdmin()) {

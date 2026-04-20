@@ -64,6 +64,7 @@ type Props = {
     match: FootballMatch;
     players: Player[];
     isAdmin: boolean;
+    isTeamRestricted?: boolean;
     myPlayer: Player | null;
     unregisteredPlayers: PaginatedPlayers | null;
 };
@@ -201,6 +202,7 @@ const myRoleLabel = computed(() => {
 
 // --- Admin helpers ---
 const canManage = computed(() => props.isAdmin && (props.match.status === 'upcoming' || props.match.status === 'in_progress'));
+const canEdit = computed(() => props.isAdmin);
 const showControlPanel = computed(() => props.isAdmin && props.match.status === 'in_progress');
 const canStartMatch = computed(() => {
     const msUntilMatch = new Date(props.match.scheduled_at).getTime() - now.value;
@@ -367,8 +369,8 @@ function dismissPush() {
                         {{ statusLabel[match.status] ?? match.status }}
                     </span>
                     <div class="flex items-center gap-2">
-                        <Link v-if="canManage" :href="`${base}/edit`">
-                            <Button variant="ghost" size="icon" class="size-8">
+                        <Link v-if="canEdit" :href="`${base}/edit`">
+                            <Button variant="ghost" size="icon" class="size-8" :title="match.status === 'cancelled' ? 'Editar (puedes reprogramar la fecha para reactivarlo)' : 'Editar partido'">
                                 <Pencil class="size-4" />
                             </Button>
                         </Link>
@@ -1160,8 +1162,8 @@ function dismissPush() {
                     <div v-if="filteredUnregistered.length" class="max-h-72 divide-y divide-border/50 overflow-y-auto rounded-lg border border-border">
                         <div class="sticky top-0 z-10 flex items-center justify-end gap-3 border-b border-border bg-card/95 px-2 py-1 text-[9px] font-medium text-muted-foreground backdrop-blur-sm">
                             <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? undefined }"></span>{{ match.team_a_name }}</span>
-                            <span class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>{{ match.team_b_name }}</span>
-                            <span class="text-zinc-500">Sin eq.</span>
+                            <span v-if="match.team_b_name" class="flex items-center gap-1"><span class="size-2.5 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? undefined }"></span>{{ match.team_b_name }}</span>
+                            <span v-if="!isTeamRestricted" class="text-zinc-500">Sin eq.</span>
                             <span class="text-destructive/50">No va</span>
                         </div>
                         <div
@@ -1179,30 +1181,79 @@ function dismissPush() {
                                 </span>
                             </div>
                             <div class="flex shrink-0 gap-1">
-                                <button
-                                    :disabled="isFull || addingPlayerKey === `${player.id}-a`"
-                                    :title="`Agregar a ${match.team_a_name}`"
-                                    class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
-                                    @click="registerPlayer(player.id, 'confirmed', 'a')"
-                                >
-                                    <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
-                                </button>
-                                <button
-                                    :disabled="isFull || addingPlayerKey === `${player.id}-b`"
-                                    :title="`Agregar a ${match.team_b_name}`"
-                                    class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
-                                    @click="registerPlayer(player.id, 'confirmed', 'b')"
-                                >
-                                    <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
-                                </button>
-                                <button
-                                    :disabled="isFull || addingPlayerKey === `${player.id}-none`"
-                                    title="Sin equipo"
-                                    class="flex size-8 items-center justify-center rounded-lg border border-dashed border-zinc-600 text-zinc-500 transition-all active:scale-90 disabled:opacity-40"
-                                    @click="registerPlayer(player.id, 'confirmed', null)"
-                                >
-                                    <Plus class="size-3.5" />
-                                </button>
+                                <!-- Team-restricted match: show ONLY the player's eligible team button -->
+                                <template v-if="isTeamRestricted">
+                                    <template v-if="player.eligible_team === 'either'">
+                                        <button
+                                            :disabled="isFull || addingPlayerKey === `${player.id}-a`"
+                                            :title="`Agregar a ${match.team_a_name}`"
+                                            class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                            @click="registerPlayer(player.id, 'confirmed', 'a')"
+                                        >
+                                            <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                        </button>
+                                        <button
+                                            :disabled="isFull || addingPlayerKey === `${player.id}-b`"
+                                            :title="`Agregar a ${match.team_b_name}`"
+                                            class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                            @click="registerPlayer(player.id, 'confirmed', 'b')"
+                                        >
+                                            <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                        </button>
+                                    </template>
+                                    <button
+                                        v-else-if="player.eligible_team === 'a'"
+                                        :disabled="isFull || addingPlayerKey === `${player.id}-a`"
+                                        :title="`Agregar a ${match.team_a_name}`"
+                                        class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                        @click="registerPlayer(player.id, 'confirmed', 'a')"
+                                    >
+                                        <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                    </button>
+                                    <button
+                                        v-else-if="player.eligible_team === 'b'"
+                                        :disabled="isFull || addingPlayerKey === `${player.id}-b`"
+                                        :title="`Agregar a ${match.team_b_name}`"
+                                        class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                        @click="registerPlayer(player.id, 'confirmed', 'b')"
+                                    >
+                                        <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                    </button>
+                                    <span
+                                        v-else
+                                        title="Este jugador no está en ninguno de los equipos del partido"
+                                        class="flex h-8 items-center px-2 text-[10px] uppercase tracking-wider text-muted-foreground"
+                                    >Sin equipo</span>
+                                </template>
+
+                                <!-- Free-text match: full controls (team A, team B, no team) -->
+                                <template v-else>
+                                    <button
+                                        :disabled="isFull || addingPlayerKey === `${player.id}-a`"
+                                        :title="`Agregar a ${match.team_a_name}`"
+                                        class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                        @click="registerPlayer(player.id, 'confirmed', 'a')"
+                                    >
+                                        <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                    </button>
+                                    <button
+                                        :disabled="isFull || addingPlayerKey === `${player.id}-b`"
+                                        :title="`Agregar a ${match.team_b_name}`"
+                                        class="flex size-8 items-center justify-center rounded-lg border border-border shadow-sm transition-all active:scale-90 disabled:opacity-40"
+                                        @click="registerPlayer(player.id, 'confirmed', 'b')"
+                                    >
+                                        <span class="size-4 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                    </button>
+                                    <button
+                                        :disabled="isFull || addingPlayerKey === `${player.id}-none`"
+                                        title="Sin equipo"
+                                        class="flex size-8 items-center justify-center rounded-lg border border-dashed border-zinc-600 text-zinc-500 transition-all active:scale-90 disabled:opacity-40"
+                                        @click="registerPlayer(player.id, 'confirmed', null)"
+                                    >
+                                        <Plus class="size-3.5" />
+                                    </button>
+                                </template>
+
                                 <button
                                     :title="`Marcar que ${player.display_name} no asiste`"
                                     class="flex size-8 items-center justify-center rounded-lg text-destructive/50 transition-all hover:bg-destructive/10 hover:text-destructive active:scale-90"
@@ -1339,8 +1390,14 @@ function dismissPush() {
                 </Dialog>
             </div>
 
-            <!-- Admin: Delete for cancelled -->
-            <div v-if="isAdmin && match.status === 'cancelled'" class="mt-6">
+            <!-- Admin: Edit/Reschedule + Delete for cancelled -->
+            <div v-if="isAdmin && match.status === 'cancelled'" class="mt-6 grid gap-2 sm:grid-cols-2">
+                <Link :href="`${base}/edit`">
+                    <Button variant="outline" class="w-full gap-2">
+                        <Pencil class="size-4" />
+                        Editar / Reprogramar
+                    </Button>
+                </Link>
                 <Dialog v-model:open="showDeleteDialog">
                     <DialogTrigger as-child>
                         <Button variant="destructive" class="w-full gap-2">

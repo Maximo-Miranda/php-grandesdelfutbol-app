@@ -8,8 +8,11 @@ use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Requests\Match\UpdateMatchRequest;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\MatchService;
+use App\Services\MatchStatService;
+use App\Services\SeasonService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +22,30 @@ use Inertia\Response;
 
 class MatchController extends Controller
 {
-    public function __construct(private MatchService $matchService) {}
+    public function __construct(
+        private MatchService $matchService,
+        private SeasonService $seasonService,
+        private MatchStatService $statService,
+    ) {}
+
+    /** @return array<int, array<string, mixed>> */
+    private function teamsForActiveSeason(Club $club): array
+    {
+        $season = $this->seasonService->activeFor($club);
+
+        return Team::query()->where('season_id', $season->id)
+            ->with('attachments')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Team $t) => [
+                'id' => $t->id,
+                'ulid' => $t->ulid,
+                'name' => $t->name,
+                'color' => $t->color,
+                'logo_url' => $t->logo_url,
+            ])
+            ->all();
+    }
 
     public function index(Request $request, Club $club): Response
     {
@@ -28,7 +54,7 @@ class MatchController extends Controller
         $filter = $request->enum('filter', MatchStatus::class) ?? 'all';
 
         $query = $club->matches()
-            ->with('field')
+            ->with(['field', 'season:id,name', 'teamA.attachments', 'teamB.attachments'])
             ->withCount('attendances');
 
         if ($filter === MatchStatus::Upcoming) {
@@ -67,6 +93,7 @@ class MatchController extends Controller
             'club' => $club,
             'venues' => $club->venues()->with('fields')->where('is_active', true)->get(),
             'defaultCancelHoursBefore' => FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE,
+            'availableTeams' => $this->teamsForActiveSeason($club),
         ]);
     }
 
@@ -89,7 +116,7 @@ class MatchController extends Controller
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
+        $match->load('field.venue', 'season:id,name', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
 
         if ($match->status === MatchStatus::InProgress && $isAdmin) {
             return Inertia::render('clubs/matches/Live', $this->liveProps($club, $match));
@@ -110,23 +137,90 @@ class MatchController extends Controller
 
         $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
+        $teamRestricted = $match->isTeamRestricted();
+        $tagEligibility = $this->eligibilityTagger($match, $teamRestricted);
+
         return Inertia::render('clubs/matches/Show', [
             'club' => $club,
             'match' => $match,
-            'players' => $club->players()->active()->with('user.playerProfile')->get(),
+            'players' => $tagEligibility($club->players()->active()->with('user.playerProfile')->get()),
             'isAdmin' => $isAdmin,
+            'isTeamRestricted' => $teamRestricted,
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
             'unregisteredPlayers' => $isAdmin
                 ? Inertia::scroll(
-                    fn () => $club->players()
-                        ->active()
-                        ->with('user.playerProfile')
-                        ->whereNotIn('id', $registeredPlayerIds)
-                        ->orderBy('name')
-                        ->simplePaginate(15, pageName: 'jugadores'),
+                    fn () => tap(
+                        $club->players()
+                            ->active()
+                            ->with('user.playerProfile')
+                            ->whereNotIn('id', $registeredPlayerIds)
+                            ->orderBy('name')
+                            ->simplePaginate(15, pageName: 'jugadores'),
+                        fn ($paginator) => $tagEligibility($paginator->getCollection()),
+                    ),
                 )
                 : null,
         ]);
+    }
+
+    /**
+     * Build a closure that tags each player in a collection with `eligible_team`.
+     * Returns the collection unchanged when the match is not team-restricted.
+     */
+    private function eligibilityTagger(FootballMatch $match, bool $teamRestricted): \Closure
+    {
+        if (! $teamRestricted) {
+            return fn ($players) => $players;
+        }
+
+        $isTournament = $match->isTournament();
+        $teamALookup = $match->teamA ? array_flip($match->teamA->players()->pluck('players.id')->all()) : [];
+        $teamBLookup = $match->teamB ? array_flip($match->teamB->players()->pluck('players.id')->all()) : [];
+        $hasTeamA = $match->teamA !== null;
+        $hasTeamB = $match->teamB !== null;
+
+        return fn ($players) => $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB): void {
+            $player->eligible_team = $this->resolveEligibleTeam(
+                $player->id,
+                $isTournament,
+                $teamALookup,
+                $teamBLookup,
+                $hasTeamA,
+                $hasTeamB,
+            );
+        });
+    }
+
+    /**
+     * @param  array<int, int>  $teamALookup
+     * @param  array<int, int>  $teamBLookup
+     */
+    private function resolveEligibleTeam(
+        int $playerId,
+        bool $isTournament,
+        array $teamALookup,
+        array $teamBLookup,
+        bool $hasTeamA,
+        bool $hasTeamB,
+    ): ?string {
+        if ($isTournament && $hasTeamA && $hasTeamB) {
+            return 'either';
+        }
+
+        if (isset($teamALookup[$playerId])) {
+            return 'a';
+        }
+
+        if (isset($teamBLookup[$playerId])) {
+            return 'b';
+        }
+
+        return match (true) {
+            $hasTeamA && $hasTeamB => 'either',
+            $hasTeamA => 'a',
+            $hasTeamB => 'b',
+            default => null,
+        };
     }
 
     public function edit(Club $club, FootballMatch $match): Response
@@ -143,15 +237,53 @@ class MatchController extends Controller
             'embedUrl' => $videoUpload?->embed_url,
             'streamUrl' => $videoUpload?->stream_url,
             'defaultCancelHoursBefore' => FootballMatch::DEFAULT_CANCEL_HOURS_BEFORE,
+            'availableTeams' => $this->teamsForActiveSeason($club),
         ]);
     }
 
     public function update(UpdateMatchRequest $request, Club $club, FootballMatch $match): RedirectResponse
     {
-        $match->update($request->validated());
+        $data = $request->validated();
+
+        if (! empty($data['single_team'])) {
+            $data['team_b_id'] = null;
+            $data['team_b_name'] = null;
+            $data['team_b_color'] = null;
+        }
+        unset($data['single_team']);
+
+        $previousMaxPlayers = $match->max_players;
+        $previousMaxSubs = $match->max_substitutes;
+        $previousStatus = $match->status;
+        $previousTeamAId = $match->team_a_id;
+        $previousTeamBId = $match->team_b_id;
+
+        $match->update($data);
+        $fresh = $match->fresh();
+
+        $capacityChanged = $fresh->max_players !== $previousMaxPlayers || $fresh->max_substitutes !== $previousMaxSubs;
+        $reactivated = $previousStatus->isFinished() && ! $fresh->status->isFinished();
+        $teamsChanged = $fresh->team_a_id !== $previousTeamAId || $fresh->team_b_id !== $previousTeamBId;
+
+        if ($capacityChanged || $reactivated) {
+            $this->matchService->rebalanceCapacity($fresh);
+        }
+
+        $extraMessage = null;
+        if ($teamsChanged && $fresh->isTeamRestricted()) {
+            $realigned = $this->matchService->realignEventTeamsToRosters($fresh);
+            if ($realigned > 0) {
+                // Score depends on event teams; recalc + re-finalize stats so player goals stay consistent
+                $this->statService->recalculateScore($fresh);
+                if ($fresh->stats_finalized_at) {
+                    $this->statService->finalizeStats($fresh->fresh());
+                }
+                $extraMessage = " {$realigned} ".($realigned === 1 ? 'evento se reasignó' : 'eventos se reasignaron').' al equipo correcto del jugador.';
+            }
+        }
 
         return redirect()->route('clubs.matches.show', [$club, $match])
-            ->with('success', 'Partido actualizado.');
+            ->with('success', 'Partido actualizado.'.($extraMessage ?? ''));
     }
 
     public function destroy(Club $club, FootballMatch $match): RedirectResponse
@@ -177,7 +309,7 @@ class MatchController extends Controller
     {
         Gate::authorize('view', $match);
 
-        $match->load('field.venue', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
+        $match->load('field.venue', 'season:id,name', 'attendances.player.user.playerProfile', 'events.player.user.playerProfile', 'events.relatedPlayer', 'videoUpload', 'activeVideoServiceRequest');
 
         $user = $request->user();
         $isAdmin = $club->isAdminOrOwner($user);

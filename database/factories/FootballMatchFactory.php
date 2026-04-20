@@ -36,6 +36,7 @@ class FootballMatchFactory extends Factory
             'team_b_name' => 'Equipo B',
             'team_a_color' => '#1a1a1a',
             'team_b_color' => '#facc15',
+            'is_friendly' => false,
             'is_recurring' => false,
             'recurrence_days' => 7,
             'auto_cancel' => false,

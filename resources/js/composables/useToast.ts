@@ -1,11 +1,14 @@
 import { ref } from 'vue';
 
+export type ToastVariant = 'default' | 'error';
+
 export interface Toast {
     id: number;
     message: string;
     actionLabel?: string;
     onAction?: () => void;
     duration: number;
+    variant: ToastVariant;
 }
 
 const toasts = ref<Toast[]>([]);
@@ -17,6 +20,7 @@ export function useToast() {
         actionLabel?: string;
         onAction?: () => void;
         duration?: number;
+        variant?: ToastVariant;
     }): number {
         const id = nextId++;
         const duration = options.duration ?? (options.actionLabel ? 0 : 8000);
@@ -27,6 +31,7 @@ export function useToast() {
             actionLabel: options.actionLabel,
             onAction: options.onAction,
             duration,
+            variant: options.variant ?? 'default',
         };
 
         toasts.value.push(toast);

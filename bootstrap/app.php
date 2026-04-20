@@ -11,6 +11,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Symfony\Component\HttpFoundation\Exception\PostTooLargeException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
@@ -42,5 +43,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (PostTooLargeException $e, $request) {
+            $maxMb = (int) (ini_get('post_max_size') ? rtrim(ini_get('post_max_size'), 'M') : 0);
+            $message = "El archivo que intentaste subir es demasiado grande. Tamaño máximo: {$maxMb} MB.";
+
+            if ($request->expectsJson() || $request->header('X-Inertia')) {
+                return back()->withErrors(['file' => $message])->withInput();
+            }
+
+            return back()->withErrors(['file' => $message]);
+        });
     })->create();

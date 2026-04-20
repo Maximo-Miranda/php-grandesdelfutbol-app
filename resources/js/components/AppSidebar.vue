@@ -8,6 +8,7 @@ import {
     Newspaper,
     Settings,
     Shield,
+    Trophy,
     Users,
     UsersRound,
 } from 'lucide-vue-next';
@@ -29,17 +30,18 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { useNewsBadge } from '@/composables/useNewsBadge';
 import type { Club, NavItem } from '@/types';
 
-const page = usePage<{ currentClub: Club | null }>();
+const page = usePage<{ currentClub: Club | null; features?: { team_standings?: boolean } }>();
 const { isCurrentOrParentUrl } = useCurrentUrl();
 const { isAdmin } = useClubPermissions();
 const { newsUnread, badgeLabel: newsBadgeLabel, showBadge: showNewsBadge } = useNewsBadge();
 
 const currentClub = computed(() => page.props.currentClub);
+const teamStandingsEnabled = computed(() => page.props.features?.team_standings !== false);
 
 const globalNavItems: NavItem[] = [
-    { title: 'Mis Clubes', href: '/clubs', icon: Shield },
-    { title: 'Mis Jugadas', href: '/player-card', icon: Film },
-    { title: 'Noticias', href: '/news', icon: Newspaper },
+    { title: 'Mis Clubes', description: 'Clubes a los que perteneces', href: '/clubs', icon: Shield },
+    { title: 'Mis Jugadas', description: 'Tus reels y momentos', href: '/player-card', icon: Film },
+    { title: 'Noticias', description: 'Fútbol en español', href: '/news', icon: Newspaper },
 ];
 
 const clubNavItems = computed<NavItem[]>(() => {
@@ -48,27 +50,46 @@ const clubNavItems = computed<NavItem[]>(() => {
 
     const base = `/clubs/${club.ulid}`;
     const items: NavItem[] = [
-        { title: 'Inicio', href: base, icon: Home },
-        { title: 'Partidos', href: `${base}/matches`, icon: CalendarDays },
-        { title: 'Jugadores', href: `${base}/players`, icon: UsersRound },
-        { title: 'Canchas', href: `${base}/venues`, icon: MapPin },
+        { title: 'Inicio', description: 'Resumen del club', href: base, icon: Home },
+        { title: 'Partidos', description: 'Calendario y resultados', href: `${base}/matches`, icon: CalendarDays },
     ];
+
+    if (teamStandingsEnabled.value) {
+        items.push({ title: 'Posiciones', description: 'Equipos, jugadores y plantilla', href: `${base}/standings`, icon: Trophy });
+    } else {
+        items.push({ title: 'Jugadores', description: 'Plantilla del club', href: `${base}/players`, icon: UsersRound });
+    }
+
+    items.push(
+        { title: 'Canchas', description: 'Lugares de juego', href: `${base}/venues`, icon: MapPin },
+    );
 
     if (isAdmin.value) {
         items.push(
-            { title: 'Miembros', href: `${base}/members`, icon: Users },
-            { title: 'Ajustes', href: `${base}/edit`, icon: Settings },
+            { title: 'Miembros', description: 'Usuarios del club', href: `${base}/members`, icon: Users },
+            { title: 'Ajustes', description: 'Configuración del club', href: `${base}/edit`, icon: Settings },
         );
     }
 
     return items;
 });
 
-function isActive(item: NavItem, allItems: NavItem[]): boolean {
-    if (item.title === 'Inicio') {
-        return isCurrentOrParentUrl(item.href) && !allItems.filter(i => i !== item).some(i => isCurrentOrParentUrl(i.href));
+function matchesItem(item: NavItem, club: Club | null): boolean {
+    if (item.title === 'Posiciones' && club) {
+        const base = `/clubs/${club.ulid}`;
+        if (isCurrentOrParentUrl(`${base}/teams`) || isCurrentOrParentUrl(`${base}/seasons`)) {
+            return true;
+        }
     }
     return isCurrentOrParentUrl(item.href);
+}
+
+function isActive(item: NavItem, allItems: NavItem[]): boolean {
+    const club = currentClub.value;
+    if (item.title === 'Inicio') {
+        return isCurrentOrParentUrl(item.href) && !allItems.filter(i => i !== item).some(i => matchesItem(i, club));
+    }
+    return matchesItem(item, club);
 }
 </script>
 
@@ -94,11 +115,12 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                     <SidebarMenuItem v-for="item in globalNavItems" :key="item.title">
                         <SidebarMenuButton
                             as-child
+                            size="lg"
                             :is-active="isActive(item, globalNavItems)"
                             :tooltip="item.title"
                             :class="{ '!overflow-visible': item.href === '/news' && showNewsBadge }"
                         >
-                            <Link :href="item.href">
+                            <Link :href="item.href" class="flex items-center gap-2">
                                 <div class="relative shrink-0">
                                     <component :is="item.icon" />
                                     <span
@@ -109,7 +131,10 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                                         {{ newsBadgeLabel }}
                                     </span>
                                 </div>
-                                <span>{{ item.title }}</span>
+                                <div class="flex min-w-0 flex-col leading-tight">
+                                    <span class="truncate text-sm font-medium">{{ item.title }}</span>
+                                    <span v-if="item.description" class="truncate text-[11px] text-muted-foreground">{{ item.description }}</span>
+                                </div>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -125,12 +150,16 @@ function isActive(item: NavItem, allItems: NavItem[]): boolean {
                         <SidebarMenuItem v-for="item in clubNavItems" :key="item.title">
                             <SidebarMenuButton
                                 as-child
+                                size="lg"
                                 :is-active="isActive(item, clubNavItems)"
                                 :tooltip="item.title"
                             >
-                                <Link :href="item.href">
-                                    <component :is="item.icon" />
-                                    <span>{{ item.title }}</span>
+                                <Link :href="item.href" class="flex items-center gap-2">
+                                    <component :is="item.icon" class="shrink-0" />
+                                    <div class="flex min-w-0 flex-col leading-tight">
+                                        <span class="truncate text-sm font-medium">{{ item.title }}</span>
+                                        <span v-if="item.description" class="truncate text-[11px] text-muted-foreground">{{ item.description }}</span>
+                                    </div>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

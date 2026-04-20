@@ -18,6 +18,7 @@ use App\Notifications\WaitlistPromotedNotification;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\Notification as LaravelNotification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -55,9 +56,16 @@ class MatchService
             $endedAt = $endsAt;
         }
 
+        $teamAId = $data['team_a_id'] ?? null;
+        $singleTeam = (bool) ($data['single_team'] ?? false);
+        $teamBId = $singleTeam ? null : ($data['team_b_id'] ?? null);
+
         $match = FootballMatch::query()->create([
             'club_id' => $club->id,
             'field_id' => $data['field_id'] ?? null,
+            'team_a_id' => $teamAId,
+            'team_b_id' => $teamBId,
+            'is_friendly' => (bool) ($data['is_friendly'] ?? false),
             'title' => $data['title'],
             'scheduled_at' => $scheduledAt,
             'duration_minutes' => $durationMinutes,
@@ -71,10 +79,10 @@ class MatchService
             'registration_opens_hours' => $data['registration_opens_hours'] ?? 24,
             'registration_opens_at' => $data['registration_opens_at'] ?? null,
             'notes' => $data['notes'] ?? null,
-            'team_a_name' => $data['team_a_name'] ?? 'Equipo A',
-            'team_b_name' => $data['team_b_name'] ?? 'Equipo B',
-            'team_a_color' => $data['team_a_color'] ?? '#1a1a1a',
-            'team_b_color' => $data['team_b_color'] ?? '#facc15',
+            'team_a_name' => $teamAId ? null : ($data['team_a_name'] ?? 'Equipo A'),
+            'team_b_name' => $singleTeam ? null : ($teamBId ? null : ($data['team_b_name'] ?? 'Equipo B')),
+            'team_a_color' => $teamAId ? null : ($data['team_a_color'] ?? '#1a1a1a'),
+            'team_b_color' => $singleTeam ? null : ($teamBId ? null : ($data['team_b_color'] ?? '#facc15')),
             'is_recurring' => $data['is_recurring'] ?? true,
             'recurrence_days' => $data['recurrence_days'] ?? 7,
             'auto_cancel' => $data['auto_cancel'] ?? true,
@@ -116,9 +124,16 @@ class MatchService
             $newRegistrationOpensAt = $newScheduledAt->subSeconds($offsetSeconds);
         }
 
+        $activeSeason = app(SeasonService::class)->activeFor($match->club);
+        $carryTeamA = $match->team_a_id && $match->teamA?->season_id === $activeSeason->id ? $match->team_a_id : null;
+        $carryTeamB = $match->team_b_id && $match->teamB?->season_id === $activeSeason->id ? $match->team_b_id : null;
+
         return FootballMatch::query()->create([
             'club_id' => $match->club_id,
             'field_id' => $match->field_id,
+            'team_a_id' => $carryTeamA,
+            'team_b_id' => $carryTeamB,
+            'is_friendly' => $match->is_friendly,
             'title' => $this->generateTitle($match, $newScheduledAt),
             'scheduled_at' => $newScheduledAt,
             'duration_minutes' => $match->duration_minutes,
@@ -130,10 +145,10 @@ class MatchService
             'registration_opens_hours' => $match->registration_opens_hours,
             'registration_opens_at' => $newRegistrationOpensAt,
             'notes' => $match->notes,
-            'team_a_name' => $match->team_a_name,
-            'team_b_name' => $match->team_b_name,
-            'team_a_color' => $match->team_a_color,
-            'team_b_color' => $match->team_b_color,
+            'team_a_name' => $carryTeamA ? null : $match->team_a_name,
+            'team_b_name' => $carryTeamB ? null : $match->team_b_name,
+            'team_a_color' => $carryTeamA ? null : $match->team_a_color,
+            'team_b_color' => $carryTeamB ? null : $match->team_b_color,
             'is_recurring' => true,
             'recurrence_days' => $match->recurrence_days,
             'auto_cancel' => $match->auto_cancel,
@@ -249,6 +264,121 @@ class MatchService
     }
 
     /**
+     * Re-credit events to the correct team based on player roster membership.
+     * Used when a match transitions from free-text teams to team-restricted teams,
+     * because pre-existing events may have an arbitrary team label that doesn't
+     * match the player's actual roster team.
+     *
+     * Returns the number of events whose team was changed.
+     */
+    public function realignEventTeamsToRosters(FootballMatch $match): int
+    {
+        if (! $match->isTeamRestricted()) {
+            return 0;
+        }
+
+        $changed = 0;
+        $events = $match->events()->whereNotNull('player_id')->with('player')->get();
+
+        foreach ($events as $event) {
+            if (! $event->player) {
+                continue;
+            }
+
+            $resolvedTeam = $match->resolveTeamForPlayer($event->player);
+            if ($resolvedTeam !== null && $event->team !== $resolvedTeam) {
+                $event->update(['team' => $resolvedTeam]);
+                $changed++;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
+     * Sort attendances so that the first goalkeeper gets priority placement,
+     * then fall back to confirmed_at ASC for the rest.
+     *
+     * Used by both rebalanceCapacity (decides Confirmed vs Waitlisted) and
+     * recalculateRoles (decides Starter vs Substitute) to keep a single source
+     * of truth for the "GK priority" rule.
+     *
+     * @param  iterable<MatchAttendance>  $attendances
+     * @return Collection<int, MatchAttendance>
+     */
+    private function sortWithGoalkeeperPriority(iterable $attendances): Collection
+    {
+        $gkSlotUsed = false;
+
+        return collect($attendances)->sortBy(function (MatchAttendance $att) use (&$gkSlotUsed) {
+            $isGk = $att->player?->isGoalkeeper();
+            if ($isGk && ! $gkSlotUsed) {
+                $gkSlotUsed = true;
+
+                return [0, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
+            }
+
+            return [1, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
+        })->values();
+    }
+
+    /**
+     * Rebalance team capacity after match config changes (max_players, max_substitutes, field_id).
+     * Re-classifies all attendances per team into Starter / Substitute / Waitlisted based on
+     * the new caps and the order they registered (oldest priority).
+     *
+     * Goalkeeper priority: the first GK on each team is guaranteed a confirmed slot,
+     * even if they registered later than others — never sent to waitlist if space allows.
+     *
+     * Confirmed players exceeding capacity get demoted to Waitlist.
+     * Waitlisted players get promoted if there's now room.
+     */
+    public function rebalanceCapacity(FootballMatch $match): void
+    {
+        if ($match->status->isFinished()) {
+            return;
+        }
+
+        $maxStartersPerTeam = intdiv($match->max_players, 2);
+        $maxSubsPerTeam = intdiv($match->max_substitutes, 2);
+        $maxConfirmedPerTeam = $maxStartersPerTeam + $maxSubsPerTeam;
+
+        $relevantStatuses = [AttendanceStatus::Confirmed, AttendanceStatus::Waitlisted];
+
+        $attendances = $match->attendances()
+            ->whereIn('status', $relevantStatuses)
+            ->whereNotNull('team')
+            ->with('player')
+            ->orderBy('confirmed_at')
+            ->orderBy('id')
+            ->get();
+
+        DB::transaction(function () use ($attendances, $maxConfirmedPerTeam) {
+            foreach ([AttendanceTeam::A, AttendanceTeam::B] as $teamEnum) {
+                $sorted = $this->sortWithGoalkeeperPriority($attendances->where('team', $teamEnum));
+
+                foreach ($sorted as $index => $attendance) {
+                    if ($index < $maxConfirmedPerTeam) {
+                        $attendance->update([
+                            'status' => AttendanceStatus::Confirmed,
+                            'role' => AttendanceRole::Starter,
+                            'confirmed_at' => $attendance->confirmed_at ?? now(),
+                        ]);
+                    } else {
+                        $attendance->update([
+                            'status' => AttendanceStatus::Waitlisted,
+                            'role' => AttendanceRole::Pending,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        // After confirm/waitlist split, run starter/substitute classification with GK priority
+        $this->recalculateRoles($match);
+    }
+
+    /**
      * Recalculate roles for all confirmed attendances per team.
      * Goalkeepers get priority: the first confirmed GK on each team is placed
      * ahead of outfield players, ensuring each team has a GK starter when possible.
@@ -268,19 +398,7 @@ class MatchService
         $subIds = [];
 
         foreach ([AttendanceTeam::A, AttendanceTeam::B] as $teamEnum) {
-            $teamAttendances = $attendances->where('team', $teamEnum);
-
-            $gkSlotUsed = false;
-            $sorted = $teamAttendances->sortBy(function ($att) use (&$gkSlotUsed) {
-                $isGk = $att->player?->isGoalkeeper();
-                if ($isGk && ! $gkSlotUsed) {
-                    $gkSlotUsed = true;
-
-                    return [0, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
-                }
-
-                return [1, $att->confirmed_at?->timestamp ?? PHP_INT_MAX];
-            })->values();
+            $sorted = $this->sortWithGoalkeeperPriority($attendances->where('team', $teamEnum));
 
             $count = 0;
             foreach ($sorted as $attendance) {
@@ -308,6 +426,21 @@ class MatchService
             ->where('status', AttendanceStatus::Confirmed)
             ->with('player')
             ->get();
+
+        // For team-restricted matches: assign each player to their roster team and exit.
+        // No score-based draft balancing — roster membership determines the team.
+        if ($match->isTeamRestricted()) {
+            foreach ($confirmedAttendances as $attendance) {
+                $resolved = $match->resolveTeamForPlayer($attendance->player);
+                $attendance->update([
+                    'team' => $resolved,
+                    'role' => $resolved ? AttendanceRole::Starter : AttendanceRole::Pending,
+                ]);
+            }
+            $this->recalculateRoles($match);
+
+            return;
+        }
 
         $maxPerTeam = intdiv($match->max_players, 2);
 
@@ -573,6 +706,9 @@ class MatchService
      * Find a slot for a waitlisted player, falling back to the other team
      * if their preferred team is still full.
      *
+     * For team-restricted matches, never falls back — the player must stay
+     * on their assigned team (based on roster membership).
+     *
      * @return array{role: AttendanceRole, team: ?AttendanceTeam}|null
      */
     private function findPromotionSlot(FootballMatch $match, int $playerId, ?AttendanceTeam $preferredTeam): ?array
@@ -581,6 +717,11 @@ class MatchService
 
         if ($slot !== null || $preferredTeam === null) {
             return $slot;
+        }
+
+        // Team-restricted matches: do not fall back to opposite team — player belongs to one team only.
+        if ($match->isTeamRestricted()) {
+            return null;
         }
 
         return $this->tryAssignment($match, $playerId, $preferredTeam->opposite());

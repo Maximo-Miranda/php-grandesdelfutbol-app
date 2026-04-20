@@ -28,6 +28,9 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicMatchController;
+use App\Http\Controllers\SeasonController;
+use App\Http\Controllers\StandingsController;
+use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TermsController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\VideoServiceRequestController;
@@ -115,6 +118,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('leave', [ClubMemberController::class, 'leave'])->name('leave');
 
         Route::resource('players', PlayerController::class);
+
+        Route::get('standings', [StandingsController::class, 'index'])->name('standings.index');
+        Route::post('teams/copy-from-previous', [TeamController::class, 'copyFromPrevious'])->name('teams.copyFromPrevious');
+        Route::resource('teams', TeamController::class);
+        Route::get('seasons', [SeasonController::class, 'index'])->name('seasons.index');
+        Route::patch('seasons/{season}', [SeasonController::class, 'update'])->name('seasons.update');
+        Route::post('seasons/{season}/close', [SeasonController::class, 'close'])->name('seasons.close');
 
         Route::post('venues/quick-create', [VenueController::class, 'storeQuick'])->name('venues.storeQuick');
         Route::resource('venues', VenueController::class);

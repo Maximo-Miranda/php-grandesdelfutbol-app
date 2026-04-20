@@ -15,10 +15,14 @@ export type MatchFormData = {
     registration_opens_hours: number;
     registration_opens_at: string | null;
     notes: string;
+    team_a_id: number | null;
+    team_b_id: number | null;
     team_a_name: string;
     team_b_name: string;
     team_a_color: string;
     team_b_color: string;
+    single_team: boolean;
+    is_friendly: boolean;
     is_recurring: boolean;
     recurrence_days: number;
     auto_cancel: boolean;
@@ -189,10 +193,14 @@ export function useMatchForm(options: UseMatchFormOptions) {
             : calcRegistrationHours(initialMaxPlayers),
         registration_opens_at: match?.registration_opens_at ?? null,
         notes: match?.notes ?? '',
+        team_a_id: (match as FootballMatch & { team_a_id?: number | null })?.team_a_id ?? null,
+        team_b_id: (match as FootballMatch & { team_b_id?: number | null })?.team_b_id ?? null,
         team_a_name: match?.team_a_name ?? 'Equipo A',
         team_b_name: match?.team_b_name ?? 'Equipo B',
         team_a_color: match?.team_a_color ?? '#1a1a1a',
         team_b_color: match?.team_b_color ?? '#facc15',
+        single_team: isEdit && !match?.team_b_id && !match?.team_b_name,
+        is_friendly: (match as FootballMatch & { is_friendly?: boolean })?.is_friendly ?? false,
         is_recurring: match?.is_recurring ?? true,
         recurrence_days: match?.recurrence_days ?? 7,
         auto_cancel: match?.auto_cancel ?? true,
@@ -257,7 +265,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
     });
 
     watch(() => form.team_b_color, (hex) => {
-        if (autoTeamB.value) {
+        if (autoTeamB.value && !form.single_team) {
             form.team_b_name = generatedTeamName(hex);
         }
     });

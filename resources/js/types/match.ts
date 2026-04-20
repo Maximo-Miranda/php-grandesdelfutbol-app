@@ -3,6 +3,15 @@ import type { Club } from './club';
 import type { Player } from './player';
 import type { Field } from './venue';
 
+export type MatchStatus = 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
+
+export type TeamSide = {
+    name: string;
+    color: string | null;
+    logo_url: string | null;
+    score: number | null;
+};
+
 export type MatchVideoUpload = {
     id: number;
     ulid: string;
@@ -38,7 +47,7 @@ export type FootballMatch = {
     arrival_minutes: number;
     max_players: number;
     max_substitutes: number;
-    status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
+    status: MatchStatus;
     share_token: string | null;
     registration_opens_hours: number;
     registration_opens_at: string | null;
@@ -54,6 +63,7 @@ export type FootballMatch = {
     team_b_color: string | null;
     team_a_score: number | null;
     team_b_score: number | null;
+    is_friendly: boolean;
     is_recurring: boolean;
     recurrence_days: number;
     auto_cancel: boolean;
@@ -61,6 +71,9 @@ export type FootballMatch = {
     cancel_hours_before: number | null;
     club?: Club;
     field?: Field;
+    season?: { id: number; name: string } | null;
+    team_a?: { id: number; ulid: string; name: string; color: string | null; logo_url: string | null } | null;
+    team_b?: { id: number; ulid: string; name: string; color: string | null; logo_url: string | null } | null;
     attendances?: MatchAttendance[];
     events?: MatchEvent[];
     attendances_count?: number;

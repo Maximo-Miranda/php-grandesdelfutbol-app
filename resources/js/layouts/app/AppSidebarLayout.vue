@@ -38,6 +38,15 @@ watch(
     },
 );
 
+watch(
+    () => (page.props.flash as { success?: string; error?: string })?.error,
+    (message) => {
+        if (message) {
+            showToast({ message, variant: 'error' });
+        }
+    },
+);
+
 const showBack = computed(() => props.breadcrumbs.length >= 2);
 const backFallback = computed(() => {
     if (props.breadcrumbs.length >= 2) {
@@ -63,7 +72,7 @@ function goBack() {
             <button
                 v-if="showBack"
                 type="button"
-                class="mx-auto hidden w-full max-w-2xl items-center gap-1.5 px-4 pt-6 text-sm text-muted-foreground transition-colors hover:text-foreground lg:inline-flex"
+                class="mx-auto inline-flex w-full max-w-2xl items-center gap-1.5 px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground sm:py-4"
                 @click="goBack"
             >
                 <ArrowLeft class="size-4" />

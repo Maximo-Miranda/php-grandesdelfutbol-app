@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { CalendarDays, Home, MapPin, Settings, Users, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, Home, MapPin, Settings, Trophy, Users, UsersRound } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useClubPermissions } from '@/composables/useClubPermissions';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import type { Club, NavItem } from '@/types';
 
-const page = usePage<{ currentClub: Club | null }>();
+const page = usePage<{ currentClub: Club | null; features?: { team_standings?: boolean } }>();
 const { isCurrentOrParentUrl } = useCurrentUrl();
 const { isAdmin } = useClubPermissions();
 
 const currentClub = computed(() => page.props.currentClub);
+const teamStandingsEnabled = computed(() => page.props.features?.team_standings !== false);
 const navContainer = ref<HTMLElement | null>(null);
 
 const clubNavItems = computed<NavItem[]>(() => {
@@ -21,9 +22,17 @@ const clubNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
         { title: 'Inicio', href: base, icon: Home },
         { title: 'Partidos', href: `${base}/matches`, icon: CalendarDays },
-        { title: 'Jugadores', href: `${base}/players`, icon: UsersRound },
-        { title: 'Canchas', href: `${base}/venues`, icon: MapPin },
     ];
+
+    if (teamStandingsEnabled.value) {
+        items.push({ title: 'Posiciones', href: `${base}/standings`, icon: Trophy });
+    } else {
+        items.push({ title: 'Jugadores', href: `${base}/players`, icon: UsersRound });
+    }
+
+    items.push(
+        { title: 'Canchas', href: `${base}/venues`, icon: MapPin },
+    );
 
     if (isAdmin.value) {
         items.push(
@@ -35,11 +44,22 @@ const clubNavItems = computed<NavItem[]>(() => {
     return items;
 });
 
-function isActive(item: NavItem): boolean {
-    if (item.title === 'Inicio') {
-        return isCurrentOrParentUrl(item.href) && !clubNavItems.value.filter(i => i !== item).some(i => isCurrentOrParentUrl(i.href));
+function matchesItem(item: NavItem): boolean {
+    const club = currentClub.value;
+    if (item.title === 'Posiciones' && club) {
+        const base = `/clubs/${club.ulid}`;
+        if (isCurrentOrParentUrl(`${base}/teams`) || isCurrentOrParentUrl(`${base}/seasons`)) {
+            return true;
+        }
     }
     return isCurrentOrParentUrl(item.href);
+}
+
+function isActive(item: NavItem): boolean {
+    if (item.title === 'Inicio') {
+        return isCurrentOrParentUrl(item.href) && !clubNavItems.value.filter(i => i !== item).some(matchesItem);
+    }
+    return matchesItem(item);
 }
 
 onMounted(() => {

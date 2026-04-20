@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\FootballMatch;
+use App\Models\MatchAttendance;
+use App\Observers\FootballMatchObserver;
+use App\Observers\MatchAttendanceObserver;
 use App\Services\ClubContext;
 use Aws\S3\S3Client;
 use Carbon\CarbonImmutable;
@@ -57,6 +61,9 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('superAdmin', fn ($user) => $user->isSuperAdmin());
         Gate::define('viewPulse', fn ($user) => $user->isSuperAdmin());
+
+        FootballMatch::observe(FootballMatchObserver::class);
+        MatchAttendance::observe(MatchAttendanceObserver::class);
     }
 
     protected function configureRateLimiting(): void
