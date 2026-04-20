@@ -17,8 +17,19 @@ use Illuminate\Support\Facades\DB;
 const BACKFILL_OP = '2026_04_18_163410_backfill_seasons_and_teams';
 
 beforeEach(function () {
-    // Wipe the tracking table so the operation re-runs in each test.
-    DB::table('operations')->delete();
+
+    DB::table('operations')->where('name', BACKFILL_OP)->delete();
+
+    foreach (glob(base_path('operations/*.php')) as $file) {
+        $name = basename($file, '.php');
+        if ($name === BACKFILL_OP) {
+            continue;
+        }
+        DB::table('operations')->updateOrInsert(
+            ['name' => $name],
+            ['name' => $name, 'dispatched' => 'sync', 'processed_at' => now()],
+        );
+    }
 });
 
 test('backfill assigns seasons and teams, recalculates scores from events', function () {
