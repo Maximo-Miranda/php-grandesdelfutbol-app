@@ -74,6 +74,13 @@ class AppServiceProvider extends ServiceProvider
             'google-api' => 30,
             'send-email' => 5,
             'expensive-action' => 10,
+            'attendance-write' => 60,
+            'attendance-admin' => 60,
+            'auth-sensitive' => 3,
+            'news-read' => 60,
+            'news-like' => 60,
+            'news-interact' => 30,
+            'news-comment' => 20,
         ];
 
         foreach ($limiters as $name => $maxAttempts) {

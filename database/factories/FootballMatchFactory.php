@@ -23,7 +23,7 @@ class FootballMatchFactory extends Factory
             'club_id' => Club::factory(),
             'field_id' => null,
             'title' => fake()->words(3, true).' Match',
-            'scheduled_at' => now()->addDays(fake()->numberBetween(1, 30)),
+            'scheduled_at' => now()->addHours(fake()->numberBetween(1, 20)),
             'duration_minutes' => 60,
             'arrival_minutes' => 15,
             'max_players' => 10,

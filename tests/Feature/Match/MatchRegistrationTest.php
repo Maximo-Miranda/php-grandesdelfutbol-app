@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AttendanceStatus;
+use App\Enums\ClubMemberRole;
 use App\Enums\PlayerPosition;
 use App\Models\Club;
 use App\Models\ClubMember;
@@ -566,4 +567,82 @@ test('goalkeeper goes to waitlist when full match already has GK starter on same
 
     // Nobody got demoted
     expect(MatchAttendance::where('player_id', $outfieldSub->id)->first()->role->value)->toBe('substitute');
+});
+
+test('members cannot register before registration window opens', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'scheduled_at' => now()->addDays(5),
+        'registration_opens_hours' => 24,
+    ]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+        ])
+        ->assertInvalid(['status']);
+
+    $this->assertDatabaseMissing('match_attendances', [
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+    ]);
+});
+
+test('admins can register before registration window opens', function () {
+    $admin = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create([
+        'club_id' => $club->id,
+        'user_id' => $admin->id,
+        'role' => ClubMemberRole::Admin,
+    ]);
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'scheduled_at' => now()->addDays(5),
+        'registration_opens_hours' => 24,
+    ]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($admin)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_attendances', [
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
+});
+
+test('members can register once registration window opens', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'scheduled_at' => now()->addHours(10),
+        'registration_opens_hours' => 24,
+    ]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_attendances', [
+        'match_id' => $match->id,
+        'player_id' => $player->id,
+        'status' => 'confirmed',
+    ]);
 });

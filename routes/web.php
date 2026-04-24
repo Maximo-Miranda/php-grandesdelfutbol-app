@@ -54,7 +54,7 @@ Route::post('video-service-request', [VideoServiceRequestController::class, 'sto
     ->name('video-service-request.store');
 
 // News — public feed
-Route::get('news', [NewsFeedController::class, 'index'])->middleware('throttle:60,1')->name('news.feed');
+Route::get('news', [NewsFeedController::class, 'index'])->middleware('throttle:news-read')->name('news.feed');
 
 Route::middleware('guest')->group(function () {
     Route::get('start', function () {
@@ -76,7 +76,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::post('join/{slug}', [ClubJoinController::class, 'store'])->name('clubs.join.store');
     Route::post('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'accept'])->name('invitations.accept');
-    Route::post('email/verify-code', [EmailVerificationCodeController::class, 'verify'])->name('verification.verify-code');
+    Route::post('email/verify-code', [EmailVerificationCodeController::class, 'verify'])->middleware('throttle:auth-sensitive')->name('verification.verify-code');
     Route::post('email/resend-code', [EmailVerificationCodeController::class, 'resend'])->middleware('throttle:send-email')->name('verification.resend-code');
 });
 
@@ -91,16 +91,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('preferences', [NewsPreferenceController::class, 'store'])->name('preferences.store');
         Route::patch('preferences', [NewsPreferenceController::class, 'update'])->name('preferences.update');
         Route::get('bookmarks', [NewsFeedController::class, 'bookmarks'])->name('bookmarks');
-        Route::post('{article:slug}/summarize', [NewsFeedController::class, 'summarize'])->middleware('throttle:10,1')->name('summarize');
-        Route::post('{article:slug}/bookmark', [NewsInteractionController::class, 'bookmark'])->middleware('throttle:30,1')->name('bookmark');
-        Route::post('{article:slug}/like', [NewsInteractionController::class, 'like'])->middleware('throttle:60,1')->name('like');
-        Route::post('{article:slug}/share', [NewsInteractionController::class, 'share'])->middleware('throttle:30,1')->name('share');
-        Route::post('{article:slug}/comments', [NewsCommentController::class, 'store'])->middleware('throttle:20,1')->name('comments.store');
+        Route::post('{article:slug}/summarize', [NewsFeedController::class, 'summarize'])->middleware('throttle:expensive-action')->name('summarize');
+        Route::post('{article:slug}/bookmark', [NewsInteractionController::class, 'bookmark'])->middleware('throttle:news-interact')->name('bookmark');
+        Route::post('{article:slug}/like', [NewsInteractionController::class, 'like'])->middleware('throttle:news-like')->name('like');
+        Route::post('{article:slug}/share', [NewsInteractionController::class, 'share'])->middleware('throttle:news-interact')->name('share');
+        Route::post('{article:slug}/comments', [NewsCommentController::class, 'store'])->middleware('throttle:news-comment')->name('comments.store');
         Route::delete('{article:slug}/comments/{comment:ulid}', [NewsCommentController::class, 'destroy'])->name('comments.destroy');
     });
 
     // News — public article detail (after auth routes to avoid slug capturing "preferences")
-    Route::get('news/{article:slug}', [NewsFeedController::class, 'show'])->middleware('throttle:60,1')->name('news.show')->withoutMiddleware(['auth', 'verified']);
+    Route::get('news/{article:slug}', [NewsFeedController::class, 'show'])->middleware('throttle:news-read')->name('news.show')->withoutMiddleware(['auth', 'verified']);
     Route::resource('clubs', ClubController::class);
     Route::get('clubs-search', ClubSearchController::class)->name('clubs.search');
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');
@@ -135,10 +135,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('matches', MatchController::class);
         Route::get('matches/{match}/live', [MatchController::class, 'live'])->name('matches.live');
         Route::get('matches/{match}/summary', [MatchController::class, 'summary'])->name('matches.summary');
-        Route::post('matches/{match}/attendance', [MatchAttendanceController::class, 'store'])->name('matches.attendance.store');
-        Route::patch('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'update'])->name('matches.attendance.update');
-        Route::delete('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'destroy'])->name('matches.attendance.destroy');
-        Route::post('matches/{match}/auto-assign', [MatchAttendanceController::class, 'autoAssign'])->name('matches.autoAssign');
+        Route::post('matches/{match}/attendance', [MatchAttendanceController::class, 'store'])->middleware('throttle:attendance-write')->name('matches.attendance.store');
+        Route::patch('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'update'])->middleware('throttle:attendance-admin')->name('matches.attendance.update');
+        Route::delete('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'destroy'])->middleware('throttle:attendance-admin')->name('matches.attendance.destroy');
+        Route::post('matches/{match}/auto-assign', [MatchAttendanceController::class, 'autoAssign'])->middleware('throttle:expensive-action')->name('matches.autoAssign');
 
         Route::post('matches/{match}/events', [MatchEventController::class, 'store'])->name('matches.events.store');
         Route::patch('matches/{match}/events/{event}', [MatchEventController::class, 'update'])->name('matches.events.update');
