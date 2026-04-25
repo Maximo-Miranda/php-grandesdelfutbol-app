@@ -34,9 +34,9 @@ it('can submit a valid video service request as guest', function (): void {
 });
 
 it('uses authenticated user data when logged in', function (): void {
-    Notification::fake();
-
     $user = User::factory()->create();
+
+    Notification::fake();
 
     $this->actingAs($user)
         ->postJson(route('video-service-request.store'), validRequestData([
