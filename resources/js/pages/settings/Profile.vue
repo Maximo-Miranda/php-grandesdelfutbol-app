@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { Camera, Shirt, UserCircle } from 'lucide-vue-next';
+import { Camera, Globe, Shirt, UserCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
@@ -9,6 +9,7 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import PhoneInput from '@/components/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,6 +59,7 @@ const playerForm = useForm({
     bio: props.profile.bio ?? '',
     preferred_position: props.profile.preferred_position ?? 'none',
     phone: props.profile.phone ?? '',
+    is_public_profile: props.profile.is_public_profile ?? true,
     photo: null as File | null,
 });
 
@@ -286,6 +288,24 @@ function submitPlayerProfile() {
                                 />
                                 <p class="text-xs text-muted-foreground">{{ (playerForm.bio?.length ?? 0) }}/500 caracteres</p>
                                 <InputError :message="playerForm.errors.bio" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-border bg-card p-5">
+                        <h3 class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            <Globe class="size-4" />
+                            Visibilidad pública
+                        </h3>
+                        <div class="flex items-start gap-3">
+                            <Checkbox id="is_public_profile" v-model="playerForm.is_public_profile" class="mt-0.5" />
+                            <div class="flex-1">
+                                <Label for="is_public_profile" class="cursor-pointer text-sm font-medium">
+                                    Perfil público
+                                </Label>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    Cuando está activo, tu nombre y foto aparecen en las plantillas públicas de los equipos donde jugás, y tu tarjeta de estadísticas se puede ver desde el roster del equipo. Apagalo para ocultarte de las páginas públicas — seguís apareciendo dentro del club como siempre.
+                                </p>
                             </div>
                         </div>
                     </div>

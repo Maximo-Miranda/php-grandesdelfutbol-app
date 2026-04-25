@@ -25,6 +25,7 @@ class UpdatePlayerProfileRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20'],
             'bio' => ['nullable', 'string', 'max:500'],
             'preferred_position' => ['nullable', 'string', 'max:50'],
+            'is_public_profile' => ['sometimes', 'boolean'],
             'photo' => [
                 'nullable',
                 File::image()

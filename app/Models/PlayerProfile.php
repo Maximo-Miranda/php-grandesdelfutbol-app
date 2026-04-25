@@ -72,6 +72,7 @@ class PlayerProfile extends Model implements HasMedia
         'bio',
         'preferred_position',
         'phone',
+        'is_public_profile',
     ];
 
     protected function casts(): array
@@ -79,6 +80,7 @@ class PlayerProfile extends Model implements HasMedia
         return [
             'gender' => Gender::class,
             'date_of_birth' => 'date',
+            'is_public_profile' => 'boolean',
         ];
     }
 

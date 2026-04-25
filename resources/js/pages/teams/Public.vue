@@ -8,6 +8,7 @@ import SeoHead from '@/components/SeoHead.vue';
 import { Badge } from '@/components/ui/badge';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { buildCanonicalUrl, formatDate as formatDateUtil, truncateForMeta } from '@/lib/utils';
+import StandingsLegend from '@/pages/clubs/standings/partials/StandingsLegend.vue';
 
 type Player = {
     id: number;
@@ -159,6 +160,10 @@ function formatDate(iso: string): string {
 function matchHref(m: PresentedMatch): string | null {
     return m.share_token ? `/match/${m.share_token}` : null;
 }
+
+function playerHref(playerUlid: string): string {
+    return `/player/${playerUlid}?from=team:${props.team.ulid}`;
+}
 </script>
 
 <template>
@@ -193,14 +198,17 @@ function matchHref(m: PresentedMatch): string | null {
             <div class="absolute inset-x-0 bottom-0 h-0.5 bg-border" />
             <div class="absolute inset-x-0 bottom-0 h-1" :style="{ background: `linear-gradient(90deg, transparent 0%, ${team.color} 50%, transparent 100%)` }" />
 
-            <!-- Back to club -->
-            <Link
-                :href="`/club/${club.slug}`"
-                class="absolute left-3 top-[calc(theme(spacing.16)+0.75rem)] z-10 inline-flex items-center gap-1.5 rounded-lg bg-slate-950/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-md ring-1 ring-white/15 transition-colors hover:bg-slate-950/80 sm:left-5"
-            >
-                <ArrowLeft class="size-4" />
-                <span class="max-w-[12rem] truncate">Volver a {{ club.name }}</span>
-            </Link>
+            <div class="absolute inset-x-0 top-[calc(theme(spacing.16)+0.75rem)] z-10">
+                <div class="mx-auto max-w-3xl px-4 sm:px-6">
+                    <Link
+                        :href="`/club/${club.slug}`"
+                        class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                        <ArrowLeft class="size-4" />
+                        <span class="max-w-[12rem] truncate">Volver a {{ club.name }}</span>
+                    </Link>
+                </div>
+            </div>
         </section>
 
         <!-- Identity block: logo + name, overlapping cover -->
@@ -309,6 +317,8 @@ function matchHref(m: PresentedMatch): string | null {
                 </div>
             </div>
 
+            <StandingsLegend />
+
             <!-- Plantilla -->
             <div class="mt-10">
                 <div class="mb-4 flex items-center justify-between gap-3">
@@ -322,14 +332,15 @@ function matchHref(m: PresentedMatch): string | null {
                     Sin jugadores registrados aún.
                 </div>
                 <div v-else class="grid gap-2 sm:grid-cols-2">
-                    <div
+                    <Link
                         v-for="p in team.players"
                         :key="p.id"
-                        class="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                        :href="playerHref(p.ulid)"
+                        class="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-all hover:border-primary/50 hover:shadow-md"
                     >
                         <UserAvatar :src="p.photo_url" :name="p.name" class="size-10" />
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold">{{ p.name }}</p>
+                            <p class="truncate text-sm font-semibold group-hover:text-primary">{{ p.name }}</p>
                             <div class="mt-0.5 flex items-center gap-2">
                                 <Badge v-if="p.position" variant="outline" class="text-[10px]">{{ p.position }}</Badge>
                                 <span v-if="p.jersey_number" class="font-mono text-xs text-muted-foreground">#{{ p.jersey_number }}</span>
@@ -341,7 +352,7 @@ function matchHref(m: PresentedMatch): string | null {
                         >
                             {{ p.jersey_number ?? '—' }}
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 

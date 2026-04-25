@@ -1,19 +1,37 @@
 <script setup lang="ts">
-import { Head, Link, usePage, usePoll } from '@inertiajs/vue3';
-import { Calendar, Clock, MapPin } from 'lucide-vue-next';
+import { Link, usePoll } from '@inertiajs/vue3';
+import { ArrowLeft, CalendarDays, Clock, MapPin, Trophy, Users } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import AppLogo from '@/components/AppLogo.vue';
 import EventIcon from '@/components/match/EventIcon.vue';
-import LiveScoreboard from '@/components/match/LiveScoreboard.vue';
+import MatchTeamsScore from '@/components/match/MatchTeamsScore.vue';
 import VideoPlayer from '@/components/match/VideoPlayer.vue';
+import PublicHeader from '@/components/PublicHeader.vue';
+import SeoHead from '@/components/SeoHead.vue';
 import { EVENT_LABELS, EVENT_ICON_COLORS, countTeamGoals as countTeamGoalsUtil, getEventTeam as getEventTeamUtil } from '@/lib/match-events';
-import { formatDate, formatTime } from '@/lib/utils';
-import type { FootballMatch, MatchEvent } from '@/types';
+import { buildCanonicalUrl, formatDate, formatTime, truncateForMeta } from '@/lib/utils';
+import type { FootballMatch, MatchEvent, MatchStatus, TeamSide } from '@/types';
+
+type PublicClub = {
+    ulid: string;
+    slug: string;
+    name: string;
+    logo_url: string | null;
+    is_public: boolean;
+};
 
 type Props = {
-    match: FootballMatch & { club: { name: string } };
+    match: FootballMatch & {
+        team_a_logo_url?: string | null;
+        team_b_logo_url?: string | null;
+        season?: { name: string } | null;
+    };
+    club: PublicClub;
     isMember: boolean;
     s3VideoUrl?: string | null;
+    appUrl: string;
 };
+
 const props = defineProps<Props>();
 
 const isLive = computed(() => props.match.status === 'in_progress');
@@ -33,7 +51,6 @@ function getEventTeam(event: MatchEvent): 'a' | 'b' | null {
     return getEventTeamUtil(props.match, event);
 }
 
-// Clock
 const clockDisplay = ref('00:00');
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -59,61 +76,142 @@ const formattedDate = computed(() =>
         .replace(/^\w/, c => c.toUpperCase()),
 );
 
-const page = usePage();
-const isAuthenticated = computed(() => !!(page.props.auth as any)?.user);
-const currentClub = computed(() => (page.props as any).currentClub);
-const homeUrl = computed(() => {
-    if (isAuthenticated.value && currentClub.value?.ulid) {
-        return `/clubs/${currentClub.value.ulid}`;
+const teamA = computed<TeamSide>(() => ({
+    name: props.match.team_a_name,
+    color: props.match.team_a_color,
+    logo_url: props.match.team_a_logo_url ?? null,
+    score: props.match.status === 'in_progress' ? teamAGoals.value : props.match.team_a_score,
+}));
+
+const teamB = computed<TeamSide | null>(() => {
+    if (!props.match.team_b_name) {
+        return null;
     }
-    return '/';
+
+    return {
+        name: props.match.team_b_name,
+        color: props.match.team_b_color,
+        logo_url: props.match.team_b_logo_url ?? null,
+        score: props.match.status === 'in_progress' ? teamBGoals.value : props.match.team_b_score,
+    };
 });
+
+const matchStatus = computed<MatchStatus>(() => props.match.status);
+
+const backHref = computed(() => props.club.is_public ? `/club/${props.club.slug}` : '/');
+const backLabel = computed(() => props.club.is_public ? `Volver a ${props.club.name}` : 'Volver al inicio');
+
+const canonicalUrl = computed(() => buildCanonicalUrl(props.appUrl, `/match/${props.match.share_token}`));
+
+const seoTitle = computed(() => `${props.match.title} — ${props.club.name}`);
+
+const seoDescription = computed(() => {
+    const status = props.match.status === 'completed' ? 'Resultado' : props.match.status === 'in_progress' ? 'En vivo' : 'Próximo';
+    const score = props.match.status === 'completed'
+        ? ` ${props.match.team_a_score ?? 0}-${props.match.team_b_score ?? 0}.`
+        : '.';
+
+    return truncateForMeta(`${status}: ${props.match.team_a_name} vs ${props.match.team_b_name ?? 'Rival'}${score} ${formattedDate.value} en ${props.club.name}.`);
+});
+
+const ogImage = computed(() => props.club.logo_url ?? buildCanonicalUrl(props.appUrl, '/pwa-512x512.png'));
+
+const attendanceCount = computed(() => (props.match.attendances ?? []).filter(a => a.status === 'confirmed').length);
 </script>
 
 <template>
-    <Head :title="match.title" />
-    <div class="min-h-screen bg-background">
-        <div class="mx-auto max-w-2xl px-4 py-6">
-            <!-- Top bar -->
-            <div class="mb-4 flex items-center justify-between">
-                <Link
-                    :href="homeUrl"
-                    class="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                    {{ isAuthenticated ? '&larr; Mi club' : '&larr; Inicio' }}
-                </Link>
-                <p class="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    {{ match.club.name }}
-                </p>
-            </div>
+    <SeoHead
+        :title="seoTitle"
+        :description="seoDescription"
+        :canonical-url="canonicalUrl"
+        :og-image="ogImage"
+    />
 
-            <!-- Scoreboard -->
-            <LiveScoreboard
-                :match="match"
-                :clock-display="clockDisplay"
-                :team-a-goals="teamAGoals"
-                :team-b-goals="teamBGoals"
+    <div class="min-h-screen bg-background text-foreground">
+        <PublicHeader />
+
+        <section class="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 pt-20 pb-10 sm:pt-24 sm:pb-14">
+            <div
+                class="pointer-events-none absolute inset-0 opacity-[0.07]"
+                style="background-image: repeating-linear-gradient(0deg, transparent 0, transparent 40px, white 40px, white 41px), repeating-linear-gradient(90deg, transparent 0, transparent 40px, white 40px, white 41px);"
             />
+            <div class="pointer-events-none absolute -top-24 right-0 size-96 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div class="pointer-events-none absolute -bottom-24 left-0 size-96 rounded-full bg-emerald-600/10 blur-3xl" />
 
-            <!-- Match info -->
-            <div class="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span class="flex items-center gap-1">
-                    <Calendar class="size-3.5" />
-                    {{ formattedDate }}
-                </span>
-                <span class="flex items-center gap-1">
-                    <Clock class="size-3.5" />
-                    {{ formatTime(match.scheduled_at) }}
-                </span>
-                <span v-if="match.field" class="flex items-center gap-1">
-                    <MapPin class="size-3.5" />
-                    {{ match.field.name }}
-                </span>
+            <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
+                <Link
+                    :href="backHref"
+                    class="mb-6 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                    <ArrowLeft class="size-4" />
+                    <span class="max-w-[14rem] truncate">{{ backLabel }}</span>
+                </Link>
+
+                <div class="text-center sm:text-left">
+                    <p class="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-emerald-400/90">
+                        <Link v-if="club.is_public" :href="`/club/${club.slug}`" class="hover:text-emerald-300">{{ club.name }}</Link>
+                        <span v-else>{{ club.name }}</span>
+                    </p>
+                    <h1 class="mb-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{{ match.title }}</h1>
+                    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-white/70 sm:justify-start">
+                        <span class="inline-flex items-center gap-1.5">
+                            <CalendarDays class="size-4" />
+                            {{ formattedDate }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <Clock class="size-4" />
+                            {{ formatTime(match.scheduled_at) }}
+                        </span>
+                        <span v-if="match.field" class="inline-flex items-center gap-1.5">
+                            <MapPin class="size-4" />
+                            {{ match.field.name }}
+                        </span>
+                        <span v-if="match.season" class="inline-flex items-center gap-1.5">
+                            <Trophy class="size-4 text-violet-300" />
+                            {{ match.season.name }}
+                        </span>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <!-- Video -->
-            <div v-if="match.video_upload?.youtube_embed_url" class="mt-4">
-                <div class="aspect-video w-full overflow-hidden rounded-xl border border-border">
+        <section class="border-b border-border py-10 sm:py-12">
+            <div class="mx-auto max-w-3xl px-4 sm:px-6">
+                <div class="rounded-2xl border border-border bg-card p-6 sm:p-8">
+                    <div v-if="isLive" class="mb-4 flex items-center justify-center gap-2">
+                        <span class="relative flex size-2">
+                            <span class="absolute inline-flex size-full animate-ping rounded-full bg-orange-500 opacity-75" />
+                            <span class="relative inline-flex size-2 rounded-full bg-orange-500" />
+                        </span>
+                        <span class="font-mono text-sm font-bold tabular-nums text-orange-500">{{ clockDisplay }}</span>
+                    </div>
+
+                    <MatchTeamsScore
+                        :team-a="teamA"
+                        :team-b="teamB"
+                        :status="matchStatus"
+                        :is-friendly="match.is_friendly ?? false"
+                        :scheduled-at="match.scheduled_at"
+                    />
+
+                    <div class="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">
+                        <span class="inline-flex items-center gap-1">
+                            <Users class="size-3.5" />
+                            {{ attendanceCount }}/{{ match.max_players }} confirmados
+                        </span>
+                        <span
+                            v-if="match.is_friendly"
+                            class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500"
+                        >Amistoso</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section v-if="match.video_upload?.youtube_embed_url || s3VideoUrl" class="border-b border-border py-8 sm:py-10">
+            <div class="mx-auto max-w-3xl px-4 sm:px-6">
+                <p class="mb-3 text-xs font-bold uppercase tracking-[0.25em] text-primary">Video</p>
+                <div v-if="match.video_upload?.youtube_embed_url" class="aspect-video w-full overflow-hidden rounded-xl border border-border">
                     <iframe
                         :src="match.video_upload.youtube_embed_url"
                         class="h-full w-full"
@@ -121,21 +219,24 @@ const homeUrl = computed(() => {
                         allowfullscreen
                     />
                 </div>
+                <VideoPlayer v-else-if="s3VideoUrl" :src="s3VideoUrl" />
             </div>
-            <div v-else-if="s3VideoUrl" class="mt-4">
-                <VideoPlayer :src="s3VideoUrl" />
-            </div>
+        </section>
 
-            <!-- Timeline -->
-            <div v-if="sortedEvents.length" class="mt-6">
-                <h3 class="mb-4 text-xs font-extrabold tracking-widest text-muted-foreground uppercase">
+        <section class="py-10 sm:py-14">
+            <div class="mx-auto max-w-3xl px-4 sm:px-6">
+                <h2 class="mb-6 flex items-center gap-2 text-xl font-bold sm:text-2xl">
+                    <Clock class="size-5 text-primary" />
                     Timeline
-                    <span class="ml-1 font-normal opacity-60">({{ sortedEvents.length }})</span>
-                </h3>
+                    <span v-if="sortedEvents.length" class="font-mono text-sm font-normal text-muted-foreground">· {{ sortedEvents.length }}</span>
+                </h2>
 
-                <div class="relative space-y-0">
-                    <!-- Center line -->
-                    <div class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border"></div>
+                <div v-if="sortedEvents.length === 0" class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                    {{ isLive ? 'El partido está en curso. Los eventos aparecerán aquí.' : 'No se registraron eventos.' }}
+                </div>
+
+                <div v-else class="relative space-y-0">
+                    <div class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
 
                     <div
                         v-for="event in sortedEvents"
@@ -143,9 +244,8 @@ const homeUrl = computed(() => {
                         class="relative flex items-center gap-2 py-1.5"
                         :class="getEventTeam(event) === 'b' ? 'flex-row-reverse' : ''"
                     >
-                        <!-- Event card -->
                         <div
-                            class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border px-3 py-2.5"
+                            class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5"
                             :class="getEventTeam(event) === 'b' ? 'flex-row-reverse text-right' : ''"
                             :style="{
                                 borderLeftWidth: getEventTeam(event) === 'a' ? '3px' : undefined,
@@ -154,12 +254,10 @@ const homeUrl = computed(() => {
                                 borderRightColor: getEventTeam(event) === 'b' ? (match.team_b_color ?? '#6b7280') : undefined,
                             }"
                         >
-                            <!-- Icon -->
                             <div class="shrink-0">
                                 <EventIcon :event-type="event.event_type" />
                             </div>
 
-                            <!-- Content -->
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-semibold" :class="EVENT_ICON_COLORS[event.event_type] ?? 'text-foreground'">
                                     {{ EVENT_LABELS[event.event_type] ?? event.event_type }}
@@ -169,12 +267,12 @@ const homeUrl = computed(() => {
                                         v-if="getEventTeam(event)"
                                         class="size-2 shrink-0 rounded-full"
                                         :style="{ backgroundColor: getEventTeam(event) === 'a' ? (match.team_a_color ?? '#6b7280') : (match.team_b_color ?? '#6b7280') }"
-                                    ></span>
+                                    />
                                     <span class="truncate text-foreground/70">
                                         <template v-if="isMember && event.player">
                                             {{ event.player.display_name }}
                                             <template v-if="event.event_type === 'substitution' && event.related_player">
-                                                <span class="text-blue-400"> &rarr; </span>{{ event.related_player.display_name }}
+                                                <span class="text-blue-400"> → </span>{{ event.related_player.display_name }}
                                             </template>
                                         </template>
                                         <template v-else-if="getEventTeam(event)">
@@ -185,7 +283,6 @@ const homeUrl = computed(() => {
                             </div>
                         </div>
 
-                        <!-- Minute bubble (center) -->
                         <div class="z-10 flex shrink-0 flex-col items-center">
                             <span class="flex size-10 items-center justify-center rounded-full border border-border bg-card text-xs font-bold tabular-nums">
                                 {{ event.minute }}<span class="text-[8px] text-muted-foreground">'</span>
@@ -195,20 +292,24 @@ const homeUrl = computed(() => {
                             </span>
                         </div>
 
-                        <!-- Spacer -->
-                        <div class="flex-1"></div>
+                        <div class="flex-1" />
                     </div>
                 </div>
             </div>
+        </section>
 
-            <div v-else class="mt-6 text-center text-sm text-muted-foreground">
-                {{ isLive ? 'El partido esta en curso. Los eventos apareceran aqui.' : 'No se registraron eventos.' }}
+        <footer class="border-t border-border bg-background py-8">
+            <div class="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 text-center text-sm text-muted-foreground sm:px-6">
+                <AppLogo />
+                <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                    <Link v-if="club.is_public" :href="`/club/${club.slug}`" class="hover:text-foreground">{{ club.name }}</Link>
+                    <span v-if="club.is_public" class="text-muted-foreground/40">·</span>
+                    <Link href="/news" class="hover:text-foreground">Noticias</Link>
+                    <span class="text-muted-foreground/40">·</span>
+                    <Link href="/terms" class="hover:text-foreground">Términos</Link>
+                </div>
+                <p class="text-xs">&copy; {{ new Date().getFullYear() }} Grandes del Fútbol</p>
             </div>
-
-            <!-- Footer -->
-            <div class="mt-10 text-center text-[10px] text-muted-foreground/50">
-                Grandes del Futbol
-            </div>
-        </div>
+        </footer>
     </div>
 </template>

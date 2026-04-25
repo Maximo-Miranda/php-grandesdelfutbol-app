@@ -32,6 +32,8 @@ class PublicTeamController extends Controller
             'PJ' => 0, 'G' => 0, 'E' => 0, 'P' => 0, 'GF' => 0, 'GC' => 0, 'DG' => 0, 'Pts' => 0, 'last5' => [],
         ];
 
+        $publicPlayers = $team->players->filter(fn (Player $p) => $p->isPubliclyVisible());
+
         $recentMatches = FootballMatch::query()
             ->where('season_id', $team->season_id)
             ->where(fn ($q) => $q->where('team_a_id', $team->id)->orWhere('team_b_id', $team->id))
@@ -58,10 +60,10 @@ class PublicTeamController extends Controller
                     'name' => $team->season->name,
                     'is_active' => $team->season->isActive(),
                 ],
-                'coach' => $team->coach ? $this->presentPlayer($team->coach) : null,
-                'captain' => $team->captain ? $this->presentPlayer($team->captain) : null,
-                'players' => $team->players->map(fn (Player $p) => $this->presentPlayer($p))->values(),
-                'players_count' => $team->players->count(),
+                'coach' => $team->coach?->isPubliclyVisible() ? $this->presentPlayer($team->coach) : null,
+                'captain' => $team->captain?->isPubliclyVisible() ? $this->presentPlayer($team->captain) : null,
+                'players' => $publicPlayers->map(fn (Player $p) => $this->presentPlayer($p))->values(),
+                'players_count' => $publicPlayers->count(),
             ],
             'club' => [
                 'ulid' => $team->club->ulid,

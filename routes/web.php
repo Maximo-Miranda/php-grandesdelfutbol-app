@@ -30,6 +30,7 @@ use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicClubController;
 use App\Http\Controllers\PublicExploreController;
 use App\Http\Controllers\PublicMatchController;
+use App\Http\Controllers\PublicPlayerController;
 use App\Http\Controllers\PublicTeamController;
 use App\Http\Controllers\SeasonController;
 use App\Http\Controllers\SitemapController;
@@ -53,6 +54,7 @@ Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('
 Route::get('explorar', [PublicExploreController::class, 'index'])->middleware('throttle:news-read')->name('explore.public');
 Route::get('club/{club:slug}', [PublicClubController::class, 'show'])->name('club.public');
 Route::get('team/{team:ulid}', [PublicTeamController::class, 'show'])->name('team.public');
+Route::get('player/{player:ulid}', [PublicPlayerController::class, 'show'])->name('player.public');
 Route::get('video/{matchUlid}', [VideoShareController::class, 'show'])->name('video.share');
 Route::get('clubs/invitations/{token}/accept', [ClubInvitationController::class, 'show'])->name('invitations.show');
 Route::get('join/{slug}', [ClubJoinController::class, 'show'])->name('clubs.join');

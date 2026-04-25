@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar, CalendarClock, ChevronRight, MapPin, Shield, Trophy, Users } from 'lucide-vue-next';
+import { ArrowLeft, CalendarDays, CalendarClock, ChevronRight, Clock, MapPin, Shield, Trophy, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import ClubShield from '@/components/ClubShield.vue';
+import MatchTeamsScore from '@/components/match/MatchTeamsScore.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
-import { buildCanonicalUrl, truncateForMeta } from '@/lib/utils';
+import { buildCanonicalUrl, formatDate, formatTime, truncateForMeta } from '@/lib/utils';
+import type { MatchStatus, TeamSide } from '@/types';
 
 type PublicMatch = {
     id: number;
     ulid: string;
     title: string | null;
     scheduled_at: string;
-    status: string;
+    status: MatchStatus;
+    is_friendly: boolean;
+    max_players: number;
+    attendances_count: number;
     team_a_name: string | null;
     team_b_name: string | null;
     team_a_score?: number | null;
@@ -23,6 +28,7 @@ type PublicMatch = {
     team_a_logo_url?: string | null;
     team_b_logo_url?: string | null;
     share_token?: string | null;
+    season?: { name: string } | null;
     field?: { id: number; name: string; venue?: { id: number; name: string; address?: string | null } | null } | null;
 };
 
@@ -91,42 +97,30 @@ const stats = computed(() => [
     { label: 'Próximos', value: props.club.upcoming_matches_count, icon: CalendarClock },
 ]);
 
-function formatFullDate(iso: string): string {
-    const date = new Date(iso);
-
-    return date.toLocaleDateString('es-CO', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-function formatDay(iso: string): { day: string; month: string; time: string } {
-    const date = new Date(iso);
-
-    return {
-        day: date.toLocaleDateString('es-CO', { day: '2-digit' }),
-        month: date.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '').toUpperCase(),
-        time: date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-    };
-}
-
 function matchUrl(match: PublicMatch): string | null {
     return match.share_token ? `/match/${match.share_token}` : null;
 }
 
-function teamName(name: string | null | undefined, fallback = 'Equipo'): string {
-    const trimmed = name?.trim();
-
-    return trimmed && trimmed.length > 0 ? trimmed : fallback;
+function teamASide(m: PublicMatch): TeamSide {
+    return {
+        name: m.team_a_name ?? 'Equipo A',
+        color: m.team_a_color ?? null,
+        logo_url: m.team_a_logo_url ?? null,
+        score: m.team_a_score ?? null,
+    };
 }
 
-function teamInitial(name: string | null | undefined, fallback = '?'): string {
-    const trimmed = name?.trim();
+function teamBSide(m: PublicMatch): TeamSide | null {
+    if (!m.team_b_name) {
+        return null;
+    }
 
-    return trimmed && trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : fallback;
+    return {
+        name: m.team_b_name,
+        color: m.team_b_color ?? null,
+        logo_url: m.team_b_logo_url ?? null,
+        score: m.team_b_score ?? null,
+    };
 }
 </script>
 
@@ -155,14 +149,13 @@ function teamInitial(name: string | null | undefined, fallback = '?'): string {
             <div class="pointer-events-none absolute -top-24 right-0 size-96 rounded-full bg-emerald-500/20 blur-3xl" />
             <div class="pointer-events-none absolute -bottom-24 left-0 size-96 rounded-full bg-emerald-600/10 blur-3xl" />
 
-            <div class="relative mx-auto max-w-6xl px-4 sm:px-6">
-                <!-- Back to explore -->
+            <div class="relative mx-auto max-w-5xl px-4 sm:px-6">
                 <Link
-                    href="/explorar"
+                    href="/"
                     class="mb-6 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                 >
                     <ArrowLeft class="size-4" />
-                    Volver a clubes
+                    Volver al inicio
                 </Link>
 
                 <div class="flex flex-col items-center gap-8 text-center sm:flex-row sm:items-center sm:gap-10 sm:text-left">
@@ -207,97 +200,63 @@ function teamInitial(name: string | null | undefined, fallback = '?'): string {
             </div>
         </section>
 
-        <!-- Próximos partidos -->
         <section v-if="nextMatches.length > 0" class="border-b border-border py-12 sm:py-16">
             <div class="mx-auto max-w-5xl px-4 sm:px-6">
-                <div class="mb-8 flex items-end justify-between gap-4">
-                    <div>
-                        <p class="mb-1 text-xs font-bold uppercase tracking-[0.25em] text-primary">Calendario</p>
-                        <h2 class="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
-                            <Calendar class="size-6 text-primary" />
-                            Próximos partidos
-                        </h2>
-                    </div>
+                <div class="mb-8">
+                    <p class="mb-1 text-xs font-bold uppercase tracking-[0.25em] text-primary">Calendario</p>
+                    <h2 class="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+                        <CalendarDays class="size-6 text-primary" />
+                        Próximos partidos
+                    </h2>
                 </div>
 
-                <div class="grid gap-4">
+                <div class="space-y-3">
                     <component
                         :is="matchUrl(match) ? Link : 'div'"
                         v-for="match in nextMatches"
                         :key="match.ulid"
                         :href="matchUrl(match) ?? undefined"
-                        class="group relative overflow-hidden rounded-2xl border border-border bg-card transition-all"
-                        :class="matchUrl(match) ? 'cursor-pointer hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5' : ''"
+                        class="block overflow-hidden rounded-xl border border-border bg-card transition-all duration-200"
+                        :class="matchUrl(match) ? 'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg' : ''"
                     >
-                        <!-- Top strip: date + time -->
-                        <div class="flex items-center justify-between gap-3 border-b border-border/60 bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent px-4 py-2.5 sm:px-5">
-                            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                <Calendar class="size-3.5" />
-                                <span>{{ formatDay(match.scheduled_at).day }} {{ formatDay(match.scheduled_at).month }}</span>
-                                <span class="text-emerald-600/40 dark:text-emerald-400/40">·</span>
-                                <span class="font-mono">{{ formatDay(match.scheduled_at).time }}</span>
-                            </div>
-                            <ChevronRight
-                                v-if="matchUrl(match)"
-                                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary"
+                        <div class="flex flex-col gap-1.5 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                            <h3 class="min-w-0 truncate font-semibold leading-tight sm:flex-1">{{ match.title }}</h3>
+                            <span
+                                v-if="match.season"
+                                class="inline-flex max-w-full items-center gap-1 self-end rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-400 sm:max-w-[55%] sm:shrink-0"
+                                :title="match.season.name"
+                            >
+                                <Trophy class="size-2.5 shrink-0" />
+                                <span class="truncate">{{ match.season.name }}</span>
+                            </span>
+                        </div>
+
+                        <div class="px-4 py-4">
+                            <MatchTeamsScore
+                                :team-a="teamASide(match)"
+                                :team-b="teamBSide(match)"
+                                :status="match.status"
+                                :is-friendly="match.is_friendly"
+                                :scheduled-at="match.scheduled_at"
+                                variant="compact"
                             />
                         </div>
 
-                        <!-- Teams face-off -->
-                        <div class="flex items-center gap-3 px-4 py-5 sm:px-5">
-                            <!-- Team A -->
-                            <div class="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-                                <span
-                                    v-if="match.team_a_logo_url"
-                                    class="inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-white/10 sm:size-12"
-                                >
-                                    <img :src="match.team_a_logo_url" :alt="`Escudo de ${teamName(match.team_a_name, 'Equipo A')}`" class="size-full object-cover" />
-                                </span>
-                                <span
-                                    v-else
-                                    class="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow ring-2 ring-white/10 sm:size-12"
-                                    :style="{ background: `linear-gradient(135deg, ${match.team_a_color ?? '#1a1a1a'}, ${match.team_a_color ?? '#1a1a1a'}cc)` }"
-                                >
-                                    <span class="text-base font-black tracking-tight drop-shadow sm:text-lg">{{ teamInitial(match.team_a_name, 'A') }}</span>
-                                </span>
-                                <p class="min-w-0 truncate text-sm font-bold leading-tight sm:text-base">{{ teamName(match.team_a_name, 'Equipo A') }}</p>
-                            </div>
-
-                            <!-- vs separator -->
-                            <span class="shrink-0 rounded-md bg-muted px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:text-xs">vs</span>
-
-                            <!-- Team B -->
-                            <div class="flex min-w-0 flex-1 items-center justify-end gap-2.5 sm:gap-3">
-                                <p class="min-w-0 truncate text-right text-sm font-bold leading-tight sm:text-base">{{ teamName(match.team_b_name, 'Equipo B') }}</p>
-                                <span
-                                    v-if="match.team_b_logo_url"
-                                    class="inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-white/10 sm:size-12"
-                                >
-                                    <img :src="match.team_b_logo_url" :alt="`Escudo de ${teamName(match.team_b_name, 'Equipo B')}`" class="size-full object-cover" />
-                                </span>
-                                <span
-                                    v-else
-                                    class="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow ring-2 ring-white/10 sm:size-12"
-                                    :style="{ background: `linear-gradient(135deg, ${match.team_b_color ?? '#facc15'}, ${match.team_b_color ?? '#facc15'}cc)` }"
-                                >
-                                    <span class="text-base font-black tracking-tight drop-shadow sm:text-lg">{{ teamInitial(match.team_b_name, 'B') }}</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Venue -->
-                        <div v-if="match.field?.venue" class="flex items-center gap-1.5 border-t border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground sm:px-5">
-                            <MapPin class="size-3.5 shrink-0" />
-                            <span class="truncate">
-                                {{ match.field.venue.name }}<span v-if="match.field.name" class="text-muted-foreground/60"> · {{ match.field.name }}</span>
-                            </span>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/50 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
+                            <span class="flex items-center gap-1"><CalendarDays class="size-3.5" />{{ formatDate(match.scheduled_at) }}</span>
+                            <span class="flex items-center gap-1"><Clock class="size-3.5" />{{ formatTime(match.scheduled_at) }}</span>
+                            <span v-if="match.field" class="flex items-center gap-1"><MapPin class="size-3.5" />{{ match.field.name }}</span>
+                            <span class="flex items-center gap-1"><Users class="size-3.5" />{{ match.attendances_count }}/{{ match.max_players }}</span>
+                            <span
+                                v-if="match.is_friendly"
+                                class="ml-auto rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500"
+                            >Amistoso</span>
                         </div>
                     </component>
                 </div>
             </div>
         </section>
 
-        <!-- Últimos resultados — scoreboard style -->
         <section v-if="recentMatches.length > 0" class="border-b border-border bg-muted/30 py-12 sm:py-16">
             <div class="mx-auto max-w-5xl px-4 sm:px-6">
                 <div class="mb-8">
@@ -308,118 +267,47 @@ function teamInitial(name: string | null | undefined, fallback = '?'): string {
                     </h2>
                 </div>
 
-                <div class="grid gap-4">
+                <div class="space-y-3">
                     <component
                         :is="matchUrl(match) ? Link : 'div'"
                         v-for="match in recentMatches"
                         :key="match.ulid"
                         :href="matchUrl(match) ?? undefined"
-                        class="group relative overflow-hidden rounded-2xl border border-border bg-card transition-all"
-                        :class="matchUrl(match) ? 'cursor-pointer hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5' : ''"
+                        class="block overflow-hidden rounded-xl border border-border bg-card transition-all duration-200"
+                        :class="matchUrl(match) ? 'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg' : ''"
                     >
-                        <!-- Team color gradient accents -->
-                        <div
-                            class="pointer-events-none absolute inset-y-0 left-0 w-1/2 opacity-70"
-                            :style="{ background: `linear-gradient(90deg, ${match.team_a_color ?? '#1a1a1a'}22 0%, transparent 85%)` }"
-                        />
-                        <div
-                            class="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-70"
-                            :style="{ background: `linear-gradient(270deg, ${match.team_b_color ?? '#facc15'}22 0%, transparent 85%)` }"
-                        />
+                        <div class="flex flex-col gap-1.5 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                            <h3 class="min-w-0 truncate font-semibold leading-tight sm:flex-1">{{ match.title }}</h3>
+                            <span
+                                v-if="match.season"
+                                class="inline-flex max-w-full items-center gap-1 self-end rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-400 sm:max-w-[55%] sm:shrink-0"
+                                :title="match.season.name"
+                            >
+                                <Trophy class="size-2.5 shrink-0" />
+                                <span class="truncate">{{ match.season.name }}</span>
+                            </span>
+                        </div>
 
-                        <div class="relative">
-                            <!-- Final badge -->
-                            <div class="flex items-center justify-center border-b border-border/40 bg-muted/20 px-4 py-1.5">
-                                <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground">Final</span>
-                            </div>
+                        <div class="px-4 py-4">
+                            <MatchTeamsScore
+                                :team-a="teamASide(match)"
+                                :team-b="teamBSide(match)"
+                                :status="match.status"
+                                :is-friendly="match.is_friendly"
+                                :scheduled-at="match.scheduled_at"
+                                variant="compact"
+                            />
+                        </div>
 
-                            <!-- Scoreboard: two rows, one per team, with score on the right (aligned) -->
-                            <div class="divide-y divide-border/40 px-4 py-3 sm:px-6 sm:py-4">
-                                <!-- Team A row -->
-                                <div class="flex items-center gap-3 py-2.5 sm:gap-4">
-                                    <span
-                                        v-if="match.team_a_logo_url"
-                                        class="inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-white/10 sm:size-12"
-                                    >
-                                        <img :src="match.team_a_logo_url" :alt="`Escudo de ${teamName(match.team_a_name, 'Equipo A')}`" class="size-full object-cover" />
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow ring-2 ring-white/10 sm:size-12"
-                                        :style="{ background: `linear-gradient(135deg, ${match.team_a_color ?? '#1a1a1a'}, ${match.team_a_color ?? '#1a1a1a'}cc)` }"
-                                    >
-                                        <span class="text-base font-black tracking-tight drop-shadow sm:text-lg">{{ teamInitial(match.team_a_name, 'A') }}</span>
-                                    </span>
-                                    <p
-                                        class="min-w-0 flex-1 truncate text-sm font-bold leading-tight sm:text-base"
-                                        :class="{
-                                            'text-foreground': (match.team_a_score ?? 0) >= (match.team_b_score ?? 0),
-                                            'text-muted-foreground': (match.team_a_score ?? 0) < (match.team_b_score ?? 0),
-                                        }"
-                                    >
-                                        {{ teamName(match.team_a_name, 'Equipo A') }}
-                                    </p>
-                                    <span
-                                        class="shrink-0 font-mono text-3xl font-black tabular-nums sm:text-4xl"
-                                        :class="{
-                                            'text-emerald-500': (match.team_a_score ?? 0) > (match.team_b_score ?? 0),
-                                            'text-foreground': (match.team_a_score ?? 0) === (match.team_b_score ?? 0),
-                                            'text-muted-foreground/70': (match.team_a_score ?? 0) < (match.team_b_score ?? 0),
-                                        }"
-                                    >{{ match.team_a_score ?? 0 }}</span>
-                                </div>
-
-                                <!-- Team B row -->
-                                <div class="flex items-center gap-3 py-2.5 sm:gap-4">
-                                    <span
-                                        v-if="match.team_b_logo_url"
-                                        class="inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-white/10 sm:size-12"
-                                    >
-                                        <img :src="match.team_b_logo_url" :alt="`Escudo de ${teamName(match.team_b_name, 'Equipo B')}`" class="size-full object-cover" />
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow ring-2 ring-white/10 sm:size-12"
-                                        :style="{ background: `linear-gradient(135deg, ${match.team_b_color ?? '#facc15'}, ${match.team_b_color ?? '#facc15'}cc)` }"
-                                    >
-                                        <span class="text-base font-black tracking-tight drop-shadow sm:text-lg">{{ teamInitial(match.team_b_name, 'B') }}</span>
-                                    </span>
-                                    <p
-                                        class="min-w-0 flex-1 truncate text-sm font-bold leading-tight sm:text-base"
-                                        :class="{
-                                            'text-foreground': (match.team_b_score ?? 0) >= (match.team_a_score ?? 0),
-                                            'text-muted-foreground': (match.team_b_score ?? 0) < (match.team_a_score ?? 0),
-                                        }"
-                                    >
-                                        {{ teamName(match.team_b_name, 'Equipo B') }}
-                                    </p>
-                                    <span
-                                        class="shrink-0 font-mono text-3xl font-black tabular-nums sm:text-4xl"
-                                        :class="{
-                                            'text-emerald-500': (match.team_b_score ?? 0) > (match.team_a_score ?? 0),
-                                            'text-foreground': (match.team_b_score ?? 0) === (match.team_a_score ?? 0),
-                                            'text-muted-foreground/70': (match.team_b_score ?? 0) < (match.team_a_score ?? 0),
-                                        }"
-                                    >{{ match.team_b_score ?? 0 }}</span>
-                                </div>
-                            </div>
-
-                            <!-- Bottom strip: date + venue + chevron -->
-                            <div class="flex items-center justify-between gap-2 border-t border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground sm:px-6">
-                                <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
-                                    <span class="inline-flex items-center gap-1">
-                                        <Calendar class="size-3" />
-                                        {{ formatFullDate(match.scheduled_at) }}
-                                    </span>
-                                    <span v-if="match.field?.venue" class="inline-flex items-center gap-1">
-                                        <MapPin class="size-3" />
-                                        {{ match.field.venue.name }}
-                                    </span>
-                                </div>
-                                <span v-if="matchUrl(match)" class="hidden shrink-0 items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 sm:inline-flex">
-                                    Ver partido <ChevronRight class="size-3" />
-                                </span>
-                            </div>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/50 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
+                            <span class="flex items-center gap-1"><CalendarDays class="size-3.5" />{{ formatDate(match.scheduled_at) }}</span>
+                            <span class="flex items-center gap-1"><Clock class="size-3.5" />{{ formatTime(match.scheduled_at) }}</span>
+                            <span v-if="match.field" class="flex items-center gap-1"><MapPin class="size-3.5" />{{ match.field.name }}</span>
+                            <span class="flex items-center gap-1"><Users class="size-3.5" />{{ match.attendances_count }}/{{ match.max_players }}</span>
+                            <span
+                                v-if="match.is_friendly"
+                                class="ml-auto rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500"
+                            >Amistoso</span>
                         </div>
                     </component>
                 </div>

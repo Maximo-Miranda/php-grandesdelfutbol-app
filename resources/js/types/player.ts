@@ -43,6 +43,7 @@ export type PlayerProfile = {
     bio: string | null;
     preferred_position: string | null;
     phone?: string | null;
+    is_public_profile?: boolean;
     created_at: string;
     updated_at: string;
 };

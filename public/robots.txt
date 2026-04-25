@@ -8,5 +8,6 @@ Disallow: /player-card
 Disallow: /player-profile
 Disallow: /news/bookmarks
 Disallow: /news/preferences
+Disallow: /explorar
 
 Sitemap: https://grandesdelfutbol.com/sitemap.xml

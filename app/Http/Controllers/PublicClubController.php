@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttachmentCollection;
+use App\Enums\AttendanceStatus;
 use App\Models\Club;
 use App\Models\Field;
 use App\Models\FootballMatch;
@@ -26,6 +27,7 @@ class PublicClubController extends Controller
 
         $matchEager = [
             'field.venue:id,name,address',
+            'season:id,name',
             'teamA.attachments' => fn ($q) => $q->where('collection', AttachmentCollection::TeamLogo),
             'teamB.attachments' => fn ($q) => $q->where('collection', AttachmentCollection::TeamLogo),
         ];
@@ -33,6 +35,7 @@ class PublicClubController extends Controller
         $nextMatches = $club->matches()
             ->upcoming()
             ->with($matchEager)
+            ->withCount(['attendances' => fn ($q) => $q->where('status', AttendanceStatus::Confirmed)])
             ->orderBy('scheduled_at')
             ->limit(3)
             ->get()
@@ -41,6 +44,7 @@ class PublicClubController extends Controller
         $recentMatches = $club->matches()
             ->completed()
             ->with($matchEager)
+            ->withCount(['attendances' => fn ($q) => $q->where('status', AttendanceStatus::Confirmed)])
             ->orderByDesc('scheduled_at')
             ->limit(5)
             ->get()
@@ -85,6 +89,9 @@ class PublicClubController extends Controller
             'title' => $match->title,
             'scheduled_at' => $match->scheduled_at,
             'status' => $match->status,
+            'is_friendly' => (bool) $match->is_friendly,
+            'max_players' => $match->max_players,
+            'attendances_count' => $match->attendances_count ?? 0,
             'team_a_name' => $match->team_a_name,
             'team_b_name' => $match->team_b_name,
             'team_a_score' => $match->team_a_score,
@@ -94,6 +101,7 @@ class PublicClubController extends Controller
             'team_a_logo_url' => $match->teamA?->logo_url,
             'team_b_logo_url' => $match->teamB?->logo_url,
             'share_token' => $match->share_token,
+            'season' => $match->season ? ['name' => $match->season->name] : null,
             'field' => $this->presentField($match->field),
         ];
     }

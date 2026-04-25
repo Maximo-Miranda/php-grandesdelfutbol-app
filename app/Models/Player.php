@@ -10,6 +10,7 @@ use Database\Factories\PlayerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * @property int $id
@@ -136,6 +137,16 @@ class Player extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_player')->withTimestamps();
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->user?->playerProfile?->is_public_profile ?? true;
     }
 
     public function scopeActive($query)

@@ -21,6 +21,7 @@ class PlayerProfileFactory extends Factory
             'nationality' => fake()->country(),
             'bio' => fake()->sentence(),
             'preferred_position' => fake()->randomElement(['GK', 'CB', 'CM', 'ST']),
+            'is_public_profile' => true,
         ];
     }
 }
