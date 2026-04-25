@@ -83,6 +83,23 @@ export function buildShareUrl(path: string): string {
     return `${window.location.origin}${path}`;
 }
 
+export function buildCanonicalUrl(appUrl: string, path: string): string {
+    const base = appUrl.replace(/\/$/, '');
+    const suffix = path.startsWith('/') ? path : `/${path}`;
+
+    return `${base}${suffix}`;
+}
+
+export function truncateForMeta(value: string | null | undefined, max = 160): string {
+    const trimmed = (value ?? '').replace(/\s+/g, ' ').trim();
+
+    if (trimmed.length <= max) {
+        return trimmed;
+    }
+
+    return `${trimmed.slice(0, max - 1).trimEnd()}…`;
+}
+
 export function getCsrfToken(): string {
     return decodeURIComponent(
         document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '',

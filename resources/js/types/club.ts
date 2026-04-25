@@ -10,6 +10,7 @@ export type Club = {
     invite_token: string | null;
     is_invite_active: boolean;
     requires_approval: boolean;
+    is_public: boolean;
     logo_url?: string | null;
     owner?: User;
     members_count?: number;

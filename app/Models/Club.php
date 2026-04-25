@@ -72,6 +72,7 @@ class Club extends Model
         'invite_token',
         'is_invite_active',
         'requires_approval',
+        'is_public',
         'youtube_playlist_id',
         'google_drive_folder_id',
     ];
@@ -100,6 +101,7 @@ class Club extends Model
         return [
             'is_invite_active' => 'boolean',
             'requires_approval' => 'boolean',
+            'is_public' => 'boolean',
         ];
     }
 

@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, BookOpen, Clock, ExternalLink, Layers, Loader2, Sparkles, User2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NewsBookmarkButton from '@/components/news/NewsBookmarkButton.vue';
 import NewsComments from '@/components/news/NewsComments.vue';
 import NewsImageCarousel from '@/components/news/NewsImageCarousel.vue';
 import NewsLikeButton from '@/components/news/NewsLikeButton.vue';
 import NewsShareButton from '@/components/news/NewsShareButton.vue';
+import PublicHeader from '@/components/PublicHeader.vue';
+import SeoHead from '@/components/SeoHead.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useHistoryBack } from '@/composables/useHistoryBack';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { buildShareUrl, formatTimeAgo } from '@/lib/utils';
+import { buildShareUrl, formatTimeAgo, truncateForMeta } from '@/lib/utils';
 import type { BreadcrumbItem, NewsArticle, NewsArticleComment } from '@/types';
 
 type Props = {
@@ -42,6 +43,45 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const timeAgo = computed(() => formatTimeAgo(props.article.published_at));
+
+const canonicalUrl = computed(() => `${window.location.origin}/news/${props.article.slug}`);
+
+const seoDescription = computed(() =>
+    truncateForMeta(props.article.ai_summary ?? props.article.snippet ?? props.article.full_content),
+);
+
+const seoTitle = computed(() => `${props.article.title} — Grandes del Fútbol`);
+
+const ogImage = computed(() => {
+    if (props.article.image_urls && props.article.image_urls.length > 0) {
+        return props.article.image_urls[0];
+    }
+
+    return props.article.image_url ?? '';
+});
+
+const jsonLd = computed(() =>
+    JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: props.article.title,
+        description: seoDescription.value,
+        datePublished: props.article.published_at,
+        image: ogImage.value || undefined,
+        mainEntityOfPage: canonicalUrl.value,
+        publisher: {
+            '@type': 'Organization',
+            name: 'Grandes del Fútbol',
+            logo: {
+                '@type': 'ImageObject',
+                url: `${window.location.origin}/pwa-512x512.png`,
+            },
+        },
+        author: props.article.source?.name
+            ? { '@type': 'Organization', name: props.article.source.name }
+            : undefined,
+    }),
+);
 
 const shareUrl = computed(() => buildShareUrl(`/news/${props.article.slug}`));
 
@@ -78,23 +118,25 @@ function generateSummary(): void {
 </script>
 
 <template>
-    <Head :title="article.title" />
+    <SeoHead
+        :title="seoTitle"
+        :description="seoDescription"
+        :canonical-url="canonicalUrl"
+        :og-image="ogImage || null"
+        og-type="article"
+        :published-at="article.published_at"
+        :publisher="article.source?.name ?? null"
+    />
 
     <component :is="isAuthenticated ? AppLayout : 'div'" v-bind="isAuthenticated ? { breadcrumbs } : { class: 'min-h-screen bg-background' }">
-        <!-- Guest header -->
-        <header v-if="!isAuthenticated" class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
-            <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-                <Link href="/" class="flex items-center gap-2">
-                    <AppLogoIcon class="size-8 text-primary" />
-                    <span class="text-sm font-bold tracking-tight">GDF Noticias</span>
-                </Link>
-                <Link href="/start">
-                    <Button size="sm" variant="default">Iniciar sesión</Button>
-                </Link>
-            </div>
-        </header>
+        <!-- JSON-LD NewsArticle schema for search engines -->
+        <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
+        <component :is="'script'" type="application/ld+json" v-html="jsonLd" />
 
-        <article class="mx-auto max-w-3xl">
+        <!-- Guest header -->
+        <PublicHeader v-if="!isAuthenticated" />
+
+        <article class="mx-auto max-w-3xl" :class="{ 'pt-16': !isAuthenticated }">
             <!-- Back -->
             <div class="px-4 pt-4 sm:pt-6">
                 <button

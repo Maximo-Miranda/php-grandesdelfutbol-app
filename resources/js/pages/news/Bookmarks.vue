@@ -19,7 +19,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 </script>
 
 <template>
-    <Head title="Noticias guardadas" />
+    <Head title="Noticias guardadas — Grandes del Fútbol">
+        <meta head-key="description" name="description" content="Tus noticias de fútbol guardadas en Grandes del Fútbol." />
+        <meta head-key="robots" name="robots" content="noindex, follow" />
+    </Head>
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <main class="mx-auto max-w-2xl px-4 py-6">

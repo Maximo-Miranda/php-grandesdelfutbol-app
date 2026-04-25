@@ -46,3 +46,14 @@ test('authenticated user with no clubs is redirected to clubs index', function (
         ->get(route('home'))
         ->assertRedirect(route('clubs.index'));
 });
+
+test('welcome page exposes recentNews prop for guests', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Welcome')
+            ->has('recentNews')
+            ->has('canRegister')
+            ->has('appUrl')
+        );
+});

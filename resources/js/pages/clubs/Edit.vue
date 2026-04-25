@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { Check, Copy, Share2, Trash2 } from 'lucide-vue-next';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Check, Copy, ExternalLink, Globe, Share2, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useClubPermissions } from '@/composables/useClubPermissions';
@@ -27,6 +28,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     name: props.club.name,
     description: props.club.description ?? '',
+    is_public: props.club.is_public ?? true,
 });
 
 function submit() {
@@ -34,6 +36,7 @@ function submit() {
 }
 
 const joinUrl = computed(() => `${window.location.origin}/join/${props.club.slug}`);
+const publicUrl = computed(() => `${window.location.origin}/club/${props.club.slug}`);
 
 const copied = ref(false);
 
@@ -88,6 +91,29 @@ function deleteClub() {
                     <Label for="description">Descripcion</Label>
                     <Input id="description" v-model="form.description" placeholder="Descripcion opcional" />
                     <InputError :message="form.errors.description" />
+                </div>
+
+                <!-- Public visibility toggle -->
+                <div class="rounded-lg border border-border p-4">
+                    <div class="flex items-start gap-3">
+                        <Checkbox id="is_public" v-model="form.is_public" class="mt-0.5" />
+                        <div class="flex-1">
+                            <Label for="is_public" class="flex cursor-pointer items-center gap-1.5 text-sm font-medium">
+                                <Globe class="size-4 text-primary" />
+                                Mostrar página pública del club y equipos
+                            </Label>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Cualquier persona podrá ver la página del club y de sus equipos (próximos partidos, resultados y plantillas). No se expone información privada de miembros.
+                            </p>
+                            <div v-if="form.is_public" class="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+                                <Globe class="size-3.5 shrink-0 text-muted-foreground" />
+                                <Link :href="`/club/${club.slug}`" target="_blank" class="truncate text-primary hover:underline">
+                                    {{ publicUrl }}
+                                </Link>
+                                <ExternalLink class="size-3 shrink-0 text-muted-foreground" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-4">

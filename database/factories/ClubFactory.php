@@ -25,6 +25,7 @@ class ClubFactory extends Factory
             'invite_token' => Str::random(32),
             'is_invite_active' => true,
             'requires_approval' => true,
+            'is_public' => true,
         ];
     }
 

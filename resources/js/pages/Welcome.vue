@@ -4,7 +4,9 @@ import { Check, ChevronRight, Send, Trophy, UserPlus, Users } from 'lucide-vue-n
 import { computed, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import InputError from '@/components/InputError.vue';
+import NewsArticleCard from '@/components/news/NewsArticleCard.vue';
 import PhoneInput from '@/components/PhoneInput.vue';
+import PublicHeader from '@/components/PublicHeader.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -19,16 +21,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/utils';
 import { dashboard, privacy, terms } from '@/routes';
-import heroImage from '../../images/hero-football.jpg';
+import type { NewsArticle } from '@/types';
 
 const props = withDefaults(
     defineProps<{
         canRegister: boolean;
         appUrl: string;
+        recentNews?: NewsArticle[];
     }>(),
     {
         canRegister: true,
         appUrl: '',
+        recentNews: () => [],
     },
 );
 
@@ -144,40 +148,26 @@ const pricingPlans = [
     </Head>
 
     <div class="min-h-screen bg-background text-foreground">
-        <!-- Header -->
-        <header class="fixed top-0 right-0 left-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
-            <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-                <Link href="/" class="flex items-center gap-2">
-                    <AppLogo />
-                </Link>
+        <PublicHeader />
 
-                <div class="flex items-center gap-3">
-                    <template v-if="isLoggedIn">
-                        <Link
-                            :href="dashboard()"
-                            class="gradient-primary-bg rounded-lg px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                        >
-                            Ir al panel
-                        </Link>
-                    </template>
-                    <template v-else>
-                        <Link
-                            href="/start?mode=login"
-                            class="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-                        >
-                            Iniciar sesión
-                        </Link>
-                    </template>
-                </div>
-            </div>
-        </header>
-
-        <!-- Hero -->
+        <!-- Hero: dark emerald gradient with grid texture -->
         <section class="relative flex min-h-screen items-center justify-center overflow-hidden pt-16">
-            <div class="absolute inset-0">
-                <img :src="heroImage" alt="Partido de fútbol amateur" class="h-full w-full object-cover" />
-                <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
-            </div>
+            <!-- Base: dark emerald → slate gradient (stadium at night) -->
+            <div class="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950" />
+
+            <!-- Grid texture (consistent with /explorar) -->
+            <div
+                class="pointer-events-none absolute inset-0 opacity-[0.07]"
+                style="background-image: repeating-linear-gradient(0deg, transparent 0, transparent 40px, white 40px, white 41px), repeating-linear-gradient(90deg, transparent 0, transparent 40px, white 40px, white 41px);"
+            />
+
+            <!-- Stadium light glows for depth -->
+            <div class="pointer-events-none absolute -top-32 -left-20 size-[32rem] rounded-full bg-emerald-500/25 blur-3xl" />
+            <div class="pointer-events-none absolute -bottom-32 -right-20 size-[32rem] rounded-full bg-emerald-600/20 blur-3xl" />
+            <div class="pointer-events-none absolute top-1/4 right-1/3 size-64 rounded-full bg-emerald-400/10 blur-3xl" />
+
+            <!-- Soft fade to page background at bottom -->
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" />
 
             <div class="relative z-10 mx-auto max-w-4xl px-4 text-center">
                 <h1 class="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -188,6 +178,12 @@ const pricingPlans = [
                     Confirma asistencia, arma equipos y lleva estadísticas — sin perderte en 50 mensajes. Comparte reels de goles y las mejores jugadas en tu grupo.
                 </p>
                 <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                    <a
+                        href="#como-funciona"
+                        class="inline-flex items-center rounded-xl border border-white/20 px-8 py-3.5 text-lg font-semibold text-white transition-colors hover:bg-white/10"
+                    >
+                        Cómo funciona
+                    </a>
                     <Link
                         v-if="!isLoggedIn"
                         href="/start"
@@ -203,12 +199,6 @@ const pricingPlans = [
                     >
                         Ir al panel
                     </Link>
-                    <a
-                        href="#como-funciona"
-                        class="inline-flex items-center rounded-xl border border-white/20 px-8 py-3.5 text-lg font-semibold text-white transition-colors hover:bg-white/10"
-                    >
-                        Cómo funciona
-                    </a>
                 </div>
             </div>
         </section>
@@ -298,6 +288,35 @@ const pricingPlans = [
                             Graba tu partido, súbelo a la plataforma, carga estadísticas y genera reels de los mejores momentos. Todo gratis.
                         </p>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Noticias -->
+        <section v-if="recentNews.length > 0" id="noticias" class="border-t border-border py-16 sm:py-24">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="mb-12 flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+                    <div>
+                        <h2 class="mb-2 text-3xl font-bold sm:text-4xl">Últimas noticias del fútbol</h2>
+                        <p class="max-w-2xl text-muted-foreground">
+                            Lo que se habla hoy, resumido y organizado. Acceso libre, sin registro.
+                        </p>
+                    </div>
+                    <Link
+                        href="/news"
+                        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                    >
+                        Ver todas
+                        <ChevronRight class="size-4" />
+                    </Link>
+                </div>
+
+                <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <NewsArticleCard
+                        v-for="article in recentNews"
+                        :key="article.ulid"
+                        :article="article"
+                    />
                 </div>
             </div>
         </section>

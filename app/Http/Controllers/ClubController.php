@@ -188,7 +188,7 @@ class ClubController extends Controller
             rescue(fn () => app(GoogleDriveService::class)->rename($club->google_drive_folder_id, $club->name));
         }
 
-        return redirect()->route('clubs.show', $club);
+        return redirect()->route('clubs.edit', $club)->with('success', 'Cambios guardados.');
     }
 
     public function destroy(Club $club): RedirectResponse

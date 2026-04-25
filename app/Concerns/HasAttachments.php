@@ -15,6 +15,13 @@ trait HasAttachments
 
     public function getAttachment(AttachmentCollection $collection): ?Attachment
     {
+        if ($this->relationLoaded('attachments')) {
+            return $this->attachments
+                ->where('collection', $collection)
+                ->sortByDesc('created_at')
+                ->first();
+        }
+
         return $this->attachments()->where('collection', $collection)->latest()->first();
     }
 }

@@ -19,6 +19,7 @@ class UpdateClubRequest extends FormRequest
             'name' => ['required', 'string', 'min:2', 'max:100', new UniqueClubName($this->route('club')?->id)],
             'description' => ['nullable', 'string', 'max:500'],
             'logo' => ['nullable', 'image', 'max:2048'],
+            'is_public' => ['sometimes', 'boolean'],
         ];
     }
 }

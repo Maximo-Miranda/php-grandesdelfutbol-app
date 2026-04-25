@@ -1,2 +1,12 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /dashboard
+Disallow: /clubs
+Disallow: /player-card
+Disallow: /player-profile
+Disallow: /news/bookmarks
+Disallow: /news/preferences
+
+Sitemap: https://grandesdelfutbol.com/sitemap.xml
