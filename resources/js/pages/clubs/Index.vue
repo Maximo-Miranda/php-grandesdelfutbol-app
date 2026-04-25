@@ -133,13 +133,6 @@ function openVsr(): void {
                 </p>
             </Link>
 
-            <VideoServiceCta
-                v-if="nextMatch"
-                class="mb-6"
-                :status="nextMatch.active_video_service_request?.status"
-                @request="openVsr"
-            />
-
             <!-- Last match -->
             <Link
                 v-if="lastMatch"
@@ -166,6 +159,13 @@ function openVsr(): void {
                     <span v-if="lastMatch.video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
                 </div>
             </Link>
+
+            <VideoServiceCta
+                v-if="nextMatch"
+                class="mb-6"
+                :status="nextMatch.active_video_service_request?.status"
+                @request="openVsr"
+            />
 
             <!-- Clubs list -->
             <div v-if="clubs.data.length === 0" class="rounded-lg border border-dashed p-8 text-center">
@@ -230,7 +230,6 @@ function openVsr(): void {
 
         <VideoServiceRequestDialog
             v-model:open="vsr.showDialog.value"
-            v-model:plan="vsr.plan.value"
             v-model:phone="vsr.phone.value"
             v-model:message="vsr.message.value"
             :errors="vsr.errors.value"

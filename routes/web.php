@@ -51,7 +51,8 @@ Route::get('privacy', PrivacyController::class)->name('privacy');
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
 Route::get('match/{shareToken}', [PublicMatchController::class, 'show'])->name('match.public');
-Route::get('explorar', [PublicExploreController::class, 'index'])->middleware('throttle:news-read')->name('explore.public');
+Route::get('clubes', [PublicExploreController::class, 'index'])->middleware('throttle:news-read')->name('explore.public');
+Route::permanentRedirect('explorar', 'clubes');
 Route::get('club/{club:slug}', [PublicClubController::class, 'show'])->name('club.public');
 Route::get('team/{team:ulid}', [PublicTeamController::class, 'show'])->name('team.public');
 Route::get('player/{player:ulid}', [PublicPlayerController::class, 'show'])->name('player.public');

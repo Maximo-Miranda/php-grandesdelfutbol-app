@@ -26,7 +26,7 @@ class StoreVideoServiceRequestRequest extends FormRequest
             'preferred_date' => ['required', 'date', 'after:today'],
             'preferred_time' => ['required', 'string', 'max:10'],
             'message' => ['nullable', 'string', 'max:1000'],
-            'selected_plan' => ['required', 'string', 'in:recocha,profesional,mensual'],
+            'selected_plan' => ['required', 'string', 'in:partido_pro'],
         ];
     }
 

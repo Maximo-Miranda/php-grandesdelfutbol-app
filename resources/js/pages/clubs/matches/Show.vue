@@ -1436,7 +1436,6 @@ function dismissPush() {
         </div>
         <VideoServiceRequestDialog
             v-model:open="vsr.showDialog.value"
-            v-model:plan="vsr.plan.value"
             v-model:phone="vsr.phone.value"
             v-model:message="vsr.message.value"
             :errors="vsr.errors.value"

@@ -79,10 +79,13 @@ const showCta = computed(() => !props.status || props.status === 'rejected');
             </span>
             <div class="min-w-0 flex-1 text-left">
                 <p class="text-sm font-bold text-white">Grabamos tu partido en HD</p>
-                <p v-if="!compact" class="text-xs text-emerald-300/70">
-                    Revive cada jugada
-                    <span class="font-semibold text-emerald-300"> · Desde $60.000</span>
-                </p>
+                <template v-if="!compact">
+                    <p class="text-xs text-emerald-300/70">Video, stats y reels</p>
+                    <p class="text-[11px] text-emerald-300/60">
+                        Desde <span class="font-semibold text-emerald-300/90">$30k</span> en cancha aliada
+                        · <span class="font-semibold text-emerald-300/90">$60k</span> en otras
+                    </p>
+                </template>
             </div>
             <ChevronRight class="size-5 shrink-0 text-emerald-400/60 transition-transform group-hover:translate-x-0.5" />
         </div>

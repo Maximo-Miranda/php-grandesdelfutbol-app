@@ -13,7 +13,7 @@ function validRequestData(array $overrides = []): array
         'venue_address' => 'Cancha Sintética Los Pinos, Cra 7 #45',
         'preferred_date' => now()->addWeek()->format('Y-m-d'),
         'preferred_time' => '19:00',
-        'selected_plan' => 'profesional',
+        'selected_plan' => 'partido_pro',
         'message' => 'Necesitamos grabar nuestro próximo partido.',
     ], $overrides);
 }

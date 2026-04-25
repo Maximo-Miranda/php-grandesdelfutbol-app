@@ -148,14 +148,7 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                 </p>
             </Link>
 
-            <VideoServiceCta
-                v-if="nextMatch"
-                class="mb-4"
-                :status="nextMatch.active_video_service_request?.status"
-                @request="openVsr"
-            />
-
-            <div v-else class="mb-4 rounded-lg border border-border p-4 text-center">
+            <div v-if="!nextMatch" class="mb-4 rounded-lg border border-border p-4 text-center">
                 <CalendarDays class="mx-auto mb-2 size-8 text-muted-foreground" />
                 <p class="font-medium">Sin partidos proximos</p>
                 <p class="text-sm text-muted-foreground">Crea un partido para empezar a organizar.</p>
@@ -184,6 +177,13 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
                     <span v-if="lastMatch.video_upload?.youtube_video_id" class="text-primary">Video disponible</span>
                 </div>
             </Link>
+
+            <VideoServiceCta
+                v-if="nextMatch"
+                class="mb-4"
+                :status="nextMatch.active_video_service_request?.status"
+                @request="openVsr"
+            />
 
             <!-- Birthdays this month -->
             <div class="mb-4 overflow-hidden rounded-lg border border-border">
@@ -326,7 +326,6 @@ const currentMonthName = computed(() => new Date().toLocaleDateString('es', { mo
         />
         <VideoServiceRequestDialog
             v-model:open="vsr.showDialog.value"
-            v-model:plan="vsr.plan.value"
             v-model:phone="vsr.phone.value"
             v-model:message="vsr.message.value"
             :errors="vsr.errors.value"

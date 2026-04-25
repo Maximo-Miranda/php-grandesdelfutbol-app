@@ -12,7 +12,6 @@ type MatchContext = {
 export function useVideoServiceRequest() {
     const page = usePage();
     const showDialog = ref(false);
-    const plan = ref('recocha');
     const phone = ref(page.props.auth.user?.player_profile?.phone ?? '');
     const message = ref('');
     const errors = ref<Record<string, string[]>>({});
@@ -53,7 +52,7 @@ export function useVideoServiceRequest() {
                     venue_address: matchContext.fieldName ?? '',
                     preferred_date: matchContext.scheduledAt?.split('T')[0] ?? '',
                     preferred_time: matchContext.scheduledAt?.split('T')[1]?.substring(0, 5) ?? '',
-                    selected_plan: plan.value,
+                    selected_plan: 'partido_pro',
                     message: message.value || null,
                     match_ulid: matchContext.matchUlid ?? null,
                 }),
@@ -72,7 +71,6 @@ export function useVideoServiceRequest() {
 
     return {
         showDialog,
-        plan,
         phone,
         message,
         errors,

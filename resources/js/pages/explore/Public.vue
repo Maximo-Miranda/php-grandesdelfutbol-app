@@ -33,7 +33,7 @@ const props = defineProps<{
     appUrl: string;
 }>();
 
-const canonicalUrl = computed(() => buildCanonicalUrl(props.appUrl, '/explorar'));
+const canonicalUrl = computed(() => buildCanonicalUrl(props.appUrl, '/clubes'));
 
 const searchQuery = ref(props.search ?? '');
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -46,7 +46,7 @@ watch(searchQuery, (value) => {
     const trimmed = value.trim();
 
     debounceTimer = setTimeout(() => {
-        router.visit('/explorar', {
+        router.visit('/clubes', {
             data: trimmed ? { q: trimmed } : {},
             preserveScroll: true,
             preserveState: true,

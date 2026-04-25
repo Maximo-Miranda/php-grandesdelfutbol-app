@@ -16,7 +16,6 @@ import { Textarea } from '@/components/ui/textarea';
 
 defineProps<{
     open: boolean;
-    plan: string;
     phone: string;
     message: string;
     errors: Record<string, string[]>;
@@ -26,7 +25,6 @@ defineProps<{
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
-    'update:plan': [value: string];
     'update:phone': [value: string];
     'update:message': [value: string];
     submit: [];
@@ -38,8 +36,8 @@ const emit = defineEmits<{
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
-                <DialogTitle>Solicitar grabacion</DialogTitle>
-                <DialogDescription>Selecciona el plan y te contactamos para coordinar.</DialogDescription>
+                <DialogTitle>Solicitar grabación</DialogTitle>
+                <DialogDescription>Déjanos tus datos y te contactamos por WhatsApp para coordinar.</DialogDescription>
             </DialogHeader>
 
             <div v-if="success" class="py-6 text-center">
@@ -52,19 +50,9 @@ const emit = defineEmits<{
             </div>
 
             <form v-else class="space-y-4" @submit.prevent="emit('submit')">
-                <div class="grid gap-1.5">
-                    <Label for="vsr-plan">Tipo de servicio</Label>
-                    <select
-                        id="vsr-plan"
-                        :value="plan"
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        @change="emit('update:plan', ($event.target as HTMLSelectElement).value)"
-                    >
-                        <option value="recocha">Recocha — $60.000/partido</option>
-                        <option value="profesional">Profesional — $130.000/partido</option>
-                        <option value="mensual">Mensual — desde $200.000/mes</option>
-                    </select>
-                    <InputError v-if="errors.selected_plan" :message="errors.selected_plan[0]" />
+                <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                    <span class="text-muted-foreground">Servicio:</span>
+                    <span class="ml-2 font-semibold">Partido Pro — Desde $30.000</span>
                 </div>
                 <div class="grid gap-1.5">
                     <Label for="vsr-phone">WhatsApp</Label>
