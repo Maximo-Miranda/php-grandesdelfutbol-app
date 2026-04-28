@@ -13,6 +13,7 @@ use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -29,7 +30,7 @@ class GenerateMatchReel implements ShouldQueue
         return [new WithoutOverlapping($this->reel->id)];
     }
 
-    public int $timeout = 900;
+    public int $timeout = 1800;
 
     public int $tries = 3;
 
@@ -107,32 +108,50 @@ class GenerateMatchReel implements ShouldQueue
             return $localPath;
         }
 
-        // 1. S3 720p reels source (fastest, first 30 days)
+        $lock = Cache::lock("reel-download-{$match->ulid}", 1500);
+        $lock->block(1500);
+
+        $partialPath = $localPath.'.partial';
+
+        try {
+            if (File::exists($localPath)) {
+                return $localPath;
+            }
+
+            $this->downloadToPartial($videoUpload, $partialPath);
+            File::move($partialPath, $localPath);
+
+            return $localPath;
+        } finally {
+            File::delete($partialPath);
+            $lock->release();
+        }
+    }
+
+    protected function downloadToPartial(MatchVideoUpload $videoUpload, string $partialPath): void
+    {
         if ($videoUpload->s3_reels_path && Storage::disk('s3')->exists($videoUpload->s3_reels_path)) {
-            $this->downloadFromS3($videoUpload->s3_reels_path, $localPath);
+            $this->downloadFromS3($videoUpload->s3_reels_path, $partialPath);
 
-            return $localPath;
+            return;
         }
 
-        // 2. S3 legacy path (pre-migration videos)
         if ($videoUpload->s3_path && Storage::disk('s3')->exists($videoUpload->s3_path)) {
-            $this->downloadFromS3($videoUpload->s3_path, $localPath);
+            $this->downloadFromS3($videoUpload->s3_path, $partialPath);
 
-            return $localPath;
+            return;
         }
 
-        // 3. Drive 720p reels source (after S3 cleanup)
         if ($videoUpload->drive_reels_file_id) {
-            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_reels_file_id, $localPath);
+            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_reels_file_id, $partialPath);
 
-            return $localPath;
+            return;
         }
 
-        // 4. Drive original (last resort)
         if ($videoUpload->drive_file_id) {
-            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_file_id, $localPath);
+            app(GoogleDriveService::class)->downloadFile($videoUpload->drive_file_id, $partialPath);
 
-            return $localPath;
+            return;
         }
 
         throw new RuntimeException('No se encontró ninguna fuente de video para generar el reel.');
