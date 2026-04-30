@@ -2,8 +2,6 @@
 import { Form, Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Camera, Globe, Shirt, UserCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -17,9 +15,11 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import type { BreadcrumbItem, PlayerProfile } from '@/types';
+import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
+import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
-import type { BreadcrumbItem, PlayerProfile } from '@/types';
 
 type PositionOption = { value: string; label: string };
 type Props = {

@@ -2,7 +2,6 @@
 import { Head, usePage, useForm } from '@inertiajs/vue3';
 import { Camera, Shirt, Target, UserCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -12,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { edit } from '@/routes/player-profile';
 import type { BreadcrumbItem, PlayerProfile } from '@/types';
+import PlayerProfileController from '@/actions/App/Http/Controllers/PlayerProfileController';
+import { edit } from '@/routes/player-profile';
 
 type PositionOption = { value: string; label: string };
 type Props = {

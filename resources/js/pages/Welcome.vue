@@ -20,8 +20,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/utils';
-import { dashboard, privacy, terms } from '@/routes';
 import type { NewsArticle } from '@/types';
+import { dashboard, privacy, terms } from '@/routes';
 
 const props = withDefaults(
     defineProps<{

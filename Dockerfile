@@ -21,14 +21,15 @@ RUN composer dump-autoload --optimize --no-dev
 # ==============================================================================
 FROM php:8.4-cli-alpine AS frontend
 
-RUN apk add --no-cache nodejs npm
+RUN apk add --no-cache nodejs npm \
+    && npm install -g pnpm@10
 
 WORKDIR /app
 
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
-RUN npm ci && npm run build
+RUN pnpm install --frozen-lockfile && pnpm run build
 
 # ==============================================================================
 # Stage 3: Production image

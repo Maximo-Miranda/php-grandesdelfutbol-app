@@ -1,12 +1,16 @@
 {
     "agents": [
         "claude_code",
-        "copilot"
+        "opencode",
+        "codex"
     ],
     "guidelines": true,
-    "herd_mcp": false,
     "mcp": true,
     "nightwatch_mcp": false,
+    "packages": [
+        "spatie/laravel-medialibrary",
+        "filament/filament"
+    ],
     "sail": false,
     "skills": [
         "ai-sdk-development",
