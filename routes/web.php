@@ -64,9 +64,6 @@ Route::post('video-service-request', [VideoServiceRequestController::class, 'sto
     ->middleware('throttle:public-form')
     ->name('video-service-request.store');
 
-// News — public feed
-Route::get('news', [NewsFeedController::class, 'index'])->middleware('throttle:news-read')->name('news.feed');
-
 Route::middleware('guest')->group(function () {
     Route::get('start', function () {
         if (auth()->check()) {
@@ -98,6 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // News — authenticated
     Route::prefix('news')->name('news.')->group(function () {
+        Route::get('/', [NewsFeedController::class, 'index'])->middleware('throttle:news-read')->name('feed');
         Route::get('preferences', [NewsPreferenceController::class, 'create'])->name('preferences.create');
         Route::post('preferences', [NewsPreferenceController::class, 'store'])->name('preferences.store');
         Route::patch('preferences', [NewsPreferenceController::class, 'update'])->name('preferences.update');
@@ -108,10 +106,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{article:slug}/share', [NewsInteractionController::class, 'share'])->middleware('throttle:news-interact')->name('share');
         Route::post('{article:slug}/comments', [NewsCommentController::class, 'store'])->middleware('throttle:news-comment')->name('comments.store');
         Route::delete('{article:slug}/comments/{comment:ulid}', [NewsCommentController::class, 'destroy'])->name('comments.destroy');
+        Route::get('{article:slug}', [NewsFeedController::class, 'show'])->middleware('throttle:news-read')->name('show');
     });
 
-    // News — public article detail (after auth routes to avoid slug capturing "preferences")
-    Route::get('news/{article:slug}', [NewsFeedController::class, 'show'])->middleware('throttle:news-read')->name('news.show')->withoutMiddleware(['auth', 'verified']);
     Route::resource('clubs', ClubController::class);
     Route::get('clubs-search', ClubSearchController::class)->name('clubs.search');
     Route::post('clubs/{club}/switch', ClubSwitchController::class)->name('clubs.switch');

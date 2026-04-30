@@ -10,7 +10,7 @@ test('shared newsUnreadCount is zero for guests', function () {
         'published_at' => now(),
     ]);
 
-    $this->get(route('news.feed'))
+    $this->get(route('home'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('newsUnreadCount.count', 0)

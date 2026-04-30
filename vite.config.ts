@@ -5,7 +5,25 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const devServerHost = 'vmi3052938.taild6ba41.ts.net';
+const devServerPort = 5173;
+const appServerPort = 8000;
+
 export default defineConfig({
+    server: {
+        host: '127.0.0.1',
+        port: devServerPort,
+        strictPort: true,
+        origin: `https://${devServerHost}:${devServerPort}`,
+        cors: {
+            origin: `https://${devServerHost}:${appServerPort}`,
+        },
+        hmr: {
+            protocol: 'wss',
+            host: devServerHost,
+            clientPort: devServerPort,
+        },
+    },
     plugins: [
         laravel({
             input: ['resources/js/app.ts'],
@@ -36,7 +54,8 @@ export default defineConfig({
             manifest: {
                 name: 'Grandes del Futbol',
                 short_name: 'GDF',
-                description: 'Organiza partidos con tus amigos, controla asistencia y sigue estadisticas de cada jugador',
+                description:
+                    'Organiza partidos con tus amigos, controla asistencia y sigue estadisticas de cada jugador',
                 theme_color: '#16a34a',
                 background_color: '#0f172a',
                 display: 'standalone',

@@ -304,8 +304,6 @@ const attendanceCount = computed(() => (props.match.attendances ?? []).filter(a 
                 <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                     <Link v-if="club.is_public" :href="`/club/${club.slug}`" class="hover:text-foreground">{{ club.name }}</Link>
                     <span v-if="club.is_public" class="text-muted-foreground/40">·</span>
-                    <Link href="/news" class="hover:text-foreground">Noticias</Link>
-                    <span class="text-muted-foreground/40">·</span>
                     <Link href="/terms" class="hover:text-foreground">Términos</Link>
                 </div>
                 <p class="text-xs">&copy; {{ new Date().getFullYear() }} Grandes del Fútbol</p>

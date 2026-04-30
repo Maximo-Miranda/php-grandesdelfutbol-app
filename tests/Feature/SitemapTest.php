@@ -18,9 +18,9 @@ test('sitemap includes core public urls', function () {
     expect($body)
         ->toContain('<?xml version="1.0" encoding="UTF-8"?>')
         ->toContain('<urlset')
-        ->toContain('/news')
         ->toContain('/terms')
-        ->toContain('/privacy');
+        ->toContain('/privacy')
+        ->not->toContain('/news');
 });
 
 test('sitemap includes club slugs', function () {
@@ -39,7 +39,7 @@ test('sitemap excludes non-public clubs', function () {
     expect($body)->not->toContain('/club/club-privado');
 });
 
-test('sitemap includes news article slugs', function () {
+test('sitemap excludes news article slugs', function () {
     NewsArticle::factory()->create([
         'slug' => 'gol-de-messi',
         'published_at' => now()->subDay(),
@@ -47,5 +47,5 @@ test('sitemap includes news article slugs', function () {
 
     $body = $this->get('/sitemap.xml')->getContent();
 
-    expect($body)->toContain('/news/gol-de-messi');
+    expect($body)->not->toContain('/news/gol-de-messi');
 });

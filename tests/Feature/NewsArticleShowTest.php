@@ -5,11 +5,19 @@ use App\Models\NewsArticle;
 use App\Models\NewsSource;
 use App\Models\User;
 
-test('article detail is accessible without authentication', function () {
-    $source = NewsSource::factory()->create();
-    $article = NewsArticle::factory()->create(['news_source_id' => $source->id]);
+test('guests cannot access article detail', function () {
+    $article = NewsArticle::factory()->create();
 
     $this->get(route('news.show', $article))
+        ->assertRedirect(route('login'));
+});
+
+test('article detail is accessible for authenticated users', function () {
+    $user = User::factory()->create();
+    $article = NewsArticle::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('news.show', $article))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('news/Show')
@@ -20,8 +28,7 @@ test('article detail is accessible without authentication', function () {
 
 test('viewing article as authenticated user records view interaction', function () {
     $user = User::factory()->create();
-    $source = NewsSource::factory()->create();
-    $article = NewsArticle::factory()->create(['news_source_id' => $source->id]);
+    $article = NewsArticle::factory()->create();
 
     $this->actingAs($user)
         ->get(route('news.show', $article))
@@ -35,16 +42,16 @@ test('viewing article as authenticated user records view interaction', function 
 });
 
 test('viewing article as guest does not record interaction', function () {
-    $source = NewsSource::factory()->create();
-    $article = NewsArticle::factory()->create(['news_source_id' => $source->id]);
+    $article = NewsArticle::factory()->create();
 
     $this->get(route('news.show', $article))
-        ->assertOk();
+        ->assertRedirect(route('login'));
 
     $this->assertDatabaseCount('news_article_interactions', 0);
 });
 
 test('article shows related articles from same story group', function () {
+    $user = User::factory()->create();
     $source1 = NewsSource::factory()->create();
     $source2 = NewsSource::factory()->create();
     $storyGroupId = fake()->uuid();
@@ -58,7 +65,8 @@ test('article shows related articles from same story group', function () {
         'story_group_id' => $storyGroupId,
     ]);
 
-    $this->get(route('news.show', $article))
+    $this->actingAs($user)
+        ->get(route('news.show', $article))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('relatedArticles', 1)

@@ -380,8 +380,6 @@ function teamBSide(m: PublicMatch): TeamSide | null {
             <div class="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 text-center text-sm text-muted-foreground sm:px-6">
                 <AppLogo />
                 <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-                    <Link href="/news" class="hover:text-foreground">Noticias</Link>
-                    <span class="text-muted-foreground/40">·</span>
                     <Link href="/terms" class="hover:text-foreground">Términos</Link>
                     <span class="text-muted-foreground/40">·</span>
                     <Link href="/privacy" class="hover:text-foreground">Privacidad</Link>

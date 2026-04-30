@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Club;
-use App\Models\NewsArticle;
 use App\Models\Team;
 use Illuminate\Http\Response;
 
@@ -15,7 +14,6 @@ class SitemapController extends Controller
 
         $urls = [
             ['loc' => $base.'/', 'changefreq' => 'daily', 'priority' => '1.0'],
-            ['loc' => $base.'/news', 'changefreq' => 'hourly', 'priority' => '0.9'],
             ['loc' => $base.'/terms', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/privacy', 'changefreq' => 'yearly', 'priority' => '0.3'],
         ];
@@ -44,21 +42,6 @@ class SitemapController extends Controller
                 $urls[] = [
                     'loc' => $base.'/team/'.$team->ulid,
                     'lastmod' => $team->updated_at?->toAtomString(),
-                    'changefreq' => 'weekly',
-                    'priority' => '0.6',
-                ];
-            });
-
-        NewsArticle::query()
-            ->whereNotNull('slug')
-            ->whereNotNull('published_at')
-            ->orderByDesc('published_at')
-            ->limit(5000)
-            ->get(['slug', 'published_at', 'updated_at'])
-            ->each(function (NewsArticle $article) use (&$urls, $base): void {
-                $urls[] = [
-                    'loc' => $base.'/news/'.$article->slug,
-                    'lastmod' => ($article->updated_at ?? $article->published_at)?->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.6',
                 ];

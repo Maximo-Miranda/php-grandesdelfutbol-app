@@ -3,34 +3,24 @@
 use App\Enums\NewsDictionaryType;
 use App\Models\NewsArticle;
 use App\Models\NewsDictionaryEntry;
-use App\Models\NewsSource;
 use App\Models\User;
 
-test('public feed is accessible without authentication', function () {
-    $source = NewsSource::factory()->create();
-    NewsArticle::factory()->count(3)->create(['news_source_id' => $source->id]);
-
+test('guests cannot access the news feed', function () {
     $this->get(route('news.feed'))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('news/Feed')
-            ->has('articles.data', 3)
-            ->where('currentCategory', null)
-        );
+        ->assertRedirect(route('login'));
 });
 
-test('public feed only shows articles from last 3 days', function () {
-    $source = NewsSource::factory()->create();
+test('feed only shows articles from last 3 days when user has no preferences', function () {
+    $user = User::factory()->create();
     NewsArticle::factory()->create([
-        'news_source_id' => $source->id,
         'published_at' => now()->subDay(),
     ]);
     NewsArticle::factory()->create([
-        'news_source_id' => $source->id,
         'published_at' => now()->subDays(5),
     ]);
 
-    $this->get(route('news.feed'))
+    $this->actingAs($user)
+        ->get(route('news.feed'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('articles.data', 1)
@@ -39,8 +29,7 @@ test('public feed only shows articles from last 3 days', function () {
 
 test('authenticated feed loads with user context', function () {
     $user = User::factory()->create();
-    $source = NewsSource::factory()->create();
-    NewsArticle::factory()->count(2)->create(['news_source_id' => $source->id]);
+    NewsArticle::factory()->count(2)->create();
 
     $this->actingAs($user)
         ->get(route('news.feed'))
@@ -53,6 +42,8 @@ test('authenticated feed loads with user context', function () {
 });
 
 test('feed can be filtered by category', function () {
+    $user = User::factory()->create();
+
     NewsDictionaryEntry::create([
         'type' => NewsDictionaryType::Competition,
         'key' => 'champions_league',
@@ -62,19 +53,17 @@ test('feed can be filtered by category', function () {
     ]);
     NewsDictionaryEntry::clearCache();
 
-    $source = NewsSource::factory()->create();
     NewsArticle::factory()->create([
-        'news_source_id' => $source->id,
         'competitions' => ['champions_league'],
         'published_at' => now(),
     ]);
     NewsArticle::factory()->create([
-        'news_source_id' => $source->id,
         'competitions' => ['la_liga'],
         'published_at' => now(),
     ]);
 
-    $this->get(route('news.feed', ['category' => 'champions_league']))
+    $this->actingAs($user)
+        ->get(route('news.feed', ['category' => 'champions_league']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('currentCategory', 'champions_league')

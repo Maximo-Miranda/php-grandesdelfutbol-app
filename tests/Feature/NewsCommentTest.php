@@ -77,11 +77,12 @@ test('user cannot delete another users comment', function () {
 });
 
 test('show page returns comments for the article', function () {
-    $source = NewsSource::factory()->create();
-    $article = NewsArticle::factory()->create(['news_source_id' => $source->id]);
+    $user = User::factory()->create();
+    $article = NewsArticle::factory()->create();
     NewsArticleComment::factory()->count(3)->create(['news_article_id' => $article->id]);
 
-    $this->get(route('news.show', $article))
+    $this->actingAs($user)
+        ->get(route('news.show', $article))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('comments', 3)

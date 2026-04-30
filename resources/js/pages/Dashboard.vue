@@ -6,8 +6,8 @@ import ClubShield from '@/components/ClubShield.vue';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
-import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 import { dashboard } from '@/routes';
+import type { BreadcrumbItem, Club, ClubInvitation, ClubMember, FootballMatch } from '@/types';
 
 type PlayerStats = {
     goals: number;

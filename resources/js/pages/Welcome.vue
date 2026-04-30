@@ -4,7 +4,6 @@ import { CalendarCheck, Check, ChevronRight, Info, Send, Shield, Users } from 'l
 import { computed, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import InputError from '@/components/InputError.vue';
-import NewsArticleCard from '@/components/news/NewsArticleCard.vue';
 import PhoneInput from '@/components/PhoneInput.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -20,19 +19,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/utils';
-import type { NewsArticle } from '@/types';
 import { dashboard, privacy, terms } from '@/routes';
 
 const props = withDefaults(
     defineProps<{
         canRegister: boolean;
         appUrl: string;
-        recentNews?: NewsArticle[];
     }>(),
     {
         canRegister: true,
         appUrl: '',
-        recentNews: () => [],
     },
 );
 
@@ -495,35 +491,6 @@ const MONTHLY_QUOTE_WHATSAPP_URL = `https://wa.me/573008316105?text=${encodeURIC
                     >
                         Cotizar paquete mensual
                     </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Noticias -->
-        <section v-if="recentNews.length > 0" id="noticias" class="border-t border-border py-16 sm:py-24">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="mb-12 flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-                    <div>
-                        <h2 class="mb-2 text-3xl font-bold sm:text-4xl">Últimas noticias del fútbol</h2>
-                        <p class="max-w-2xl text-muted-foreground">
-                            Lo que se habla hoy, resumido y organizado. Acceso libre, sin registro.
-                        </p>
-                    </div>
-                    <Link
-                        href="/news"
-                        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-                    >
-                        Ver todas
-                        <ChevronRight class="size-4" />
-                    </Link>
-                </div>
-
-                <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <NewsArticleCard
-                        v-for="article in recentNews"
-                        :key="article.ulid"
-                        :article="article"
-                    />
                 </div>
             </div>
         </section>

@@ -264,8 +264,6 @@ const playerInitial = computed(() => props.player.name.trim().charAt(0).toUpperC
                 <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                     <Link :href="`/club/${club.slug}`" class="hover:text-foreground">{{ club.name }}</Link>
                     <span class="text-muted-foreground/40">·</span>
-                    <Link href="/news" class="hover:text-foreground">Noticias</Link>
-                    <span class="text-muted-foreground/40">·</span>
                     <Link href="/terms" class="hover:text-foreground">Términos</Link>
                 </div>
                 <p class="text-xs">&copy; {{ new Date().getFullYear() }} Grandes del Fútbol</p>

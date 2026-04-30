@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
+import { redirect as googleRedirect } from '@/actions/App/Http/Controllers/GoogleAuthController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input, PasswordInput } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { redirect as googleRedirect } from '@/actions/App/Http/Controllers/GoogleAuthController';
 import { privacy, terms } from '@/routes';
 import { request } from '@/routes/password';
 

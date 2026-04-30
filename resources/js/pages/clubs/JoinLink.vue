@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { AlertCircle, UserPlus } from 'lucide-vue-next';
 import { ref } from 'vue';
+import { redirect as googleRedirect } from '@/actions/App/Http/Controllers/GoogleAuthController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { redirect as googleRedirect } from '@/actions/App/Http/Controllers/GoogleAuthController';
 import { privacy, terms } from '@/routes';
 import { store as loginStore } from '@/routes/login';
 import { store as registerStore } from '@/routes/register';
