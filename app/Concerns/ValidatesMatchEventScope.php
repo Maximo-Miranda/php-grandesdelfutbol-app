@@ -27,17 +27,17 @@ trait ValidatesMatchEventScope
                 MatchEventScope::Team => ! $hasTeam
                     ? $validator->errors()->add('team', 'El equipo es obligatorio para este tipo de evento.')
                     : null,
-                MatchEventScope::Neutral => $this->validateNeutralScope($validator, $hasPlayer, $hasTeam),
+                MatchEventScope::Neutral => $this->validateNeutralScope($validator, $eventType, $hasPlayer, $hasTeam),
             };
         });
     }
 
-    private function validateNeutralScope(Validator $validator, bool $hasPlayer, bool $hasTeam): void
+    private function validateNeutralScope(Validator $validator, MatchEventType $eventType, bool $hasPlayer, bool $hasTeam): void
     {
         if ($hasPlayer) {
             $validator->errors()->add('player_id', 'Los eventos neutrales no deben tener jugador.');
         }
-        if ($hasTeam) {
+        if ($hasTeam && ! $eventType->allowsOptionalTeam()) {
             $validator->errors()->add('team', 'Los eventos neutrales no deben tener equipo.');
         }
     }

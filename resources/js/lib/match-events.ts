@@ -6,6 +6,7 @@ import {
     Crosshair,
     Droplets,
     Flag,
+    FlagOff,
     Hand,
     Pause,
     Play,
@@ -22,6 +23,7 @@ export const EVENT_LABELS: Record<string, string> = {
     assist: 'Asistencia',
     yellow_card: 'Tarjeta amarilla',
     red_card: 'Tarjeta roja',
+    blue_card: 'Tarjeta azul',
     penalty_scored: 'Penal anotado',
     penalty_missed: 'Penal fallado',
     own_goal: 'Autogol',
@@ -40,9 +42,13 @@ export const EVENT_LABELS: Record<string, string> = {
     team_penalty: 'Penal (equipo)',
     timeout: 'Tiempo',
     ball_touched_referee: 'Balon toco arbitro',
-    stoppage_start: 'Tiempo detenido',
-    stoppage_end: 'Reanudacion',
+    stoppage_start: 'Juego detenido',
+    stoppage_end: 'Juego reanudado',
     water_break: 'Pausa hidratacion',
+    match_start: 'Inicio del partido',
+    first_half_end: 'Fin del primer tiempo',
+    second_half_start: 'Inicio del segundo tiempo',
+    match_end: 'Fin del partido',
 };
 
 export const EVENT_ICON_COLORS: Record<string, string> = {
@@ -50,6 +56,7 @@ export const EVENT_ICON_COLORS: Record<string, string> = {
     assist: 'text-sky-400',
     yellow_card: 'text-yellow-400',
     red_card: 'text-red-400',
+    blue_card: 'text-blue-400',
     penalty_scored: 'text-emerald-300',
     penalty_missed: 'text-zinc-400',
     own_goal: 'text-orange-400',
@@ -71,10 +78,14 @@ export const EVENT_ICON_COLORS: Record<string, string> = {
     stoppage_start: 'text-yellow-300',
     stoppage_end: 'text-emerald-300',
     water_break: 'text-blue-300',
+    match_start: 'text-emerald-300',
+    first_half_end: 'text-amber-300',
+    second_half_start: 'text-emerald-300',
+    match_end: 'text-zinc-300',
 };
 
 const ballEvents = new Set(['goal', 'assist', 'penalty_scored', 'penalty_missed', 'free_kick']);
-const cardEvents = new Set(['yellow_card', 'red_card']);
+const cardEvents = new Set(['yellow_card', 'red_card', 'blue_card']);
 const swapEvents = new Set(['substitution', 'throw_in']);
 const foulEvents = new Set(['foul', 'team_foul']);
 const handEvents = new Set(['handball', 'team_handball']);
@@ -95,6 +106,11 @@ EVENT_ICON_MAP['stoppage_end'] = Play;
 EVENT_ICON_MAP['water_break'] = Droplets;
 EVENT_ICON_MAP['own_goal'] = Shield;
 EVENT_ICON_MAP['save'] = Shield;
+EVENT_ICON_MAP['ball_touched_referee'] = Hand;
+EVENT_ICON_MAP['match_start'] = Play;
+EVENT_ICON_MAP['first_half_end'] = Flag;
+EVENT_ICON_MAP['second_half_start'] = Play;
+EVENT_ICON_MAP['match_end'] = FlagOff;
 
 export const EVENT_ICON_FALLBACK: Component = Shield;
 

@@ -14,6 +14,7 @@ import {
     Eye,
     Film,
     Flag,
+    FlagOff,
     Hand,
     MapPin,
     Maximize,
@@ -318,12 +319,15 @@ const activeTab = ref<'resumen' | 'eventos' | 'jugadores' | 'reels'>('resumen');
 type EventScope = 'player' | 'team' | 'neutral';
 const eventScopes: Record<string, EventScope> = {
     goal: 'player', assist: 'player', yellow_card: 'player', red_card: 'player',
+    blue_card: 'player',
     penalty_scored: 'player', penalty_missed: 'player', own_goal: 'player',
     save: 'player', free_kick: 'player', substitution: 'player', injury: 'player',
     foul: 'player', handball: 'player',
     shot_on_target: 'team', corner_kick: 'team', throw_in: 'team', offside: 'team',
     timeout: 'neutral', ball_touched_referee: 'neutral', stoppage_start: 'neutral',
     stoppage_end: 'neutral', water_break: 'neutral',
+    match_start: 'neutral', first_half_end: 'neutral', second_half_start: 'neutral',
+    match_end: 'neutral',
 };
 
 const allEventTypes = [
@@ -331,6 +335,7 @@ const allEventTypes = [
     { value: 'assist', label: 'Asist.', icon: CircleDot, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20' },
     { value: 'yellow_card', label: 'Amarilla', icon: RectangleVertical, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
     { value: 'red_card', label: 'Roja', icon: RectangleVertical, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20' },
+    { value: 'blue_card', label: 'Azul', icon: RectangleVertical, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
     { value: 'own_goal', label: 'Autogol', icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
     { value: 'penalty_scored', label: 'Penal', icon: CircleDot, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
     { value: 'penalty_missed', label: 'Penal\nfallado', icon: CircleDot, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
@@ -345,9 +350,14 @@ const allEventTypes = [
     { value: 'free_kick', label: 'Tiro libre', icon: CircleDot, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20' },
     { value: 'handball', label: 'Mano', icon: Hand, color: 'text-orange-300', bg: 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
     { value: 'timeout', label: 'Tiempo', icon: Timer, color: 'text-zinc-300', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
-    { value: 'stoppage_start', label: 'Tiempo\ndetenido', icon: Pause, color: 'text-yellow-300', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
-    { value: 'stoppage_end', label: 'Reanudar', icon: Play, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'stoppage_start', label: 'Juego\ndetenido', icon: Pause, color: 'text-yellow-300', bg: 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' },
+    { value: 'stoppage_end', label: 'Juego\nreanudado', icon: Play, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
     { value: 'water_break', label: 'Hidratacion', icon: Droplets, color: 'text-blue-300', bg: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
+    { value: 'ball_touched_referee', label: 'Balon\narbitro', icon: Hand, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
+    { value: 'match_start', label: 'Inicio\n1º T', icon: Play, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'first_half_end', label: 'Fin\n1º T', icon: Flag, color: 'text-amber-300', bg: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' },
+    { value: 'second_half_start', label: 'Inicio\n2º T', icon: Play, color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+    { value: 'match_end', label: 'Fin\npartido', icon: FlagOff, color: 'text-zinc-300', bg: 'bg-zinc-500/10 border-zinc-500/30 hover:bg-zinc-500/20' },
 ];
 
 const eventPanelColors: Record<string, { border: string; bg: string; bgLight: string; text: string; textLight: string }> = {
@@ -355,6 +365,7 @@ const eventPanelColors: Record<string, { border: string; bg: string; bgLight: st
     assist: { border: 'border-sky-500/30', bg: 'bg-sky-500/10', bgLight: 'bg-sky-500/5', text: 'text-sky-400', textLight: 'text-sky-300/70' },
     yellow_card: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/10', bgLight: 'bg-yellow-500/5', text: 'text-yellow-400', textLight: 'text-yellow-300/70' },
     red_card: { border: 'border-red-500/30', bg: 'bg-red-500/10', bgLight: 'bg-red-500/5', text: 'text-red-400', textLight: 'text-red-300/70' },
+    blue_card: { border: 'border-blue-500/30', bg: 'bg-blue-500/10', bgLight: 'bg-blue-500/5', text: 'text-blue-400', textLight: 'text-blue-300/70' },
     own_goal: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', bgLight: 'bg-orange-500/5', text: 'text-orange-400', textLight: 'text-orange-300/70' },
     penalty_scored: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', bgLight: 'bg-emerald-500/5', text: 'text-emerald-300', textLight: 'text-emerald-300/70' },
     penalty_missed: { border: 'border-zinc-500/30', bg: 'bg-zinc-500/10', bgLight: 'bg-zinc-500/5', text: 'text-zinc-400', textLight: 'text-zinc-300/70' },
@@ -368,6 +379,7 @@ const eventPanelColors: Record<string, { border: string; bg: string; bgLight: st
     save: { border: 'border-violet-500/30', bg: 'bg-violet-500/10', bgLight: 'bg-violet-500/5', text: 'text-violet-400', textLight: 'text-violet-300/70' },
     free_kick: { border: 'border-cyan-500/30', bg: 'bg-cyan-500/10', bgLight: 'bg-cyan-500/5', text: 'text-cyan-400', textLight: 'text-cyan-300/70' },
     handball: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', bgLight: 'bg-orange-500/5', text: 'text-orange-300', textLight: 'text-orange-300/70' },
+    timeout: { border: 'border-zinc-500/30', bg: 'bg-zinc-500/10', bgLight: 'bg-zinc-500/5', text: 'text-zinc-300', textLight: 'text-zinc-300/70' },
 };
 const defaultPanelColor = { border: 'border-amber-500/30', bg: 'bg-amber-500/10', bgLight: 'bg-amber-500/5', text: 'text-amber-400', textLight: 'text-amber-300/70' };
 
@@ -453,14 +465,14 @@ onUnmounted(() => {
 
 // --- Unified event flow ---
 function onEventSelected(eventType: string) {
-    timeFrozen.value = true;
     const scope = eventScopes[eventType] ?? 'player';
 
-    if (scope === 'neutral') {
+    if (scope === 'neutral' && eventType !== 'timeout') {
         recordNeutralEvent(eventType);
         return;
     }
 
+    timeFrozen.value = true;
     pendingEventType.value = eventType;
 }
 
@@ -487,12 +499,19 @@ function submitTeamOnlyEvent(eventType: string, team: 'a' | 'b') {
             pendingEventType.value = null;
             selectedPlayerId.value = null;
             selectedPlayerName.value = '';
+            subOutPlayerId.value = null;
+            subOutPlayerName.value = '';
             submitting.value = false;
             if (confirmTimeout) clearTimeout(confirmTimeout);
             confirmTimeout = setTimeout(() => { lastRecorded.value = null; }, 2500);
         },
         onError: () => { submitting.value = false; },
     });
+}
+
+function submitTimeoutNoTeam() {
+    pendingEventType.value = null;
+    recordNeutralEvent('timeout');
 }
 
 function onPlayerSelected(playerId: number, playerName: string) {
@@ -1679,6 +1698,32 @@ async function shareReel(reel: MatchReel) {
                                         hide-headers
                                         @select="onPlayerSelected"
                                     />
+
+                                    <div v-if="!subOutPlayerId" class="mt-3">
+                                        <div class="relative mb-3 flex items-center">
+                                            <div class="flex-1 border-t border-border"></div>
+                                            <span class="px-3 text-[10px] font-medium text-muted-foreground">o solo al equipo</span>
+                                            <div class="flex-1 border-t border-border"></div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button
+                                                :disabled="submitting"
+                                                class="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card/80 text-sm font-medium transition-all active:scale-[0.97] hover:bg-accent disabled:opacity-30"
+                                                @click="submitTeamOnlyEvent('substitution', 'a')"
+                                            >
+                                                <span class="size-3 rounded-sm" :style="{ backgroundColor: match.team_a_color ?? '#6b7280' }"></span>
+                                                {{ match.team_a_name }}
+                                            </button>
+                                            <button
+                                                :disabled="submitting"
+                                                class="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card/80 text-sm font-medium transition-all active:scale-[0.97] hover:bg-accent disabled:opacity-30"
+                                                @click="submitTeamOnlyEvent('substitution', 'b')"
+                                            >
+                                                <span class="size-3 rounded-sm" :style="{ backgroundColor: match.team_b_color ?? '#6b7280' }"></span>
+                                                {{ match.team_b_name }}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1689,6 +1734,7 @@ async function shareReel(reel: MatchReel) {
                                         <p class="text-sm font-bold" :class="panelColor().text">{{ EVENT_LABELS[pendingEventType] }}</p>
                                         <p class="text-xs" :class="panelColor().textLight">
                                             <template v-if="eventScopes[pendingEventType] === 'player'">Toca un jugador o asigna al equipo</template>
+                                            <template v-else-if="pendingEventType === 'timeout'">Selecciona el equipo o registra sin equipo</template>
                                             <template v-else>Selecciona el equipo</template>
                                         </p>
                                     </div>
@@ -1742,6 +1788,14 @@ async function shareReel(reel: MatchReel) {
                                                 {{ match.team_b_name }}
                                             </button>
                                         </div>
+                                        <button
+                                            v-if="pendingEventType === 'timeout'"
+                                            :disabled="submitting"
+                                            class="mt-2 flex min-h-[40px] w-full items-center justify-center rounded-lg border border-border bg-card/50 text-xs font-medium text-muted-foreground transition-all active:scale-[0.97] hover:bg-accent disabled:opacity-30"
+                                            @click="submitTimeoutNoTeam"
+                                        >
+                                            Sin equipo
+                                        </button>
                                     </div>
                                 </div>
                             </div>

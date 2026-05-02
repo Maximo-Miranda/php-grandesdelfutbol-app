@@ -9,6 +9,7 @@ enum MatchEventType: string
     case Assist = 'assist';
     case YellowCard = 'yellow_card';
     case RedCard = 'red_card';
+    case BlueCard = 'blue_card';
     case PenaltyScored = 'penalty_scored';
     case PenaltyMissed = 'penalty_missed';
     case FreeKick = 'free_kick';
@@ -34,6 +35,10 @@ enum MatchEventType: string
     case StoppageStart = 'stoppage_start';
     case StoppageEnd = 'stoppage_end';
     case WaterBreak = 'water_break';
+    case MatchStart = 'match_start';
+    case FirstHalfEnd = 'first_half_end';
+    case SecondHalfStart = 'second_half_start';
+    case MatchEnd = 'match_end';
 
     public function label(): string
     {
@@ -42,6 +47,7 @@ enum MatchEventType: string
             self::Assist => 'Asistencia',
             self::YellowCard => 'Tarjeta amarilla',
             self::RedCard => 'Tarjeta roja',
+            self::BlueCard => 'Tarjeta azul',
             self::PenaltyScored => 'Penal anotado',
             self::PenaltyMissed => 'Penal fallado',
             self::FreeKick => 'Tiro libre',
@@ -60,9 +66,13 @@ enum MatchEventType: string
             self::TeamPenalty => 'Penal (equipo)',
             self::Timeout => 'Tiempo',
             self::BallTouchedReferee => 'Balón tocó árbitro',
-            self::StoppageStart => 'Tiempo detenido',
-            self::StoppageEnd => 'Reanudación',
+            self::StoppageStart => 'Juego detenido',
+            self::StoppageEnd => 'Juego reanudado',
             self::WaterBreak => 'Pausa hidratación',
+            self::MatchStart => 'Inicio del partido',
+            self::FirstHalfEnd => 'Fin del primer tiempo',
+            self::SecondHalfStart => 'Inicio del segundo tiempo',
+            self::MatchEnd => 'Fin del partido',
         };
     }
 
@@ -73,6 +83,7 @@ enum MatchEventType: string
             self::Assist,
             self::YellowCard,
             self::RedCard,
+            self::BlueCard,
             self::PenaltyScored,
             self::PenaltyMissed,
             self::FreeKick,
@@ -95,7 +106,16 @@ enum MatchEventType: string
             self::BallTouchedReferee,
             self::StoppageStart,
             self::StoppageEnd,
-            self::WaterBreak => MatchEventScope::Neutral,
+            self::WaterBreak,
+            self::MatchStart,
+            self::FirstHalfEnd,
+            self::SecondHalfStart,
+            self::MatchEnd => MatchEventScope::Neutral,
         };
+    }
+
+    public function allowsOptionalTeam(): bool
+    {
+        return $this === self::Timeout;
     }
 }

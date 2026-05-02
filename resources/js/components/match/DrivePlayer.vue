@@ -176,6 +176,14 @@ onBeforeUnmount(() => {
                     <ChevronLeft class="size-3.5" />
                     10s
                 </Button>
+                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="seekRelative(-3)">
+                    <ChevronLeft class="size-3.5" />
+                    3s
+                </Button>
+                <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="seekRelative(3)">
+                    3s
+                    <ChevronRight class="size-3.5" />
+                </Button>
                 <Button type="button" variant="ghost" size="sm" class="h-7 gap-1 px-2 text-xs" :class="fsButtonClass" @click="seekRelative(10)">
                     10s
                     <ChevronRight class="size-3.5" />

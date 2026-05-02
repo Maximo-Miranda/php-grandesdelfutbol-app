@@ -288,7 +288,67 @@ test('team event accepts optional player_id', function () {
     ]);
 });
 
-test('neutral event rejects player_id and team', function () {
+test('strict neutral events reject player_id and team', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.events.store', [$club, $match]), [
+            'event_type' => 'water_break',
+            'player_id' => $player->id,
+            'team' => 'a',
+            'minute' => 10,
+        ])
+        ->assertSessionHasErrors(['player_id', 'team']);
+});
+
+test('timeout accepts optional team without player', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.events.store', [$club, $match]), [
+            'event_type' => 'timeout',
+            'team' => 'b',
+            'minute' => 60,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_events', [
+        'match_id' => $match->id,
+        'event_type' => 'timeout',
+        'team' => 'b',
+        'player_id' => null,
+    ]);
+});
+
+test('timeout still works without team for backwards compatibility', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.events.store', [$club, $match]), [
+            'event_type' => 'timeout',
+            'minute' => 60,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_events', [
+        'match_id' => $match->id,
+        'event_type' => 'timeout',
+        'team' => null,
+        'player_id' => null,
+    ]);
+});
+
+test('timeout still rejects player_id', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
     ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
@@ -299,10 +359,76 @@ test('neutral event rejects player_id and team', function () {
         ->post(route('clubs.matches.events.store', [$club, $match]), [
             'event_type' => 'timeout',
             'player_id' => $player->id,
-            'team' => 'a',
             'minute' => 10,
         ])
-        ->assertSessionHasErrors(['player_id', 'team']);
+        ->assertSessionHasErrors(['player_id']);
+});
+
+test('substitution accepts team only without player', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.events.store', [$club, $match]), [
+            'event_type' => 'substitution',
+            'team' => 'a',
+            'minute' => 30,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_events', [
+        'match_id' => $match->id,
+        'event_type' => 'substitution',
+        'team' => 'a',
+        'player_id' => null,
+    ]);
+});
+
+test('admins can record blue card as player event', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+    $player = Player::factory()->create(['club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.events.store', [$club, $match]), [
+            'event_type' => 'blue_card',
+            'player_id' => $player->id,
+            'minute' => 50,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('match_events', [
+        'match_id' => $match->id,
+        'event_type' => 'blue_card',
+        'player_id' => $player->id,
+    ]);
+});
+
+test('match phase neutral events are accepted', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->inProgress()->create(['club_id' => $club->id]);
+
+    foreach (['match_start', 'first_half_end', 'second_half_start', 'match_end', 'ball_touched_referee'] as $type) {
+        $this->actingAs($user)
+            ->post(route('clubs.matches.events.store', [$club, $match]), [
+                'event_type' => $type,
+                'minute' => 0,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('match_events', [
+            'match_id' => $match->id,
+            'event_type' => $type,
+            'player_id' => null,
+            'team' => null,
+        ]);
+    }
 });
 
 test('admins can create a team event', function () {

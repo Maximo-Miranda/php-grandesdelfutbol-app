@@ -28,7 +28,12 @@ test('it has the correct values', function () {
         ->and(MatchEventType::BallTouchedReferee->value)->toBe('ball_touched_referee')
         ->and(MatchEventType::StoppageStart->value)->toBe('stoppage_start')
         ->and(MatchEventType::StoppageEnd->value)->toBe('stoppage_end')
-        ->and(MatchEventType::WaterBreak->value)->toBe('water_break');
+        ->and(MatchEventType::WaterBreak->value)->toBe('water_break')
+        ->and(MatchEventType::BlueCard->value)->toBe('blue_card')
+        ->and(MatchEventType::MatchStart->value)->toBe('match_start')
+        ->and(MatchEventType::FirstHalfEnd->value)->toBe('first_half_end')
+        ->and(MatchEventType::SecondHalfStart->value)->toBe('second_half_start')
+        ->and(MatchEventType::MatchEnd->value)->toBe('match_end');
 });
 
 test('it can be created from value', function () {
@@ -60,9 +65,14 @@ test('it has labels', function () {
         ->and(MatchEventType::TeamPenalty->label())->toBe('Penal (equipo)')
         ->and(MatchEventType::Timeout->label())->toBe('Tiempo')
         ->and(MatchEventType::BallTouchedReferee->label())->toBe('Balón tocó árbitro')
-        ->and(MatchEventType::StoppageStart->label())->toBe('Tiempo detenido')
-        ->and(MatchEventType::StoppageEnd->label())->toBe('Reanudación')
-        ->and(MatchEventType::WaterBreak->label())->toBe('Pausa hidratación');
+        ->and(MatchEventType::StoppageStart->label())->toBe('Juego detenido')
+        ->and(MatchEventType::StoppageEnd->label())->toBe('Juego reanudado')
+        ->and(MatchEventType::WaterBreak->label())->toBe('Pausa hidratación')
+        ->and(MatchEventType::BlueCard->label())->toBe('Tarjeta azul')
+        ->and(MatchEventType::MatchStart->label())->toBe('Inicio del partido')
+        ->and(MatchEventType::FirstHalfEnd->label())->toBe('Fin del primer tiempo')
+        ->and(MatchEventType::SecondHalfStart->label())->toBe('Inicio del segundo tiempo')
+        ->and(MatchEventType::MatchEnd->label())->toBe('Fin del partido');
 });
 
 test('all event types have a label', function () {
@@ -80,7 +90,8 @@ test('all event types have a scope', function () {
 test('player-scoped events have correct scope', function () {
     $playerEvents = [
         MatchEventType::Goal, MatchEventType::Assist, MatchEventType::YellowCard,
-        MatchEventType::RedCard, MatchEventType::PenaltyScored, MatchEventType::PenaltyMissed,
+        MatchEventType::RedCard, MatchEventType::BlueCard,
+        MatchEventType::PenaltyScored, MatchEventType::PenaltyMissed,
         MatchEventType::FreeKick, MatchEventType::Save, MatchEventType::OwnGoal,
         MatchEventType::Substitution, MatchEventType::Injury, MatchEventType::Foul,
         MatchEventType::Handball,
@@ -108,9 +119,26 @@ test('neutral-scoped events have correct scope', function () {
         MatchEventType::Timeout, MatchEventType::BallTouchedReferee,
         MatchEventType::StoppageStart, MatchEventType::StoppageEnd,
         MatchEventType::WaterBreak,
+        MatchEventType::MatchStart, MatchEventType::FirstHalfEnd,
+        MatchEventType::SecondHalfStart, MatchEventType::MatchEnd,
     ];
 
     foreach ($neutralEvents as $event) {
         expect($event->scope())->toBe(MatchEventScope::Neutral);
+    }
+});
+
+test('only timeout allows optional team among neutrals', function () {
+    expect(MatchEventType::Timeout->allowsOptionalTeam())->toBeTrue();
+
+    $strictNeutrals = [
+        MatchEventType::BallTouchedReferee, MatchEventType::StoppageStart,
+        MatchEventType::StoppageEnd, MatchEventType::WaterBreak,
+        MatchEventType::MatchStart, MatchEventType::FirstHalfEnd,
+        MatchEventType::SecondHalfStart, MatchEventType::MatchEnd,
+    ];
+
+    foreach ($strictNeutrals as $event) {
+        expect($event->allowsOptionalTeam())->toBeFalse();
     }
 });
