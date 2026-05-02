@@ -117,7 +117,7 @@ test('player is placed on waitlist when team is full', function () {
         ]);
     }
 
-    $newPlayer = Player::factory()->create(['club_id' => $club->id]);
+    $newPlayer = Player::factory()->create(['club_id' => $club->id, 'position' => PlayerPosition::Cm]);
 
     $this->actingAs($user)
         ->post(route('clubs.matches.attendance.store', [$club, $match]), [
