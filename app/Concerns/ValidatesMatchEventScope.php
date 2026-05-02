@@ -21,15 +21,25 @@ trait ValidatesMatchEventScope
             $hasTeam = (bool) $this->input('team');
 
             match ($eventType->scope()) {
-                MatchEventScope::Player => ! $hasPlayer && ! $hasTeam
-                    ? $validator->errors()->add('team', 'Se requiere un jugador o un equipo para este evento.')
-                    : null,
-                MatchEventScope::Team => ! $hasTeam
-                    ? $validator->errors()->add('team', 'El equipo es obligatorio para este tipo de evento.')
-                    : null,
+                MatchEventScope::Player => $this->validatePlayerScope($validator, $hasPlayer, $hasTeam),
+                MatchEventScope::Team => $this->validateTeamScope($validator, $hasTeam),
                 MatchEventScope::Neutral => $this->validateNeutralScope($validator, $eventType, $hasPlayer, $hasTeam),
             };
         });
+    }
+
+    private function validatePlayerScope(Validator $validator, bool $hasPlayer, bool $hasTeam): void
+    {
+        if (! $hasPlayer && ! $hasTeam) {
+            $validator->errors()->add('team', 'Se requiere un jugador o un equipo para este evento.');
+        }
+    }
+
+    private function validateTeamScope(Validator $validator, bool $hasTeam): void
+    {
+        if (! $hasTeam) {
+            $validator->errors()->add('team', 'El equipo es obligatorio para este tipo de evento.');
+        }
     }
 
     private function validateNeutralScope(Validator $validator, MatchEventType $eventType, bool $hasPlayer, bool $hasTeam): void
