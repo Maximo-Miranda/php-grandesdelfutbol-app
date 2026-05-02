@@ -52,7 +52,7 @@ const emit = defineEmits<{
             <form v-else class="space-y-4" @submit.prevent="emit('submit')">
                 <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                     <span class="text-muted-foreground">Servicio:</span>
-                    <span class="ml-2 font-semibold">Partido Pro — Desde $30.000</span>
+                    <span class="ml-2 font-semibold">Partido Pro — $60.000</span>
                 </div>
                 <div class="grid gap-1.5">
                     <Label for="vsr-phone">WhatsApp</Label>

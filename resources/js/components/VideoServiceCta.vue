@@ -82,8 +82,7 @@ const showCta = computed(() => !props.status || props.status === 'rejected');
                 <template v-if="!compact">
                     <p class="text-xs text-emerald-300/70">Video, stats y reels</p>
                     <p class="text-[11px] text-emerald-300/60">
-                        Desde <span class="font-semibold text-emerald-300/90">$30k</span> en cancha aliada
-                        · <span class="font-semibold text-emerald-300/90">$60k</span> en otras
+                        <span class="font-semibold text-emerald-300/90">$60k</span> por partido
                     </p>
                 </template>
             </div>

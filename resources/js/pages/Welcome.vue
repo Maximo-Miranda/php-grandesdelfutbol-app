@@ -146,7 +146,7 @@ const pricingPlans: PricingPlan[] = [
     },
     {
         name: 'Partido Pro',
-        price: 'Desde $30.000',
+        price: '$60.000',
         period: 'por partido',
         priceNote: 'Pago único. Sin suscripción.',
         description: 'Nosotros vamos, grabamos y dejamos las stats y los reels listos. Tú solo juegas.',
@@ -157,10 +157,6 @@ const pricingPlans: PricingPlan[] = [
             'Reels automáticos de cada gol (clip de 25 segundos)',
             'Stats de cada jugador actualizadas en su perfil público',
             'Link compartible del partido con todo el contenido',
-        ],
-        priceTiers: [
-            { label: 'Canchas aliadas', value: '$30.000' },
-            { label: 'Grabación agendada en otras canchas', value: 'Desde $60.000' },
         ],
         cta: 'Solicitar grabación',
         plan: 'partido_pro',
@@ -177,7 +173,7 @@ const MONTHLY_QUOTE_WHATSAPP_URL = `https://wa.me/573008316105?text=${encodeURIC
     <Head title="Grandes del Fútbol — La app para organizar partidos de fútbol con tus amigos">
         <meta head-key="description" name="description" content="App gratis para organizar partidos de fútbol con amigos. Confirma asistencia, arma equipos, lleva estadísticas de goles y asistencias, y comparte reels de tus mejores jugadas." />
         <meta head-key="og:title" property="og:title" content="Grandes del Fútbol — Organiza partidos de fútbol con tu grupo de amigos" />
-        <meta head-key="og:description" property="og:description" content="Confirma asistencia, arma equipos equilibrados y lleva estadísticas de cada jugador. Gratis. Grabación profesional desde $30.000 por partido en canchas aliadas." />
+        <meta head-key="og:description" property="og:description" content="Confirma asistencia, arma equipos equilibrados y lleva estadísticas de cada jugador. Gratis. Grabación profesional $60.000 por partido." />
         <meta head-key="og:type" property="og:type" content="website" />
         <meta head-key="og:image" property="og:image" :content="`${props.appUrl}/pwa-512x512.png`" />
         <meta head-key="og:locale" property="og:locale" content="es_CO" />
@@ -576,7 +572,7 @@ const MONTHLY_QUOTE_WHATSAPP_URL = `https://wa.me/573008316105?text=${encodeURIC
                     </div>
                     <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                         <span class="text-muted-foreground">Servicio:</span>
-                        <span class="ml-2 font-semibold">Partido Pro — Desde $30.000</span>
+                        <span class="ml-2 font-semibold">Partido Pro — $60.000</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="grid gap-1.5">

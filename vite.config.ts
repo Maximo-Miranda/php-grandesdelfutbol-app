@@ -2,24 +2,30 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-const devServerHost = 'vmi3052938.taild6ba41.ts.net';
 const devServerPort = 5173;
 const appServerPort = 8000;
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, process.cwd(), '');
+    const devServerHost = env.VITE_DEV_HOST || 'localhost';
+    const devServerProtocol = env.VITE_DEV_PROTOCOL || 'http';
+    const isSecure = devServerProtocol === 'https';
+    const hmrProtocol = isSecure ? 'wss' : 'ws';
+
+    return {
     server: {
-        host: '127.0.0.1',
+        host: '0.0.0.0',
         port: devServerPort,
         strictPort: true,
-        origin: `https://${devServerHost}:${devServerPort}`,
+        origin: `${devServerProtocol}://${devServerHost}:${devServerPort}`,
         cors: {
-            origin: `https://${devServerHost}:${appServerPort}`,
+            origin: `${devServerProtocol}://${devServerHost}:${appServerPort}`,
         },
         hmr: {
-            protocol: 'wss',
+            protocol: hmrProtocol,
             host: devServerHost,
             clientPort: devServerPort,
         },
@@ -114,4 +120,5 @@ export default defineConfig({
             },
         }),
     ],
+    };
 });
