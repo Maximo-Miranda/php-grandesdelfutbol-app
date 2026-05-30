@@ -64,6 +64,13 @@ class Team extends Model
 
     protected $appends = ['logo_url', 'cover_url'];
 
+    /**
+     * Mirrors the migration default so new in-memory instances are never null.
+     */
+    protected $attributes = [
+        'is_tournament' => false,
+    ];
+
     protected function casts(): array
     {
         return [
@@ -111,31 +118,46 @@ class Team extends Model
     }
 
     /**
-     * Detach the given player IDs from every other NON-TOURNAMENT team in the same season.
-     * Non-tournament teams (casual pickup) enforce exclusivity — a player can only be on one.
-     * Tournament teams allow shared rosters (players can be in multiple tournament squads).
+     * Detach the given player IDs from every sibling team OF THE SAME KIND in the season.
+     * Exclusivity is enforced within each bucket independently: a player can only be on one
+     * non-tournament team and on one tournament team. The two buckets never affect each other,
+     * so belonging to a tournament team never removes the player from a non-tournament one.
      *
      * @param  array<int>|int  $playerIds
      */
     public function detachPlayersFromSiblings(array|int $playerIds): void
     {
-        if ($this->is_tournament) {
-            return;
-        }
-
-        $ids = (array) $playerIds;
+        $ids = array_values(array_unique(array_filter((array) $playerIds)));
         if (empty($ids)) {
             return;
         }
 
-        DB::table('team_player')
-            ->whereIn('player_id', $ids)
-            ->whereIn('team_id', static::query()
-                ->where('season_id', $this->season_id)
-                ->where('is_tournament', false)
-                ->where('id', '!=', $this->id)
-                ->select('id'))
-            ->delete();
+        $siblingTeamIds = static::query()
+            ->where('season_id', $this->season_id)
+            ->where('is_tournament', $this->is_tournament)
+            ->where('id', '!=', $this->id)
+            ->pluck('id');
+
+        if ($siblingTeamIds->isEmpty()) {
+            return;
+        }
+
+        DB::transaction(function () use ($ids, $siblingTeamIds) {
+            DB::table('team_player')
+                ->whereIn('player_id', $ids)
+                ->whereIn('team_id', $siblingTeamIds)
+                ->delete();
+
+            static::query()
+                ->whereIn('id', $siblingTeamIds)
+                ->whereIn('coach_player_id', $ids)
+                ->update(['coach_player_id' => null]);
+
+            static::query()
+                ->whereIn('id', $siblingTeamIds)
+                ->whereIn('captain_player_id', $ids)
+                ->update(['captain_player_id' => null]);
+        });
     }
 
     /**

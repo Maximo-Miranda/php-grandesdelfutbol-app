@@ -51,6 +51,8 @@ const {
     selectedTime,
     registrationDate,
     registrationTime,
+    registrationClosesDate,
+    registrationClosesTime,
     generatedRegistrationOpensAt,
     enableManualTitle,
     enableAutoTitle,
@@ -558,6 +560,37 @@ function submitExistingVenueField() {
                     <InputError :message="form.errors.registration_opens_at" />
                 </div>
 
+                <!-- Cierre de convocatoria -->
+                <div class="grid gap-1.5">
+                    <Label>Cierre de convocatoria</Label>
+                    <p class="text-xs text-muted-foreground">Opcional. Si lo dejas vacío, la convocatoria cierra al inicio del partido.</p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <CalendarClock class="size-4 text-muted-foreground" />
+                            </div>
+                            <Input
+                                id="registration_closes_date"
+                                v-model="registrationClosesDate"
+                                type="date"
+                                class="pl-9"
+                            />
+                        </div>
+                        <Select v-model="registrationClosesTime">
+                            <SelectTrigger>
+                                <div class="flex items-center gap-2">
+                                    <Clock class="size-4 text-muted-foreground" />
+                                    <SelectValue placeholder="Hora" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="t in timeOptions" :key="t" :value="t">{{ t }}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <InputError :message="form.errors.registration_closes_at" />
+                </div>
+
                 <!-- Equipos -->
                 <div class="grid gap-3">
                     <div>
@@ -694,6 +727,19 @@ function submitExistingVenueField() {
                             <ColorSwatchPicker v-model="form.team_b_color" />
                         </div>
                     </div>
+                </div>
+
+                <!-- Permitir jugadores fuera de la nómina -->
+                <div v-if="form.team_a_id || form.team_b_id" class="grid gap-1.5">
+                    <Label>Jugadores fuera de la nómina</Label>
+                    <p class="text-xs text-muted-foreground">
+                        Permite que jugadores que no están en la nómina de los equipos seleccionados confirmen asistencia. Quedan en un pool y se distribuyen al sortear.
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <Checkbox id="allow_outsiders" v-model="form.allow_outsiders" />
+                        <Label for="allow_outsiders" class="font-normal">Permitir jugadores fuera de la nómina</Label>
+                    </div>
+                    <InputError :message="form.errors.allow_outsiders" />
                 </div>
 
                 <!-- Notas -->

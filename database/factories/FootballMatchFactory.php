@@ -40,6 +40,7 @@ class FootballMatchFactory extends Factory
             'is_recurring' => false,
             'recurrence_days' => 7,
             'auto_cancel' => false,
+            'allow_outsiders' => false,
             'min_players_required' => 10,
             'registration_opens_at' => null,
             'cancel_hours_before' => null,

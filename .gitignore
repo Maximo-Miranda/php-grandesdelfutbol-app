@@ -27,3 +27,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Claude Code — artefactos locales (worktrees aislados y settings personales)
+/.claude/worktrees
+/.claude/settings.local.json
+/.env.dusk.local

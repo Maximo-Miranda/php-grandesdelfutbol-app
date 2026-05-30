@@ -35,8 +35,8 @@ class NewsArticleFactory extends Factory
     public function withoutContent(): static
     {
         return $this->state(fn () => [
-            'snippet' => null,
-            'full_content' => null,
+            'snippet' => '',
+            'full_content' => '',
         ]);
     }
 

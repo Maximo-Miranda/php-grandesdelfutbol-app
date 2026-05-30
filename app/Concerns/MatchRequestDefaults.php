@@ -42,7 +42,9 @@ trait MatchRequestDefaults
             'is_recurring' => ['boolean'],
             'recurrence_days' => ['required_if:is_recurring,true', 'integer', 'min:1', 'max:90'],
             'registration_opens_at' => ['nullable', 'date', 'before:scheduled_at'],
+            'registration_closes_at' => ['nullable', 'date', 'after_or_equal:registration_opens_at', 'before_or_equal:scheduled_at'],
             'auto_cancel' => ['boolean'],
+            'allow_outsiders' => ['boolean'],
             'min_players_required' => ['required_if:auto_cancel,true', 'integer', 'min:2', 'max:50'],
             'cancel_hours_before' => ['nullable', 'integer', 'min:1', 'max:168'],
         ];
@@ -96,6 +98,9 @@ trait MatchRequestDefaults
             'min_players_required.max' => 'Máximo :max jugadores.',
             'registration_opens_at.date' => 'La fecha de apertura de registro no es válida.',
             'registration_opens_at.before' => 'La apertura de registro debe ser antes de la fecha del partido.',
+            'registration_closes_at.date' => 'La fecha de cierre de registro no es válida.',
+            'registration_closes_at.after_or_equal' => 'El cierre del registro debe ser igual o posterior a la apertura.',
+            'registration_closes_at.before_or_equal' => 'El cierre del registro debe ser igual o anterior a la fecha del partido.',
             'cancel_hours_before.min' => 'Mínimo :min hora para auto-cancelar.',
             'cancel_hours_before.max' => 'Máximo :max horas para auto-cancelar.',
         ];

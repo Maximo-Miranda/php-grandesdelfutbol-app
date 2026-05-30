@@ -73,7 +73,7 @@ class FetchNewsFromSource implements ShouldBeUnique, ShouldQueue
                     'external_id' => $entry['external_id'],
                     'title' => $entry['title'],
                     'snippet' => $entry['snippet'],
-                    'full_content' => $entry['full_content'] ?? null,
+                    'full_content' => $entry['full_content'] ?? '',
                     'image_url' => $entry['image_url'],
                     'image_urls' => $entry['image_urls'] ?: null,
                     'original_url' => $entry['original_url'],

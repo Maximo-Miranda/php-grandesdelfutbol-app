@@ -20,7 +20,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Install Dependencies

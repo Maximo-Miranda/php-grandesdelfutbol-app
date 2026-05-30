@@ -72,6 +72,18 @@
         "lint": [
             "pint --parallel"
         ],
+        "dusk": [
+            "Composer\\Config::disableProcessTimeout",
+            "pnpm exec concurrently --raw -c \"#93c5fd,#fb7185\" -n server,dusk -k -s first \"php artisan serve --env=dusk.local --host=127.0.0.1 --port=8001\" \"sleep 2 && php artisan dusk\""
+        ],
+        "dusk:browse": [
+            "Composer\\Config::disableProcessTimeout",
+            "pnpm exec concurrently --raw -c \"#93c5fd,#fb7185\" -n server,dusk -k -s first \"php artisan serve --env=dusk.local --host=127.0.0.1 --port=8001\" \"sleep 2 && php artisan dusk --browse\""
+        ],
+        "dusk:slow": [
+            "Composer\\Config::disableProcessTimeout",
+            "pnpm exec concurrently --raw -c \"#93c5fd,#fb7185\" -n server,dusk -k -s first \"php artisan serve --env=dusk.local --host=127.0.0.1 --port=8001\" \"sleep 2 && DUSK_SLOW=1200 php artisan dusk --browse\""
+        ],
         "lint:check": [
             "pint --parallel --test"
         ],

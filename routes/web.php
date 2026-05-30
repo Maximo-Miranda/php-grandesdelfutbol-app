@@ -147,6 +147,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'update'])->middleware('throttle:attendance-admin')->name('matches.attendance.update');
         Route::delete('matches/{match}/attendance/{attendance}', [MatchAttendanceController::class, 'destroy'])->middleware('throttle:attendance-admin')->name('matches.attendance.destroy');
         Route::post('matches/{match}/auto-assign', [MatchAttendanceController::class, 'autoAssign'])->middleware('throttle:expensive-action')->name('matches.autoAssign');
+        Route::post('matches/{match}/attendance/swap', [MatchAttendanceController::class, 'swap'])->middleware('throttle:attendance-admin')->name('matches.attendance.swap');
+        Route::get('matches/{match}/attendance/{attendance}/swap-candidates', [MatchAttendanceController::class, 'swapCandidates'])->name('matches.attendance.swapCandidates');
 
         Route::post('matches/{match}/events', [MatchEventController::class, 'store'])->name('matches.events.store');
         Route::patch('matches/{match}/events/{event}', [MatchEventController::class, 'update'])->name('matches.events.update');

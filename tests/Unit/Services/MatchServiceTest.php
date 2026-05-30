@@ -199,30 +199,18 @@ test('autoAssignTeams distributes players into teams', function () {
     expect($starters)->toBe(6);
 });
 
-test('autoAssignTeams respects existing team choices', function () {
+test('autoAssignTeams re-sorts everyone based on confirmation order', function () {
+    // The new contract: autoAssign always re-sorts. Pre-assigned teams from a
+    // previous draft are not preserved — admins use swap to fine-tune.
     $match = FootballMatch::factory()->create(['max_players' => 6]);
     $players = Player::factory()->count(6)->create(['club_id' => $match->club_id]);
 
-    // Two players already chose teams
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $players[0]->id,
-        'status' => AttendanceStatus::Confirmed,
-        'team' => AttendanceTeam::A,
-    ]);
-    MatchAttendance::factory()->create([
-        'match_id' => $match->id,
-        'player_id' => $players[1]->id,
-        'status' => AttendanceStatus::Confirmed,
-        'team' => AttendanceTeam::B,
-    ]);
-
-    // Rest are unassigned
-    for ($i = 2; $i < 6; $i++) {
+    foreach ($players as $i => $player) {
         MatchAttendance::factory()->create([
             'match_id' => $match->id,
-            'player_id' => $players[$i]->id,
+            'player_id' => $player->id,
             'status' => AttendanceStatus::Confirmed,
+            'team' => $i < 2 ? ($i === 0 ? AttendanceTeam::A : AttendanceTeam::B) : null,
         ]);
     }
 
@@ -231,15 +219,9 @@ test('autoAssignTeams respects existing team choices', function () {
 
     $match->load('attendances');
 
-    // The pre-assigned players should keep their teams
-    $p0 = $match->attendances->where('player_id', $players[0]->id)->first();
-    $p1 = $match->attendances->where('player_id', $players[1]->id)->first();
-
-    expect($p0->team)->toBe(AttendanceTeam::A)
-        ->and($p1->team)->toBe(AttendanceTeam::B);
-
-    // All 6 should be assigned
-    expect($match->attendances->whereNotNull('team')->count())->toBe(6);
+    expect($match->attendances->whereNotNull('team')->count())->toBe(6)
+        ->and($match->attendances->where('team', AttendanceTeam::A)->count())->toBe(3)
+        ->and($match->attendances->where('team', AttendanceTeam::B)->count())->toBe(3);
 });
 
 // --- Goalkeeper priority tests ---

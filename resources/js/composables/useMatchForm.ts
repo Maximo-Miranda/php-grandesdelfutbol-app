@@ -14,6 +14,7 @@ export type MatchFormData = {
     max_substitutes: number;
     registration_opens_hours: number;
     registration_opens_at: string | null;
+    registration_closes_at: string | null;
     notes: string;
     team_a_id: number | null;
     team_b_id: number | null;
@@ -26,6 +27,7 @@ export type MatchFormData = {
     is_recurring: boolean;
     recurrence_days: number;
     auto_cancel: boolean;
+    allow_outsiders: boolean;
     min_players_required: number;
     cancel_hours_before: number | null;
 };
@@ -151,6 +153,11 @@ export function useMatchForm(options: UseMatchFormOptions) {
     const initialRegDate = editRegParts ? editRegParts.date : '';
     const initialRegTime = editRegParts ? editRegParts.time : '';
 
+    // --- Registration closes datetime (optional, defaults to scheduled_at) ---
+    const editClosesParts = isEdit && match.registration_closes_at ? toLocalParts(match.registration_closes_at) : null;
+    const initialClosesDate = editClosesParts ? editClosesParts.date : '';
+    const initialClosesTime = editClosesParts ? editClosesParts.time : '';
+
     // --- Reactive state ---
     const autoTitle = ref(autoTitleOnInit);
     const autoRegistration = ref(isEdit ? match.registration_opens_at === null : true);
@@ -160,6 +167,10 @@ export function useMatchForm(options: UseMatchFormOptions) {
     const registrationDate = ref(initialRegDate);
     const registrationTime = ref(
         initialRegTime && timeOptions.includes(initialRegTime) ? initialRegTime : '',
+    );
+    const registrationClosesDate = ref(initialClosesDate);
+    const registrationClosesTime = ref(
+        initialClosesTime && timeOptions.includes(initialClosesTime) ? initialClosesTime : '',
     );
 
     // --- Generated title ---
@@ -192,6 +203,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
             ? (match.registration_opens_hours ?? 24)
             : calcRegistrationHours(initialMaxPlayers),
         registration_opens_at: match?.registration_opens_at ?? null,
+        registration_closes_at: match?.registration_closes_at ?? null,
         notes: match?.notes ?? '',
         team_a_id: (match as FootballMatch & { team_a_id?: number | null })?.team_a_id ?? null,
         team_b_id: (match as FootballMatch & { team_b_id?: number | null })?.team_b_id ?? null,
@@ -204,6 +216,7 @@ export function useMatchForm(options: UseMatchFormOptions) {
         is_recurring: match?.is_recurring ?? true,
         recurrence_days: match?.recurrence_days ?? 7,
         auto_cancel: match?.auto_cancel ?? true,
+        allow_outsiders: match?.allow_outsiders ?? false,
         min_players_required: match?.min_players_required ?? initialMaxPlayers,
         cancel_hours_before: match?.cancel_hours_before ?? defaultCancelHoursBefore,
     });
@@ -337,6 +350,12 @@ export function useMatchForm(options: UseMatchFormOptions) {
         } else {
             form.registration_opens_at = null;
         }
+
+        if (registrationClosesDate.value && registrationClosesTime.value) {
+            form.registration_closes_at = `${registrationClosesDate.value}T${registrationClosesTime.value}`;
+        } else {
+            form.registration_closes_at = null;
+        }
     }
 
     return {
@@ -351,6 +370,8 @@ export function useMatchForm(options: UseMatchFormOptions) {
         selectedTime,
         registrationDate,
         registrationTime,
+        registrationClosesDate,
+        registrationClosesTime,
         generatedTitle,
         generatedRegistrationOpensAt,
         enableManualTitle,

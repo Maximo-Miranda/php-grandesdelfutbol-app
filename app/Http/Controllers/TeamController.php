@@ -92,6 +92,11 @@ class TeamController extends Controller
                 'is_tournament' => (bool) ($data['is_tournament'] ?? false),
             ]);
 
+            $team->detachPlayersFromSiblings(array_filter([
+                $data['coach_player_id'] ?? null,
+                $data['captain_player_id'] ?? null,
+            ]));
+
             if ($request->hasFile('logo')) {
                 $this->attachments->upload($team, $request->file('logo'), AttachmentCollection::TeamLogo);
             }
@@ -156,10 +161,20 @@ class TeamController extends Controller
         DB::transaction(function () use ($team, $data, $request) {
             $team->update(Arr::only($data, ['name', 'color', 'coach_player_id', 'captain_player_id', 'bio', 'is_tournament']));
 
-            if (array_key_exists('player_ids', $data)) {
-                $playerIds = $data['player_ids'] ?? [];
-                $team->detachPlayersFromSiblings($playerIds);
-                $team->players()->sync($playerIds);
+            $rosterIds = array_key_exists('player_ids', $data) ? ($data['player_ids'] ?? []) : null;
+
+            $detachIds = array_filter([
+                $data['coach_player_id'] ?? null,
+                $data['captain_player_id'] ?? null,
+                ...($rosterIds ?? []),
+            ]);
+
+            if (! empty($detachIds)) {
+                $team->detachPlayersFromSiblings($detachIds);
+            }
+
+            if ($rosterIds !== null) {
+                $team->players()->sync($rosterIds);
             }
 
             $this->syncAttachment($team, $request, 'logo', AttachmentCollection::TeamLogo, ! empty($data['remove_logo']));
@@ -233,7 +248,11 @@ class TeamController extends Controller
                 ]);
 
                 $sourcePlayerIds = $sourceTeam->players->pluck('id')->all();
-                $newTeam->detachPlayersFromSiblings($sourcePlayerIds);
+                $newTeam->detachPlayersFromSiblings(array_filter([
+                    $sourceTeam->coach_player_id,
+                    $sourceTeam->captain_player_id,
+                    ...$sourcePlayerIds,
+                ]));
                 $newTeam->players()->sync($sourcePlayerIds);
 
                 foreach ($sourceTeam->attachments as $att) {
@@ -273,21 +292,18 @@ class TeamController extends Controller
 
     private function playersForTeamForm(Club $club, Team $team): Collection
     {
-        if ($team->is_tournament) {
-            return $this->allActivePlayers($club);
-        }
-
-        return $this->availablePlayersFor($club, $team->season_id, $team->id);
+        return $this->availablePlayersFor($club, $team->season_id, $team->is_tournament, $team->id);
     }
 
     /**
-     * Players of the club not yet in any non-tournament team of the given season.
-     * Used when editing a non-tournament team to enforce exclusive membership.
-     * The current team's roster is included so those players render as pre-selected.
+     * Players of the club not yet engaged in any other team OF THE SAME KIND in the season,
+     * either as roster member, coach or captain. Exclusivity is scoped to the bucket
+     * ($isTournament), so tournament and non-tournament rosters never exclude each other.
+     * The current team's roster/role-holders are included so they render as pre-selected.
      *
      * @return Collection<int, array<string, mixed>>
      */
-    private function availablePlayersFor(Club $club, int $seasonId, ?int $excludingTeamId = null): Collection
+    private function availablePlayersFor(Club $club, int $seasonId, bool $isTournament, ?int $excludingTeamId = null): Collection
     {
         return $club->players()
             ->active()
@@ -296,8 +312,18 @@ class TeamController extends Controller
                 ->join('teams', 'teams.id', '=', 'team_player.team_id')
                 ->whereColumn('team_player.player_id', 'players.id')
                 ->where('teams.season_id', $seasonId)
-                ->where('teams.is_tournament', false)
+                ->where('teams.is_tournament', $isTournament)
                 ->when($excludingTeamId, fn ($qq, $id) => $qq->where('teams.id', '!=', $id))
+            )
+            ->whereNotExists(fn ($q) => $q
+                ->from('teams')
+                ->where('teams.season_id', $seasonId)
+                ->where('teams.is_tournament', $isTournament)
+                ->when($excludingTeamId, fn ($qq, $id) => $qq->where('teams.id', '!=', $id))
+                ->where(fn ($qq) => $qq
+                    ->whereColumn('teams.coach_player_id', 'players.id')
+                    ->orWhereColumn('teams.captain_player_id', 'players.id')
+                )
             )
             ->orderBy('name')
             ->get(['id', 'ulid', 'name', 'jersey_number', 'position'])

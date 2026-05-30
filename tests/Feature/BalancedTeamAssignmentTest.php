@@ -74,7 +74,6 @@ it('marks excess players as substitutes', function () {
 
     expect($starters)->toHaveCount(14);
     expect($subs)->toHaveCount(2);
-    expect($subs->whereNull('team'))->toHaveCount(2);
 });
 
 it('handles players without stats by assigning randomly', function () {

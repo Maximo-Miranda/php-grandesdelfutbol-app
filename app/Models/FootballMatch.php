@@ -31,6 +31,7 @@ use Illuminate\Support\Collection;
  * @property string|null $share_token
  * @property int $registration_opens_hours
  * @property CarbonImmutable|null $registration_opens_at
+ * @property CarbonImmutable|null $registration_closes_at
  * @property string|null $notes
  * @property CarbonImmutable|null $started_at
  * @property CarbonImmutable|null $ended_at
@@ -87,6 +88,7 @@ use Illuminate\Support\Collection;
  * @property int $recurrence_days
  * @property CarbonImmutable|null $next_match_created_at
  * @property bool $auto_cancel
+ * @property bool $allow_outsiders
  * @property int $min_players_required
  * @property int|null $cancel_hours_before
  * @property-read MatchVideoUpload|null $videoUpload
@@ -134,6 +136,7 @@ class FootballMatch extends Model
         'share_token',
         'registration_opens_hours',
         'registration_opens_at',
+        'registration_closes_at',
         'notes',
         'started_at',
         'ended_at',
@@ -150,6 +153,7 @@ class FootballMatch extends Model
         'recurrence_days',
         'next_match_created_at',
         'auto_cancel',
+        'allow_outsiders',
         'min_players_required',
         'cancel_hours_before',
     ];
@@ -169,6 +173,7 @@ class FootballMatch extends Model
             'recurrence_days' => 'integer',
             'next_match_created_at' => 'immutable_datetime',
             'auto_cancel' => 'boolean',
+            'allow_outsiders' => 'boolean',
             'min_players_required' => 'integer',
             'duration_minutes' => 'integer',
             'arrival_minutes' => 'integer',
@@ -176,6 +181,7 @@ class FootballMatch extends Model
             'max_substitutes' => 'integer',
             'registration_opens_hours' => 'integer',
             'registration_opens_at' => 'immutable_datetime',
+            'registration_closes_at' => 'immutable_datetime',
             'cancel_hours_before' => 'integer',
             'is_friendly' => 'boolean',
             'team_a_score' => 'integer',
@@ -189,9 +195,19 @@ class FootballMatch extends Model
             ?? $this->scheduled_at->subHours($this->registration_opens_hours);
     }
 
+    public function effectiveRegistrationClosesAt(): CarbonImmutable
+    {
+        return $this->registration_closes_at ?? $this->scheduled_at;
+    }
+
     public function effectiveCancelHoursBefore(): int
     {
         return $this->cancel_hours_before ?? self::DEFAULT_CANCEL_HOURS_BEFORE;
+    }
+
+    public function isOpenCall(): bool
+    {
+        return ! $this->isTeamRestricted();
     }
 
     public function teamName(AttendanceTeam $team): ?string
@@ -241,22 +257,28 @@ class FootballMatch extends Model
 
         $this->loadMissing(['teamA.players', 'teamB.players']);
 
-        // Tournament matches allow overlapping rosters — admin's explicit choice wins over roster membership.
-        if ($this->isTournament() && ($slot = $this->slotForPreferred($preferred)) !== null) {
-            return $slot;
+        $inA = $this->teamA?->players->contains('id', $player->id) ?? false;
+        $inB = $this->teamB?->players->contains('id', $player->id) ?? false;
+
+        // Tournament rosters are fixed and exclusive: the player is on at most one team,
+        // so their roster decides — there is no choice to make. A non-rostered player is
+        // not eligible (returns null; rejected unless the match allows outsiders).
+        if ($this->isTournament()) {
+            return match (true) {
+                $inA => AttendanceTeam::A,
+                $inB => AttendanceTeam::B,
+                default => null,
+            };
         }
 
-        if ($this->teamA?->players->contains('id', $player->id)) {
+        if ($inA) {
             return AttendanceTeam::A;
         }
-        if ($this->teamB?->players->contains('id', $player->id)) {
+        if ($inB) {
             return AttendanceTeam::B;
         }
 
-        if (($slot = $this->slotForPreferred($preferred)) !== null) {
-            return $slot;
-        }
-
+        // Single-team match: the only configured team accepts everyone (including outsiders).
         if ($this->teamA !== null && $this->teamB === null) {
             return AttendanceTeam::A;
         }
@@ -264,9 +286,10 @@ class FootballMatch extends Model
             return AttendanceTeam::B;
         }
 
-        // Both teams exist + outsider: auto-populate A only when both rosters are empty (admin is building on the fly).
+        // Both teams exist + outsider: auto-populate A only when both rosters are empty
+        // (admin is building on the fly). The outsider's preferred team is honored when set.
         if ($this->teamA?->players->isEmpty() && $this->teamB?->players->isEmpty()) {
-            return AttendanceTeam::A;
+            return $this->slotForPreferred($preferred) ?? AttendanceTeam::A;
         }
 
         return null;
@@ -291,7 +314,29 @@ class FootballMatch extends Model
             return true;
         }
 
-        return $this->resolveTeamForPlayer($player) !== null;
+        if ($this->resolveTeamForPlayer($player) !== null) {
+            return true;
+        }
+
+        // When the match opts into "permitir jugadores fuera de la nómina",
+        // outsiders are eligible — they confirm into a pool and the admin
+        // distributes them on the draft.
+        return (bool) $this->allow_outsiders;
+    }
+
+    /**
+     * Whether the given player is rostered in any of this match's teams.
+     */
+    public function isPlayerRostered(Player $player): bool
+    {
+        if (! $this->isTeamRestricted()) {
+            return false;
+        }
+
+        $this->loadMissing(['teamA.players', 'teamB.players']);
+
+        return ($this->teamA?->players->contains('id', $player->id) ?? false)
+            || ($this->teamB?->players->contains('id', $player->id) ?? false);
     }
 
     protected static function booted(): void
