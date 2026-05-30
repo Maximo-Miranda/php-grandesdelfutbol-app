@@ -11,6 +11,7 @@ use App\Models\FootballMatch;
 use App\Models\MatchAttendance;
 use App\Models\Player;
 use App\Services\MatchService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -69,9 +70,54 @@ class MatchAttendanceController extends Controller
             }
         }
 
+        if (isset($data['team']) && $match->isOpenCall() && $attendance->team !== null && $attendance->team !== $data['team']) {
+            return back()->with('error', 'Usa el botón Intercambiar para mover jugadores manteniendo el balance entre equipos.');
+        }
+
         $attendance->update($data);
 
         return back()->with('success', 'Asistencia actualizada.');
+    }
+
+    public function swap(Request $request, Club $club, FootballMatch $match): RedirectResponse
+    {
+        Gate::authorize('update', $match);
+
+        $validated = $request->validate([
+            'source_attendance_id' => ['required', 'integer'],
+            'target_attendance_id' => ['required', 'integer', 'different:source_attendance_id'],
+        ]);
+
+        $source = $match->attendances()->findOrFail($validated['source_attendance_id']);
+        $target = $match->attendances()->findOrFail($validated['target_attendance_id']);
+
+        try {
+            $this->matchService->swapPlayerTeams($source, $target);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Jugadores intercambiados.');
+    }
+
+    public function swapCandidates(Club $club, FootballMatch $match, MatchAttendance $attendance): JsonResponse
+    {
+        Gate::authorize('update', $match);
+
+        $candidates = $this->matchService->recommendSwapCandidates($attendance);
+
+        return response()->json([
+            'candidates' => $candidates->map(fn (array $entry) => [
+                'attendance_id' => $entry['attendance']->id,
+                'player_id' => $entry['attendance']->player_id,
+                'player_name' => $entry['attendance']->player?->display_name,
+                'position' => $entry['attendance']->player?->position?->value,
+                'photo_url' => $entry['attendance']->player?->photo_url,
+                'score' => $entry['score'],
+                'same_position_group' => $entry['same_position_group'],
+                'recommended' => $entry['recommended'],
+            ])->all(),
+        ]);
     }
 
     private function updateStatus(FootballMatch $match, MatchAttendance $attendance, AttendanceStatus $status): RedirectResponse
@@ -131,8 +177,16 @@ class MatchAttendanceController extends Controller
         }
 
         $resolved = $match->resolveTeamForPlayer($player, $requestedTeam);
+
         if ($resolved === null) {
-            return back()->with('error', "{$player->display_name} no está en ninguno de los equipos de este partido.");
+            // Outsider in a team-restricted match: only allowed when the match
+            // explicitly accepts players outside the season nómina. They join
+            // the pool with team=null and the admin draft distributes them.
+            if ($match->allow_outsiders) {
+                return null;
+            }
+
+            return back()->with('error', "{$player->display_name} no está en la nómina de este partido.");
         }
 
         if ($requestedTeam !== null && $resolved !== $requestedTeam) {

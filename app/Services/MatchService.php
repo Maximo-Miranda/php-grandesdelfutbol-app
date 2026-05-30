@@ -78,6 +78,7 @@ class MatchService
             'share_token' => Str::random(16),
             'registration_opens_hours' => $data['registration_opens_hours'] ?? 24,
             'registration_opens_at' => $data['registration_opens_at'] ?? null,
+            'registration_closes_at' => $data['registration_closes_at'] ?? null,
             'notes' => $data['notes'] ?? null,
             'team_a_name' => $teamAId ? null : ($data['team_a_name'] ?? 'Equipo A'),
             'team_b_name' => $singleTeam ? null : ($teamBId ? null : ($data['team_b_name'] ?? 'Equipo B')),
@@ -86,6 +87,7 @@ class MatchService
             'is_recurring' => $data['is_recurring'] ?? true,
             'recurrence_days' => $data['recurrence_days'] ?? 7,
             'auto_cancel' => $data['auto_cancel'] ?? true,
+            'allow_outsiders' => (bool) ($data['allow_outsiders'] ?? false),
             'min_players_required' => $data['min_players_required'] ?? ($data['max_players'] ?? 10),
             'cancel_hours_before' => $data['cancel_hours_before'] ?? null,
         ]);
@@ -124,6 +126,12 @@ class MatchService
             $newRegistrationOpensAt = $newScheduledAt->subSeconds($offsetSeconds);
         }
 
+        $newRegistrationClosesAt = null;
+        if ($match->registration_closes_at !== null) {
+            $offsetSeconds = $match->registration_closes_at->diffInSeconds($match->scheduled_at);
+            $newRegistrationClosesAt = $newScheduledAt->subSeconds($offsetSeconds);
+        }
+
         $activeSeason = app(SeasonService::class)->activeFor($match->club);
         $carryTeamA = $match->team_a_id && $match->teamA?->season_id === $activeSeason->id ? $match->team_a_id : null;
         $carryTeamB = $match->team_b_id && $match->teamB?->season_id === $activeSeason->id ? $match->team_b_id : null;
@@ -144,6 +152,7 @@ class MatchService
             'share_token' => Str::random(16),
             'registration_opens_hours' => $match->registration_opens_hours,
             'registration_opens_at' => $newRegistrationOpensAt,
+            'registration_closes_at' => $newRegistrationClosesAt,
             'notes' => $match->notes,
             'team_a_name' => $carryTeamA ? null : $match->team_a_name,
             'team_b_name' => $carryTeamB ? null : $match->team_b_name,
@@ -152,6 +161,7 @@ class MatchService
             'is_recurring' => true,
             'recurrence_days' => $match->recurrence_days,
             'auto_cancel' => $match->auto_cancel,
+            'allow_outsiders' => $match->allow_outsiders,
             'min_players_required' => $match->min_players_required,
             'cancel_hours_before' => $match->cancel_hours_before,
         ]);
@@ -230,7 +240,19 @@ class MatchService
             return false;
         }
 
-        return now()->gte($match->effectiveRegistrationOpensAt());
+        $now = now();
+
+        return $now->gte($match->effectiveRegistrationOpensAt())
+            && $now->lt($match->effectiveRegistrationClosesAt());
+    }
+
+    public function isRegistrationClosed(FootballMatch $match): bool
+    {
+        if ($match->status !== MatchStatus::Upcoming) {
+            return false;
+        }
+
+        return now()->gte($match->effectiveRegistrationClosesAt());
     }
 
     /**
@@ -420,44 +442,171 @@ class MatchService
         }
     }
 
+    public const float AUTO_BALANCE_DELTA_PCT = 0.30;
+
     public function autoAssignTeams(FootballMatch $match): void
     {
+        if ($match->status !== MatchStatus::Upcoming) {
+            // Past or in-progress matches already have events with their own team
+            // captured. Re-assigning teams now would desynchronize stats.
+            return;
+        }
+
         $confirmedAttendances = $match->attendances()
             ->where('status', AttendanceStatus::Confirmed)
             ->with('player')
             ->get();
 
-        // For team-restricted matches: assign each player to their roster team and exit.
-        // No score-based draft balancing — roster membership determines the team.
+        // For team-restricted matches: rostered players always go to their nómina team.
+        // When the match opts into "allow_outsiders", non-rostered confirmees are drafted
+        // between A and B honoring last-played preference + skill balance.
         if ($match->isTeamRestricted()) {
-            foreach ($confirmedAttendances as $attendance) {
-                $resolved = $match->resolveTeamForPlayer($attendance->player);
-                $attendance->update([
-                    'team' => $resolved,
-                    'role' => $resolved ? AttendanceRole::Starter : AttendanceRole::Pending,
-                ]);
-            }
+            $this->distributeRestrictedMatch($match, $confirmedAttendances);
             $this->recalculateRoles($match);
 
             return;
         }
 
-        $maxPerTeam = intdiv($match->max_players, 2);
+        // Reset all confirmed for a fresh sort. Confirmation order is the source
+        // of truth for who starts; team distribution within each pool honors the
+        // player's last-played team preference and balances by skill afterward.
+        foreach ($confirmedAttendances as $attendance) {
+            $attendance->update(['team' => null, 'role' => AttendanceRole::Pending]);
+        }
 
-        $preAssigned = $confirmedAttendances->whereNotNull('team');
-        $unassigned = $confirmedAttendances->whereNull('team');
+        $orderedByConfirmation = $confirmedAttendances
+            ->sortBy(fn (MatchAttendance $a) => $a->confirmed_at?->timestamp ?? PHP_INT_MAX)
+            ->values();
 
-        // When all players already have teams, reset all for a fresh sort
-        if ($unassigned->isEmpty() && $preAssigned->isNotEmpty()) {
-            foreach ($confirmedAttendances as $attendance) {
-                $attendance->update(['team' => null, 'role' => AttendanceRole::Pending]);
+        $starterPool = $orderedByConfirmation->take($match->max_players);
+        $substitutePool = $orderedByConfirmation->slice($match->max_players);
+
+        $preferences = $this->resolveTeamPreferences($confirmedAttendances, $match);
+
+        $this->draftPoolIntoTeams($starterPool, AttendanceRole::Starter, $preferences);
+        $this->draftPoolIntoTeams($substitutePool, AttendanceRole::Substitute, $preferences);
+    }
+
+    /**
+     * Team-restricted match assignment: rostered players go to their nómina team,
+     * outsiders (only allowed when allow_outsiders=true) are drafted between the
+     * two teams honoring preference + skill balance, respecting per-team capacity.
+     *
+     * @param  Collection<int, MatchAttendance>  $confirmedAttendances
+     */
+    private function distributeRestrictedMatch(FootballMatch $match, Collection $confirmedAttendances): void
+    {
+        $rostered = collect();
+        $outsiders = collect();
+
+        foreach ($confirmedAttendances as $attendance) {
+            $rosterTeam = $match->resolveTeamForPlayer($attendance->player);
+
+            if ($rosterTeam !== null) {
+                $attendance->update([
+                    'team' => $rosterTeam,
+                    'role' => AttendanceRole::Starter,
+                ]);
+                $rostered->push(['attendance' => $attendance, 'team' => $rosterTeam]);
+
+                continue;
             }
-            $preAssigned = collect();
-            $unassigned = $confirmedAttendances;
-        } else {
-            foreach ($unassigned as $attendance) {
-                $attendance->update(['role' => AttendanceRole::Pending]);
+
+            // Outsider — clear any previous team assignment so the draft can place them
+            $attendance->update(['team' => null, 'role' => AttendanceRole::Pending]);
+            $outsiders->push($attendance);
+        }
+
+        if ($outsiders->isEmpty()) {
+            return;
+        }
+
+        $maxPerTeam = (int) ceil($match->max_players / 2);
+        $rosteredCounts = [
+            AttendanceTeam::A->value => $rostered->where('team', AttendanceTeam::A)->count(),
+            AttendanceTeam::B->value => $rostered->where('team', AttendanceTeam::B)->count(),
+        ];
+
+        $preferences = $this->resolveTeamPreferences($outsiders, $match);
+
+        $this->draftOutsidersIntoTeams($outsiders, $rosteredCounts, $maxPerTeam, $preferences);
+    }
+
+    /**
+     * Draft outsiders between the two teams of a restricted match. Each team
+     * starts with an existing rostered count; outsiders fill remaining slots
+     * honoring preference, then balancing by skill score.
+     *
+     * @param  Collection<int, MatchAttendance>  $outsiders
+     * @param  array<string, int>  $rosteredCounts  team value => current count
+     * @param  array<int, AttendanceTeam>  $preferences
+     */
+    private function draftOutsidersIntoTeams(
+        Collection $outsiders,
+        array $rosteredCounts,
+        int $maxPerTeam,
+        array $preferences,
+    ): void {
+        $teamStats = [
+            AttendanceTeam::A->value => [
+                'score' => 0.0,
+                'positions' => [],
+                'count' => $rosteredCounts[AttendanceTeam::A->value],
+            ],
+            AttendanceTeam::B->value => [
+                'score' => 0.0,
+                'positions' => [],
+                'count' => $rosteredCounts[AttendanceTeam::B->value],
+            ],
+        ];
+
+        $scored = $outsiders->map(fn (MatchAttendance $att) => [
+            'attendance' => $att,
+            'score' => $this->calculatePlayerScore($att->player),
+            'position_group' => $this->positionGroup($att->player?->position),
+            'preference' => $preferences[$att->player_id] ?? null,
+        ])->sortByDesc('score')->values();
+
+        $unplaced = collect();
+
+        foreach ($scored as $item) {
+            $pref = $item['preference'];
+            if ($pref !== null && $teamStats[$pref->value]['count'] < $maxPerTeam) {
+                $this->addToTeamStats($teamStats[$pref->value], null, $item['score'], $item['position_group']);
+                $item['attendance']->update(['team' => $pref, 'role' => AttendanceRole::Starter]);
+
+                continue;
             }
+            $unplaced->push($item);
+        }
+
+        foreach ($unplaced as $item) {
+            // Allow drafting beyond maxPerTeam if both teams are already over (no slots left
+            // anywhere) — caller still benefits from balancing as fallback.
+            $effectiveMax = max(
+                $maxPerTeam,
+                $teamStats[AttendanceTeam::A->value]['count'] + 1,
+                $teamStats[AttendanceTeam::B->value]['count'] + 1,
+            );
+            $team = $this->pickTeamForDraft($teamStats, $item['position_group'], $effectiveMax);
+            $this->addToTeamStats($teamStats[$team->value], null, $item['score'], $item['position_group']);
+            $item['attendance']->update(['team' => $team, 'role' => AttendanceRole::Starter]);
+        }
+    }
+
+    /**
+     * Distribute a pool of attendances across teams A/B honoring last-played
+     * team preference when possible, then snake-draft balancing by skill score
+     * and position group. A final rebalance pass swaps a pair of players if
+     * the resulting score delta exceeds AUTO_BALANCE_DELTA_PCT.
+     *
+     * @param  Collection<int, MatchAttendance>  $pool
+     * @param  array<int, AttendanceTeam>  $preferences  player_id => preferred team
+     */
+    private function draftPoolIntoTeams(Collection $pool, AttendanceRole $role, array $preferences = []): void
+    {
+        if ($pool->isEmpty()) {
+            return;
         }
 
         $teamStats = [
@@ -465,33 +614,133 @@ class MatchService
             AttendanceTeam::B->value => ['score' => 0.0, 'positions' => [], 'count' => 0],
         ];
 
-        foreach ($preAssigned as $attendance) {
-            $this->addToTeamStats($teamStats[$attendance->team->value], $attendance->player);
-            $attendance->update(['role' => AttendanceRole::Starter]);
-        }
-
-        $scored = $unassigned->map(fn (MatchAttendance $att) => [
+        $scored = $pool->map(fn (MatchAttendance $att) => [
             'attendance' => $att,
             'score' => $this->calculatePlayerScore($att->player),
             'position_group' => $this->positionGroup($att->player?->position),
+            'preference' => $preferences[$att->player_id] ?? null,
         ])->sortByDesc('score')->values();
 
-        $starterSlots = ($maxPerTeam * 2) - $preAssigned->count();
-        $starters = $scored->take($starterSlots);
-        $subs = $scored->slice($starterSlots);
+        $maxPerTeam = (int) ceil($scored->count() / 2);
+        $unplaced = collect();
 
-        $effectiveMaxPerTeam = (int) ceil(($preAssigned->count() + $starters->count()) / 2);
+        // Phase 1: place players who have a known team preference, top-skill first,
+        // honoring preference unless the team is already at capacity.
+        foreach ($scored as $item) {
+            $pref = $item['preference'];
+            if ($pref !== null && $teamStats[$pref->value]['count'] < $maxPerTeam) {
+                $this->addToTeamStats($teamStats[$pref->value], null, $item['score'], $item['position_group']);
+                $item['attendance']->update(['team' => $pref, 'role' => $role]);
 
-        foreach ($starters as $item) {
-            $team = $this->pickTeamForDraft($teamStats, $item['position_group'], $effectiveMaxPerTeam);
+                continue;
+            }
+            $unplaced->push($item);
+        }
 
+        // Phase 2: snake-draft remaining players (no preference, or preferred team full)
+        foreach ($unplaced as $item) {
+            $team = $this->pickTeamForDraft($teamStats, $item['position_group'], $maxPerTeam);
             $this->addToTeamStats($teamStats[$team->value], null, $item['score'], $item['position_group']);
-            $item['attendance']->update(['team' => $team, 'role' => AttendanceRole::Starter]);
+            $item['attendance']->update(['team' => $team, 'role' => $role]);
         }
 
-        foreach ($subs as $item) {
-            $item['attendance']->update(['role' => AttendanceRole::Substitute]);
+        // Phase 3: rebalance if final delta is too large by swapping one pair
+        $this->rebalancePoolIfNeeded($scored, $teamStats);
+    }
+
+    /**
+     * If the score delta between teams exceeds AUTO_BALANCE_DELTA_PCT, find a
+     * single player swap that reduces it the most. Runs at most twice to converge.
+     *
+     * @param  Collection<int, array{attendance: MatchAttendance, score: float, position_group: string, preference: ?AttendanceTeam}>  $scored
+     * @param  array<string, array{score: float, positions: array<string, int>, count: int}>  $teamStats
+     */
+    private function rebalancePoolIfNeeded(Collection $scored, array &$teamStats): void
+    {
+        for ($iteration = 0; $iteration < 2; $iteration++) {
+            $a = $teamStats[AttendanceTeam::A->value]['score'];
+            $b = $teamStats[AttendanceTeam::B->value]['score'];
+            $max = max($a, $b);
+            $delta = $max > 0 ? abs($a - $b) / $max : 0.0;
+
+            if ($delta <= self::AUTO_BALANCE_DELTA_PCT) {
+                return;
+            }
+
+            $heavier = $a > $b ? AttendanceTeam::A : AttendanceTeam::B;
+            $lighter = $heavier->opposite();
+
+            $heavyPlayers = $scored->filter(fn (array $i) => $i['attendance']->team === $heavier);
+            $lightPlayers = $scored->filter(fn (array $i) => $i['attendance']->team === $lighter);
+
+            $bestSwap = null;
+            $bestDelta = abs($a - $b);
+
+            foreach ($heavyPlayers as $heavyItem) {
+                foreach ($lightPlayers as $lightItem) {
+                    $newA = $heavier === AttendanceTeam::A
+                        ? $a - $heavyItem['score'] + $lightItem['score']
+                        : $a - $lightItem['score'] + $heavyItem['score'];
+                    $newB = ($a + $b) - $newA;
+                    $newDelta = abs($newA - $newB);
+
+                    if ($newDelta < $bestDelta) {
+                        $bestDelta = $newDelta;
+                        $bestSwap = ['heavy' => $heavyItem, 'light' => $lightItem];
+                    }
+                }
+            }
+
+            if ($bestSwap === null) {
+                return;
+            }
+
+            $bestSwap['heavy']['attendance']->update(['team' => $lighter]);
+            $bestSwap['light']['attendance']->update(['team' => $heavier]);
+
+            $heavyKey = $heavier->value;
+            $lightKey = $lighter->value;
+            $teamStats[$heavyKey]['score'] = $teamStats[$heavyKey]['score'] - $bestSwap['heavy']['score'] + $bestSwap['light']['score'];
+            $teamStats[$lightKey]['score'] = $teamStats[$lightKey]['score'] - $bestSwap['light']['score'] + $bestSwap['heavy']['score'];
         }
+    }
+
+    /**
+     * Build a map of player_id => preferred team based on the most recent
+     * completed match in the same club where the player had a team assigned.
+     *
+     * @param  Collection<int, MatchAttendance>  $attendances
+     * @return array<int, AttendanceTeam>
+     */
+    private function resolveTeamPreferences(Collection $attendances, FootballMatch $match): array
+    {
+        $playerIds = $attendances->pluck('player_id')->unique()->values()->all();
+
+        if ($playerIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('match_attendances as ma')
+            ->join('matches as m', 'm.id', '=', 'ma.match_id')
+            ->select('ma.player_id', 'ma.team')
+            ->whereIn('ma.player_id', $playerIds)
+            ->where('m.club_id', $match->club_id)
+            ->where('m.id', '!=', $match->id)
+            ->where('m.status', MatchStatus::Completed->value)
+            ->where('ma.status', AttendanceStatus::Confirmed->value)
+            ->whereNotNull('ma.team')
+            ->orderBy('ma.player_id')
+            ->orderByDesc('m.scheduled_at')
+            ->get();
+
+        $preferences = [];
+        foreach ($rows as $row) {
+            if (! isset($preferences[$row->player_id])) {
+                $preferences[(int) $row->player_id] = AttendanceTeam::from($row->team);
+            }
+        }
+
+        return $preferences;
     }
 
     /**
@@ -869,5 +1118,172 @@ class MatchService
             ['player_id' => $player->id],
             $data,
         );
+    }
+
+    /**
+     * Atomically swap the teams of two confirmed attendances.
+     * Roles stay as-is; the swap UI restricts pairs to the same role so the
+     * starter/substitute counts per team remain balanced by construction.
+     */
+    public function swapPlayerTeams(MatchAttendance $a, MatchAttendance $b): void
+    {
+        if ($a->match_id !== $b->match_id) {
+            throw new \InvalidArgumentException('Las asistencias pertenecen a partidos distintos.');
+        }
+
+        if ($a->id === $b->id) {
+            throw new \InvalidArgumentException('No se puede intercambiar una asistencia consigo misma.');
+        }
+
+        $a->loadMissing('match');
+        if ($a->match?->status !== MatchStatus::Upcoming) {
+            // Once the match is in-progress or completed, events have captured
+            // the team per action — swapping retroactively would break stats.
+            throw new \InvalidArgumentException('Solo se puede intercambiar antes del inicio del partido.');
+        }
+
+        if ($a->match->isTeamRestricted()) {
+            // Roster-based modes lock each player to their season team. Swapping
+            // would silently violate roster membership and skew team-level stats.
+            throw new \InvalidArgumentException('Este partido tiene equipos con nómina — no se puede intercambiar entre ellos.');
+        }
+
+        if ($a->status !== AttendanceStatus::Confirmed || $b->status !== AttendanceStatus::Confirmed) {
+            throw new \InvalidArgumentException('Solo se pueden intercambiar jugadores confirmados.');
+        }
+
+        if ($a->team === null || $b->team === null) {
+            throw new \InvalidArgumentException('Ambos jugadores deben tener equipo asignado.');
+        }
+
+        if ($a->team === $b->team) {
+            throw new \InvalidArgumentException('Los jugadores ya están en el mismo equipo.');
+        }
+
+        DB::transaction(function () use ($a, $b) {
+            $teamA = $a->team;
+            $teamB = $b->team;
+            $a->update(['team' => $teamB]);
+            $b->update(['team' => $teamA]);
+        });
+    }
+
+    /**
+     * Suggest swap candidates from the opposite team, sorted by affinity:
+     * same position group first, then closest skill score to the source.
+     *
+     * @return Collection<int, array{attendance: MatchAttendance, score: float, recommended: bool, same_position_group: bool}>
+     */
+    public function recommendSwapCandidates(MatchAttendance $source): Collection
+    {
+        $source->loadMissing('player', 'match');
+
+        $match = $source->match;
+
+        if ($source->team === null) {
+            return collect();
+        }
+
+        $sourceScore = $this->calculatePlayerScore($source->player);
+        $sourceGroup = $this->positionGroup($source->player?->position);
+        $oppositeTeam = $source->team->opposite();
+
+        $candidates = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('team', $oppositeTeam)
+            ->where('role', $source->role)
+            ->where('id', '!=', $source->id)
+            ->with('player.user.playerProfile')
+            ->get();
+
+        $scored = $candidates->map(function (MatchAttendance $candidate) use ($sourceScore, $sourceGroup) {
+            $candidateScore = $this->calculatePlayerScore($candidate->player);
+            $candidateGroup = $this->positionGroup($candidate->player?->position);
+            $samePositionGroup = $candidateGroup === $sourceGroup;
+
+            return [
+                'attendance' => $candidate,
+                'score' => $candidateScore,
+                'same_position_group' => $samePositionGroup,
+                'affinity' => ($samePositionGroup ? 0 : 100) + abs($sourceScore - $candidateScore),
+            ];
+        })->sortBy('affinity')->values();
+
+        return $scored->map(fn (array $entry, int $index) => [
+            'attendance' => $entry['attendance'],
+            'score' => $entry['score'],
+            'same_position_group' => $entry['same_position_group'],
+            'recommended' => $index < 2,
+        ])->values();
+    }
+
+    /**
+     * Compute the balance between teams using starter scores only.
+     * Returns delta_pct (0..1) and the outlier players on the heavier team
+     * who contribute the most to the imbalance.
+     *
+     * @return array{
+     *     team_a_score: float,
+     *     team_b_score: float,
+     *     delta_pct: float,
+     *     heavier_team: ?string,
+     *     outliers: array<int, array{attendance: MatchAttendance, score: float}>
+     * }
+     */
+    public function teamBalanceReport(FootballMatch $match): array
+    {
+        $starters = $match->attendances()
+            ->where('status', AttendanceStatus::Confirmed)
+            ->where('role', AttendanceRole::Starter)
+            ->whereNotNull('team')
+            ->with('player.user.playerProfile')
+            ->get();
+
+        $scoresByTeam = [
+            AttendanceTeam::A->value => 0.0,
+            AttendanceTeam::B->value => 0.0,
+        ];
+        $playersByTeam = [
+            AttendanceTeam::A->value => [],
+            AttendanceTeam::B->value => [],
+        ];
+
+        foreach ($starters as $attendance) {
+            $score = $this->calculatePlayerScore($attendance->player);
+            $teamKey = $attendance->team->value;
+            $scoresByTeam[$teamKey] += $score;
+            $playersByTeam[$teamKey][] = ['attendance' => $attendance, 'score' => $score];
+        }
+
+        $a = $scoresByTeam[AttendanceTeam::A->value];
+        $b = $scoresByTeam[AttendanceTeam::B->value];
+        $max = max($a, $b);
+        $delta = $max > 0 ? abs($a - $b) / $max : 0.0;
+
+        $heavierTeam = null;
+        $outliers = [];
+        if ($a > $b) {
+            $heavierTeam = AttendanceTeam::A->value;
+            $outliers = collect($playersByTeam[AttendanceTeam::A->value])
+                ->sortByDesc('score')
+                ->take(2)
+                ->values()
+                ->all();
+        } elseif ($b > $a) {
+            $heavierTeam = AttendanceTeam::B->value;
+            $outliers = collect($playersByTeam[AttendanceTeam::B->value])
+                ->sortByDesc('score')
+                ->take(2)
+                ->values()
+                ->all();
+        }
+
+        return [
+            'team_a_score' => round($a, 2),
+            'team_b_score' => round($b, 2),
+            'delta_pct' => round($delta, 4),
+            'heavier_team' => $heavierTeam,
+            'outliers' => $outliers,
+        ];
     }
 }

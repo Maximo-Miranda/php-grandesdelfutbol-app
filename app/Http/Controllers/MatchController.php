@@ -138,6 +138,7 @@ class MatchController extends Controller
         $registeredPlayerIds = $match->attendances()->pluck('player_id');
 
         $teamRestricted = $match->isTeamRestricted();
+        $isOpenCall = $match->isOpenCall();
         $tagEligibility = $this->eligibilityTagger($match, $teamRestricted);
 
         return Inertia::render('clubs/matches/Show', [
@@ -146,7 +147,13 @@ class MatchController extends Controller
             'players' => $tagEligibility($club->players()->active()->with('user.playerProfile')->get()),
             'isAdmin' => $isAdmin,
             'isTeamRestricted' => $teamRestricted,
-            'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
+            'isOpenCall' => $isOpenCall,
+            'registrationClosesAt' => $match->effectiveRegistrationClosesAt()->toIso8601String(),
+            'balanceReport' => $isOpenCall ? $this->matchService->teamBalanceReport($match) : null,
+            'myPlayer' => tap(
+                $club->players()->where('user_id', $user->id)->first(),
+                fn ($player) => $player ? $tagEligibility(collect([$player])) : null,
+            ),
             'unregisteredPlayers' => $isAdmin
                 ? Inertia::scroll(
                     fn () => tap(
@@ -164,8 +171,13 @@ class MatchController extends Controller
     }
 
     /**
-     * Build a closure that tags each player in a collection with `eligible_team`.
-     * Returns the collection unchanged when the match is not team-restricted.
+     * Build a closure that tags each player in a collection with `eligible_team`
+     * and `is_outsider`. Returns the collection unchanged when the match is not
+     * team-restricted.
+     *
+     * `is_outsider` is true when the match opts into "permitir jugadores fuera
+     * de la nómina" and the player is not in any roster — the player joins the
+     * pool with team=null and is distributed by the draft.
      */
     private function eligibilityTagger(FootballMatch $match, bool $teamRestricted): \Closure
     {
@@ -178,17 +190,23 @@ class MatchController extends Controller
         $teamBLookup = $match->teamB ? array_flip($match->teamB->players()->pluck('players.id')->all()) : [];
         $hasTeamA = $match->teamA !== null;
         $hasTeamB = $match->teamB !== null;
+        $allowOutsiders = (bool) $match->allow_outsiders;
 
-        return fn ($players) => $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB): void {
-            $player->eligible_team = $this->resolveEligibleTeam(
-                $player->id,
-                $isTournament,
-                $teamALookup,
-                $teamBLookup,
-                $hasTeamA,
-                $hasTeamB,
-            );
-        });
+        return function ($players) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB, $allowOutsiders) {
+            return $players->each(function ($player) use ($isTournament, $teamALookup, $teamBLookup, $hasTeamA, $hasTeamB, $allowOutsiders): void {
+                $rostered = isset($teamALookup[$player->id]) || isset($teamBLookup[$player->id]);
+                $player->is_outsider = $allowOutsiders && ! $rostered && ! $isTournament;
+
+                $player->eligible_team = $this->resolveEligibleTeam(
+                    $player->id,
+                    $isTournament,
+                    $teamALookup,
+                    $teamBLookup,
+                    $hasTeamA,
+                    $hasTeamB,
+                );
+            });
+        };
     }
 
     /**
@@ -203,15 +221,23 @@ class MatchController extends Controller
         bool $hasTeamA,
         bool $hasTeamB,
     ): ?string {
+        $inA = isset($teamALookup[$playerId]);
+        $inB = isset($teamBLookup[$playerId]);
+
+        // Tournament rosters are exclusive: pin to the player's team, never 'either'.
         if ($isTournament && $hasTeamA && $hasTeamB) {
-            return 'either';
+            return match (true) {
+                $inA => 'a',
+                $inB => 'b',
+                default => null,
+            };
         }
 
-        if (isset($teamALookup[$playerId])) {
+        if ($inA) {
             return 'a';
         }
 
-        if (isset($teamBLookup[$playerId])) {
+        if ($inB) {
             return 'b';
         }
 

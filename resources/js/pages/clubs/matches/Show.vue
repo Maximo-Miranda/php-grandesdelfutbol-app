@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import {
+    AlertTriangle,
     ArrowDownRight,
+    ArrowLeftRight,
     Ban,
     Bell,
     CalendarPlus,
@@ -26,6 +28,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CountdownClock from '@/components/CountdownClock.vue';
+import TeamSwapDialog from '@/components/match/TeamSwapDialog.vue';
 import VideoUploader from '@/components/match/VideoUploader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -53,10 +56,23 @@ import { useVideoServiceRequest } from '@/composables/useVideoServiceRequest';
 import { useWebPush } from '@/composables/useWebPush';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatTime } from '@/lib/utils';
-import type { BreadcrumbItem, Club, FootballMatch, Player } from '@/types';
+import type { BreadcrumbItem, Club, FootballMatch, MatchAttendance, Player } from '@/types';
 
 type PaginatedPlayers = {
     data: Player[];
+};
+
+type BalanceOutlier = {
+    attendance: MatchAttendance;
+    score: number;
+};
+
+type BalanceReport = {
+    team_a_score: number;
+    team_b_score: number;
+    delta_pct: number;
+    heavier_team: 'a' | 'b' | null;
+    outliers: BalanceOutlier[];
 };
 
 type Props = {
@@ -65,6 +81,9 @@ type Props = {
     players: Player[];
     isAdmin: boolean;
     isTeamRestricted?: boolean;
+    isOpenCall?: boolean;
+    registrationClosesAt?: string | null;
+    balanceReport?: BalanceReport | null;
     myPlayer: Player | null;
     unregisteredPlayers: PaginatedPlayers | null;
 };
@@ -126,7 +145,18 @@ const registrationOpensAt = computed(() => {
     return d.getTime();
 });
 
-const isRegistrationOpen = computed(() => now.value >= registrationOpensAt.value);
+const registrationClosesAt = computed(() => {
+    if (props.registrationClosesAt) {
+        return new Date(props.registrationClosesAt).getTime();
+    }
+    if (props.match.registration_closes_at) {
+        return new Date(props.match.registration_closes_at).getTime();
+    }
+    return new Date(props.match.scheduled_at).getTime();
+});
+
+const isRegistrationClosed = computed(() => now.value >= registrationClosesAt.value);
+const isRegistrationOpen = computed(() => now.value >= registrationOpensAt.value && !isRegistrationClosed.value);
 
 // --- Attendance ---
 const confirmedAttendances = computed(() =>
@@ -257,8 +287,63 @@ function registerPlayer(playerId: number, status: string, team?: 'a' | 'b' | nul
 }
 
 function confirmAttendance() {
+    if (props.isOpenCall) {
+        confirmWithTeam(null);
+        return;
+    }
+    const tagged = props.myPlayer as Player & {
+        eligible_team?: 'a' | 'b' | 'either' | null;
+        is_outsider?: boolean;
+    } | null;
+    // Outsider on a restricted match with allow_outsiders=true — confirm into the pool;
+    // the admin draft distributes outsiders between teams afterward.
+    if (tagged?.is_outsider) {
+        confirmWithTeam(null);
+        return;
+    }
+    // Skip the chooser when the player only has one eligible team (rostered single-team match,
+    // or one of two non-overlapping rosters). Only ask when both teams are available.
+    const eligible = tagged?.eligible_team;
+    if (eligible === 'a' || eligible === 'b') {
+        confirmWithTeam(eligible);
+        return;
+    }
     showTeamDialog.value = true;
 }
+
+// --- Team swap dialog ---
+const swapSource = ref<MatchAttendance | null>(null);
+const showSwapDialog = ref(false);
+
+function openSwap(attendance: MatchAttendance) {
+    swapSource.value = attendance;
+    showSwapDialog.value = true;
+}
+
+const swapSourceTeamLabel = computed(() => teamLabel(swapSource.value?.team ?? null) || 'Equipo origen');
+const swapOppositeTeamLabel = computed(() => {
+    if (!swapSource.value?.team) return 'Otro equipo';
+    return teamLabel(swapSource.value.team === 'a' ? 'b' : 'a') || 'Otro equipo';
+});
+
+const balanceWarning = computed(() => {
+    if (!props.balanceReport || !props.isOpenCall) return null;
+    if (props.balanceReport.delta_pct < 0.3) return null;
+    return props.balanceReport;
+});
+
+const balanceWarningPercent = computed(() => {
+    if (!balanceWarning.value) return 0;
+    return Math.round(balanceWarning.value.delta_pct * 100);
+});
+
+const balanceOutlierNames = computed(() => {
+    if (!balanceWarning.value) return '';
+    return balanceWarning.value.outliers
+        .map((o) => o.attendance.player?.display_name)
+        .filter(Boolean)
+        .join(', ');
+});
 
 function declineAttendance() {
     if (props.myPlayer) registerPlayer(props.myPlayer.id, 'declined');
@@ -409,6 +494,18 @@ function dismissPush() {
                 @request="openVsr"
             />
 
+            <!-- Balance warning (open call) -->
+            <div
+                v-if="balanceWarning"
+                class="mt-4 flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+            >
+                <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+                <div class="leading-snug">
+                    Equipos desbalanceados (~{{ balanceWarningPercent }}%).
+                    <span v-if="balanceOutlierNames">Considera intercambiar a <strong>{{ balanceOutlierNames }}</strong>.</span>
+                </div>
+            </div>
+
             <!-- Team Matchup (Champions League style) -->
             <div v-if="hasTeamAssignments" class="mt-4 overflow-hidden rounded-xl border border-border bg-card">
                 <div class="flex items-center gap-3 border-b border-border/50 px-4 py-3">
@@ -509,6 +606,7 @@ function dismissPush() {
                 v-if="canManage && confirmedCount >= 2"
                 variant="outline"
                 class="mt-3 w-full gap-2"
+                dusk="match-auto-assign"
                 @click="autoAssignTeams"
             >
                 <Shuffle class="size-4" />
@@ -545,6 +643,7 @@ function dismissPush() {
                     class="flex-1 gap-2"
                     :variant="myStatus === 'confirmed' ? 'default' : 'outline'"
                     :class="myStatus === 'confirmed' ? 'bg-emerald-600 hover:bg-emerald-700' : ''"
+                    dusk="match-confirm"
                     @click="confirmAttendance"
                 >
                     <Check class="size-4" />
@@ -553,6 +652,7 @@ function dismissPush() {
                 <Button
                     class="flex-1 gap-2"
                     :variant="myStatus === 'declined' ? 'destructive' : 'outline'"
+                    dusk="match-decline"
                     @click="declineAttendance"
                 >
                     <X class="size-4" />
@@ -743,6 +843,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -786,6 +890,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -826,6 +934,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -863,6 +975,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -920,6 +1036,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -963,6 +1083,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -1003,6 +1127,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -1040,6 +1168,10 @@ function dismissPush() {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem v-if="isOpenCall && att.team" class="gap-2" @click="openSwap(att)">
+                                            <ArrowLeftRight class="size-4" />
+                                            Cambiar de equipo
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem class="gap-2 text-destructive" @click="adminMarkDeclined(att.ulid)">
                                             <UserMinus class="size-4" />
                                             No asiste
@@ -1443,6 +1575,15 @@ function dismissPush() {
             :success="vsr.success.value"
             @submit="vsr.submit"
             @close="vsr.close"
+        />
+
+        <TeamSwapDialog
+            v-model:open="showSwapDialog"
+            :club-ulid="club.ulid"
+            :match-ulid="match.ulid"
+            :source="swapSource"
+            :source-team-label="swapSourceTeamLabel"
+            :opposite-team-label="swapOppositeTeamLabel"
         />
     </AppLayout>
 </template>

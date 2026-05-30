@@ -18,6 +18,19 @@ class StoreMatchAttendanceRequest extends FormRequest
         return Gate::allows($ability, $match);
     }
 
+    public function prepareForValidation(): void
+    {
+        /** @var FootballMatch $match */
+        $match = $this->route('match');
+
+        // En convocatoria general (sin equipos con nómina) los miembros no eligen color:
+        // todos van al pool y el admin sortea después. Los admins conservan la opción
+        // de fijar equipo manualmente (ej. para registros post-partido).
+        if ($match->isOpenCall() && ! $match->club->isAdminOrOwner($this->user())) {
+            $this->merge(['team' => null]);
+        }
+    }
+
     /** @return array<string, array<mixed>> */
     public function rules(): array
     {
@@ -41,16 +54,28 @@ class StoreMatchAttendanceRequest extends FormRequest
             return;
         }
 
-        if (now()->gte($match->effectiveRegistrationOpensAt())) {
+        $now = now();
+
+        if ($now->lt($match->effectiveRegistrationOpensAt())) {
+            $validator->after(function (Validator $validator) use ($match): void {
+                $opensAt = $match->effectiveRegistrationOpensAt()->format('d/m/Y H:i');
+                $validator->errors()->add(
+                    'status',
+                    "La convocatoria aún no está abierta. Abre el {$opensAt}.",
+                );
+            });
+
             return;
         }
 
-        $validator->after(function (Validator $validator) use ($match): void {
-            $opensAt = $match->effectiveRegistrationOpensAt()->format('d/m/Y H:i');
-            $validator->errors()->add(
-                'status',
-                "La convocatoria aún no está abierta. Abre el {$opensAt}.",
-            );
-        });
+        if ($now->gte($match->effectiveRegistrationClosesAt())) {
+            $validator->after(function (Validator $validator) use ($match): void {
+                $closesAt = $match->effectiveRegistrationClosesAt()->format('d/m/Y H:i');
+                $validator->errors()->add(
+                    'status',
+                    "La convocatoria ya cerró ({$closesAt}).",
+                );
+            });
+        }
     }
 }

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -56,6 +57,13 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureRateLimiting();
+
+        // Dusk runs against a separate server (port 8001). Force Vite to use the
+        // compiled manifest instead of the dev server (which has CORS pinned to 8000).
+        // The server boots with `--env=dusk.local`; the test process resolves to "dusk".
+        if (app()->environment(['dusk', 'dusk.local'])) {
+            Vite::useHotFile(storage_path('dusk-vite-disabled.hot'));
+        }
 
         Gate::before(fn ($user) => $user->isSuperAdmin() ? true : null);
 

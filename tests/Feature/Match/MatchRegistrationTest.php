@@ -49,14 +49,14 @@ test('non-members cannot register players', function () {
         ->assertForbidden();
 });
 
-test('player can register with team choice', function () {
-    $user = User::factory()->create();
+test('admin can register a player with team choice on open call match', function () {
+    $admin = User::factory()->create();
     $club = Club::factory()->create();
-    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $admin->id]);
     $match = FootballMatch::factory()->create(['club_id' => $club->id]);
     $player = Player::factory()->create(['club_id' => $club->id]);
 
-    $this->actingAs($user)
+    $this->actingAs($admin)
         ->post(route('clubs.matches.attendance.store', [$club, $match]), [
             'player_id' => $player->id,
             'status' => 'confirmed',

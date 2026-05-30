@@ -6,6 +6,7 @@ use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Illuminate\Support\Collection;
+use Laravel\Dusk\Browser;
 use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
 
@@ -20,6 +21,24 @@ abstract class DuskTestCase extends BaseTestCase
         if (! static::runningInSail()) {
             static::startChromeDriver(['--port=9515']);
         }
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Optional slow-motion: pauses extra time between actions when DUSK_SLOW is set.
+        // Useful with --browse to follow the flow at human speed.
+        // Set DUSK_SLOW=1 for default 800ms, or DUSK_SLOW=1500 for a custom delay.
+        Browser::macro('slowMo', function () {
+            $slow = getenv('DUSK_SLOW');
+            if ($slow === false || $slow === '' || $slow === '0') {
+                return $this;
+            }
+            $ms = is_numeric($slow) && (int) $slow > 1 ? (int) $slow : 800;
+
+            return $this->pause($ms);
+        });
     }
 
     /**

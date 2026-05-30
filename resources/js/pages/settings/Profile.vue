@@ -304,7 +304,7 @@ function submitPlayerProfile() {
                                     Perfil público
                                 </Label>
                                 <p class="mt-1 text-xs text-muted-foreground">
-                                    Cuando está activo, tu nombre y foto aparecen en las plantillas públicas de los equipos donde jugás, y tu tarjeta de estadísticas se puede ver desde el roster del equipo. Apagalo para ocultarte de las páginas públicas — seguís apareciendo dentro del club como siempre.
+                                    Cuando está activo, tu nombre y foto aparecen en las plantillas públicas de los equipos donde jugás, y tu tarjeta de estadísticas se puede ver desde la nómina del equipo. Apagalo para ocultarte de las páginas públicas — seguís apareciendo dentro del club como siempre.
                                 </p>
                             </div>
                         </div>

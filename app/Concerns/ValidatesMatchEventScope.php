@@ -4,8 +4,12 @@ namespace App\Concerns;
 
 use App\Enums\MatchEventScope;
 use App\Enums\MatchEventType;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
+/**
+ * @mixin FormRequest
+ */
 trait ValidatesMatchEventScope
 {
     public function withValidator(Validator $validator): void

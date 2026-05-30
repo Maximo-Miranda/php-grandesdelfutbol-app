@@ -160,3 +160,46 @@ test('non-restricted match: works as before with manual team selection', functio
     $attendance = $match->attendances()->where('player_id', $player->id)->first();
     expect($attendance->team)->toBe(AttendanceTeam::B); // honored manual choice
 });
+
+test('tournament match: roster member confirms to their team and cannot be placed on the rival', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $season = Season::factory()->create(['club_id' => $club->id]);
+
+    $teamA = Team::factory()->forSeason($season)->create(['name' => 'Negros', 'is_tournament' => true]);
+    $teamB = Team::factory()->forSeason($season)->create(['name' => 'Amarillos', 'is_tournament' => true]);
+
+    $match = FootballMatch::factory()->create([
+        'club_id' => $club->id,
+        'season_id' => $season->id,
+        'team_a_id' => $teamA->id,
+        'team_b_id' => $teamB->id,
+    ]);
+
+    $player = Player::factory()->create(['club_id' => $club->id]);
+    $teamA->players()->attach($player->id);
+
+    // Confirms without choosing: pinned to their roster team (no choice in tournament).
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+        ])
+        ->assertRedirect();
+
+    $attendance = $match->attendances()->where('player_id', $player->id)->first();
+    expect($attendance->status)->toBe(AttendanceStatus::Confirmed)
+        ->and($attendance->team)->toBe(AttendanceTeam::A);
+
+    // Forcing the rival team in the payload is rejected; the team stays unchanged.
+    $this->actingAs($user)
+        ->post(route('clubs.matches.attendance.store', [$club, $match]), [
+            'player_id' => $player->id,
+            'status' => 'confirmed',
+            'team' => 'b',
+        ])
+        ->assertSessionHas('error');
+
+    expect($attendance->fresh()->team)->toBe(AttendanceTeam::A);
+});

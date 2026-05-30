@@ -180,6 +180,27 @@ test('team names cannot use reserved role words', function () {
     }
 });
 
+test('max_players must be within the allowed range', function (int $maxPlayers) {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->admin()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->post(route('clubs.matches.store', $club), [
+            'title' => 'Match',
+            'scheduled_at' => now()->addDay()->toISOString(),
+            'duration_minutes' => 60,
+            'arrival_minutes' => 15,
+            'max_players' => $maxPlayers,
+            'max_substitutes' => 4,
+            'registration_opens_hours' => 24,
+        ])
+        ->assertSessionHasErrors('max_players');
+})->with([
+    'below minimum (min:2)' => 1,
+    'above maximum (max:50)' => 51,
+]);
+
 test('admins can create matches with past dates', function () {
     $user = User::factory()->create();
     $club = Club::factory()->create();
