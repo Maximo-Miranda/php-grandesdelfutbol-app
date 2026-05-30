@@ -15,6 +15,21 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sail
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: grandesdelfutbol_testing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sail -d grandesdelfutbol_testing"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -23,6 +38,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
+          extensions: pdo_pgsql, pgsql
           tools: composer:v2
           coverage: xdebug
 
@@ -54,3 +70,83 @@ jobs:
 
       - name: Tests
         run: ./vendor/bin/pest
+
+  dusk:
+    runs-on: ubuntu-latest
+    needs: ci
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sail
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: grandesdelfutbol_dusk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sail -d grandesdelfutbol_dusk"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_pgsql, pgsql
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Build Assets
+        run: pnpm run build
+
+      - name: Prepare Dusk Environment
+        run: |
+          cp .env.dusk.example .env.dusk.local
+          php artisan key:generate --env=dusk.local
+
+      - name: Migrate Dusk Database
+        run: php artisan migrate --env=dusk.local --force
+
+      - name: Upgrade Chrome Driver
+        run: php artisan dusk:chrome-driver --detect
+
+      - name: Run Dusk Tests
+        run: |
+          php artisan serve --env=dusk.local --host=127.0.0.1 --port=8001 --no-reload &
+          sleep 3
+          php artisan dusk
+
+      - name: Upload Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-screenshots
+          path: tests/Browser/screenshots
+
+      - name: Upload Console Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-console
+          path: tests/Browser/console
