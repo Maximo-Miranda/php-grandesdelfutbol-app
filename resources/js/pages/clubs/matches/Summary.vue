@@ -1134,8 +1134,12 @@ async function shareReel(reel: MatchReel) {
                 <div v-if="!youtubeVideoId && videoEmbedUrl && !isAdmin" class="mt-1.5 text-xs text-muted-foreground">
                     Si el video no se reproduce, espera unos minutos mientras se termina de procesar.
                 </div>
-                <div v-if="isAdmin && hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    Pendiente de subir a YouTube
+                <div v-if="isAdmin && isUploadingToYoutube" class="mt-2 flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                    <Loader2 class="mt-0.5 size-4 shrink-0 animate-spin text-amber-400" />
+                    <div class="space-y-0.5">
+                        <p class="text-xs font-medium text-amber-400">Publicando en YouTube...</p>
+                        <p class="text-xs text-muted-foreground">El video ya está disponible aquí. Se publicará en YouTube en unos minutos; esta sección se actualiza sola.</p>
+                    </div>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
                     <!-- Copy video link (YouTube or Drive) -->
