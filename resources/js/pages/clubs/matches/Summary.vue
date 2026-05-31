@@ -233,6 +233,13 @@ const videoProcessingInfo = computed(
 );
 const videoStageLabel = computed(() => videoProcessingInfo.value.processing_stage_label ?? 'Procesando el video');
 
+const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+
+// The video plays from S3 as soon as it is ready, while it keeps uploading to
+// YouTube in the background. We surface that and keep polling until it lands.
+const isUploadingToYoutube = computed(() => hasVideoReady.value && !hasYouTube.value);
+const isVideoProcessing = computed(() => hasVideoEncoding.value || isUploadingToYoutube.value);
+
 let videoPollInterval: ReturnType<typeof setInterval> | null = null;
 
 function stopVideoPolling(): void {
@@ -253,13 +260,13 @@ function startVideoPolling(): void {
 }
 
 watch(
-    hasVideoEncoding,
-    (encoding) => (encoding ? startVideoPolling() : stopVideoPolling()),
+    isVideoProcessing,
+    (processing) => (processing ? startVideoPolling() : stopVideoPolling()),
     { immediate: true },
 );
 
 onUnmounted(stopVideoPolling);
-const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+
 const youtubeVideoId = computed(() => props.match.video_upload?.youtube_video_id ?? null);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
 const videoStreamUrl = computed(() => props.match.video_upload?.video_stream_url ?? null);
