@@ -89,7 +89,9 @@ return [
     |
     | Server: 12 GB RAM / 6 vCPU / 100 GB NVMe
     |
-    | Timeout chain: job timeout < supervisor timeout < retry_after (3900s)
+    | Timeout chain: job timeout <= supervisor timeout < retry_after (7800s).
+    | Video jobs can run up to 7200s (large Drive downloads + S3 multipart), so
+    | retry_after (7800) sits above them to avoid re-queueing a job mid-run.
     |
     | supervisor-default:  General jobs + notifications (auto-scales 2-4)
     | supervisor-video:    FFmpeg encoding / Drive->S3 transfer (fixed 1 proc)
@@ -124,7 +126,7 @@ return [
             'maxJobs' => 0,
             'memory' => 512,
             'tries' => 2,
-            'timeout' => 3600,
+            'timeout' => 7200,
             'nice' => 10,
         ],
 
@@ -168,7 +170,7 @@ return [
             'maxJobs' => 0,
             'memory' => 256,
             'tries' => 3,
-            'timeout' => 3600,
+            'timeout' => 7200,
             'nice' => 0,
         ],
     ],

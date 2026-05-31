@@ -36,7 +36,14 @@ class ProcessUploadedVideo implements ShouldQueue
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [new WithoutOverlapping($this->videoUpload->id)];
+        // expireAfter releases the atomic lock automatically if the worker dies
+        // mid-run (OOM/deploy/SIGKILL) — otherwise it would block every future
+        // ProcessUploadedVideo for this upload until the default cache expiry.
+        return [
+            (new WithoutOverlapping($this->videoUpload->id))
+                ->expireAfter($this->timeout + 300)
+                ->releaseAfter(60),
+        ];
     }
 
     public function handle(): void

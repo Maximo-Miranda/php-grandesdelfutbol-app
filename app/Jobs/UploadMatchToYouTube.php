@@ -26,7 +26,7 @@ class UploadMatchToYouTube implements ShouldQueue
 {
     use Batchable, Queueable;
 
-    public int $timeout = 3600;
+    public int $timeout = 7200;
 
     public int $tries = 3;
 
