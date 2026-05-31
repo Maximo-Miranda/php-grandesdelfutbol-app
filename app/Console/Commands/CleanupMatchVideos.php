@@ -36,17 +36,16 @@ class CleanupMatchVideos extends Command
         $deleted = 0;
 
         foreach ($uploads as $upload) {
-            $paths = array_unique(array_filter([
+            $paths = array_values(array_unique(array_filter([
                 $upload->s3_path,
                 $upload->original_s3_path,
                 $upload->s3_reels_path,
-            ]));
+            ])));
+
+            Storage::disk('s3')->delete($paths);
 
             foreach ($paths as $path) {
-                if (Storage::disk('s3')->exists($path)) {
-                    Storage::disk('s3')->delete($path);
-                    $this->line("  Eliminado S3: {$path}");
-                }
+                $this->line("  Eliminado S3: {$path}");
             }
 
             $upload->update([

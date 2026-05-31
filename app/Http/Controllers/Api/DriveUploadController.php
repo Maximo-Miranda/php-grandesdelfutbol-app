@@ -10,6 +10,7 @@ use App\Jobs\UploadMatchToYouTube;
 use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
+use App\Models\MatchVideoUpload;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleDriveService;
 use App\Support\GoogleDriveUrlParser;
@@ -179,10 +180,7 @@ class DriveUploadController extends Controller
             $videoUpload->update(['drive_shared_at' => now()]);
         });
 
-        ProcessUploadedVideo::dispatch($videoUpload);
-
-        UploadMatchToYouTube::dispatch($videoUpload)
-            ->chain([new WaitForYouTubeProcessing($videoUpload)]);
+        $this->startProcessingPipeline($videoUpload);
 
         Log::info('Drive upload completed, processing started', [
             'match' => $match->ulid,
@@ -332,12 +330,20 @@ class DriveUploadController extends Controller
             $upload->update(['drive_shared_at' => now()]);
         });
 
+        $this->startProcessingPipeline($upload);
+
+        return back()->with('success', 'Video guardado en nuestro Drive. Preparando para publicación...');
+    }
+
+    /**
+     * Kick off the video pipeline: transfer to S3 + publish to YouTube in parallel.
+     */
+    private function startProcessingPipeline(MatchVideoUpload $upload): void
+    {
         ProcessUploadedVideo::dispatch($upload);
 
         UploadMatchToYouTube::dispatch($upload)
             ->chain([new WaitForYouTubeProcessing($upload)]);
-
-        return back()->with('success', 'Video guardado en nuestro Drive. Preparando para publicación...');
     }
 
     /** Run a Drive API call with exponential backoff on transient errors. */

@@ -42,8 +42,6 @@ class ProcessUploadedVideo implements ShouldQueue
             $this->transferFromDriveToS3($match->ulid);
         }
 
-        $this->videoUpload->refresh();
-
         if (! $this->videoUpload->s3_path) {
             return;
         }
