@@ -9,13 +9,13 @@ use App\Models\MatchVideoUpload;
 use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\GoogleDriveService;
 use App\Services\ReelService;
+use App\Services\S3VideoStorage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class ProcessUploadedVideo implements ShouldQueue
@@ -124,7 +124,7 @@ class ProcessUploadedVideo implements ShouldQueue
             }
 
             $s3Key = "uploads/{$matchUlid}/original.mp4";
-            Storage::disk('s3')->put($s3Key, fopen($tempPath, 'rb'));
+            app(S3VideoStorage::class)->putFile($tempPath, $s3Key);
 
             $this->videoUpload->update([
                 's3_path' => $s3Key,

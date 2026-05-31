@@ -76,6 +76,7 @@ return [
         'max_file_bytes' => (int) env('DRIVE_MAX_FILE_BYTES', 25 * 1024 * 1024 * 1024),
         'download_connect_timeout' => (int) env('DRIVE_DOWNLOAD_CONNECT_TIMEOUT', 30),
         'download_timeout' => (int) env('DRIVE_DOWNLOAD_TIMEOUT', 3600),
+        's3_part_size_bytes' => (int) env('S3_MULTIPART_PART_SIZE_BYTES', 64 * 1024 * 1024),
     ],
 
     /*
