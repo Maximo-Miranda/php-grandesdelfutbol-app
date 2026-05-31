@@ -224,14 +224,9 @@ const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready
 const hasVideoEncoding = computed(() => props.match.video_upload?.status === 'encoding');
 const hasVideoAvailable = computed(() => hasVideoReady.value || hasVideoEncoding.value);
 
-const videoProcessingInfo = computed(
-    () =>
-        (props.match.video_upload ?? {}) as {
-            processing_stage_label?: string | null;
-            processing_heartbeat_at?: string | null;
-        },
+const videoStageLabel = computed(
+    () => (props.match.video_upload as { processing_stage_label?: string | null } | null)?.processing_stage_label ?? 'Procesando el video',
 );
-const videoStageLabel = computed(() => videoProcessingInfo.value.processing_stage_label ?? 'Procesando el video');
 
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
 

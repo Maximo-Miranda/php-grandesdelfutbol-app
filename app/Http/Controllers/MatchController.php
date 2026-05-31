@@ -366,7 +366,10 @@ class MatchController extends Controller
     {
         $videoUpload = $match->videoUpload;
 
-        $s3VideoUrl = $videoUpload?->s3_path && $videoUpload->best_resolution
+        // Only sign the S3 URL when it will actually be used as the player —
+        // i.e. there is no YouTube video yet. Once on YouTube, this URL is
+        // discarded, so signing it on every page load/poll is wasted work.
+        $s3VideoUrl = $videoUpload?->s3_path && $videoUpload->best_resolution && ! $videoUpload->youtube_video_id
             ? Storage::disk('s3')->temporaryUrl($videoUpload->s3_path, now()->addHour())
             : null;
 
@@ -385,7 +388,7 @@ class MatchController extends Controller
                 ? collect(PlayerPosition::cases())->map(fn (PlayerPosition $p) => ['value' => $p->value, 'label' => $p->label()])
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
-            's3VideoUrl' => $s3VideoUrl && ! $videoUpload->youtube_video_id ? $s3VideoUrl : null,
+            's3VideoUrl' => $s3VideoUrl,
         ];
     }
 }
