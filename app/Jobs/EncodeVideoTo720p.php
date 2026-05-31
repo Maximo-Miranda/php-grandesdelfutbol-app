@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoResolution;
 use App\Models\MatchVideoUpload;
 use App\Services\GoogleDriveService;
 use Illuminate\Bus\Batchable;
@@ -84,7 +85,7 @@ class EncodeVideoTo720p implements ShouldQueue
             $this->videoUpload->update([
                 's3_reels_path' => $s3Output,
                 's3_reels_uploaded_at' => $this->videoUpload->s3_reels_uploaded_at ?? now(),
-                'best_resolution' => '720p',
+                'best_resolution' => VideoResolution::P720,
             ]);
 
             $this->uploadReelsSourceToDrive($outputFile, $match->ulid);

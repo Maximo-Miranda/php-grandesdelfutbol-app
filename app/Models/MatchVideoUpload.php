@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
+use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $s3_reels_path
  * @property CarbonImmutable|null $s3_reels_uploaded_at
  * @property CarbonImmutable|null $drive_shared_at
- * @property string|null $best_resolution
+ * @property VideoResolution|null $best_resolution
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -75,6 +76,7 @@ class MatchVideoUpload extends Model
     {
         return [
             'status' => VideoUploadStatus::class,
+            'best_resolution' => VideoResolution::class,
             'original_size_bytes' => 'integer',
             'duration_seconds' => 'integer',
             'video_offset_seconds' => 'integer',

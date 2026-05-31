@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use App\Models\MatchVideoUpload;
 use App\Notifications\MatchVideoUploadedNotification;
@@ -9,6 +10,7 @@ use App\Services\GoogleDriveService;
 use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -27,6 +29,13 @@ class ProcessUploadedVideo implements ShouldQueue
         public MatchVideoUpload $videoUpload,
     ) {
         $this->onQueue('video-processing');
+    }
+
+    /** @return array<int, object> */
+    /** @return array<int, object> */
+    public function middleware(): array
+    {
+        return [new WithoutOverlapping($this->videoUpload->id)];
     }
 
     public function handle(): void
@@ -54,7 +63,7 @@ class ProcessUploadedVideo implements ShouldQueue
         }
 
         $this->videoUpload->update([
-            'best_resolution' => 'original',
+            'best_resolution' => VideoResolution::Original,
             'status' => VideoUploadStatus::Ready,
             'encoded_at' => now(),
             's3_reels_uploaded_at' => $this->videoUpload->s3_reels_uploaded_at ?? now(),

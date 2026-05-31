@@ -12,6 +12,7 @@ use App\Services\YouTubeService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +36,12 @@ class UploadMatchToYouTube implements ShouldQueue
         public MatchVideoUpload $videoUpload,
     ) {
         $this->onQueue('youtube');
+    }
+
+    /** @return array<int, object> */
+    public function middleware(): array
+    {
+        return [new RateLimited('youtube-upload')];
     }
 
     public function handle(YouTubeService $youtubeService, ?YouTubeQuotaService $quotaService = null): void

@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\UploadMatchToYouTube;
-use App\Jobs\WaitForYouTubeProcessing;
+use App\Actions\Video\DispatchYouTubeUpload;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\GoogleDriveService;
@@ -18,6 +17,7 @@ class MatchVideoUploadController extends Controller
     public function __construct(
         private YouTubeService $youtubeService,
         private GoogleDriveService $driveService,
+        private DispatchYouTubeUpload $dispatchYouTubeUpload,
     ) {}
 
     public function show(Club $club, FootballMatch $match): JsonResponse
@@ -59,8 +59,7 @@ class MatchVideoUploadController extends Controller
             'error_message' => null,
         ]);
 
-        UploadMatchToYouTube::dispatch($videoUpload)
-            ->chain([new WaitForYouTubeProcessing($videoUpload)]);
+        ($this->dispatchYouTubeUpload)($videoUpload);
 
         return response()->json(['message' => 'Reintentando subida a YouTube.']);
     }

@@ -102,22 +102,20 @@ class GoogleDriveService
      */
     public function downloadFile(string $fileId, string $localPath): void
     {
-        $drive = $this->driveService();
-
-        /** @var StreamInterface $content */
-        $content = $drive->files->get($fileId, [
-            'alt' => 'media',
-        ])->getBody();
+        $accessToken = $this->authService->getAccessToken()['access_token'];
 
         File::ensureDirectoryExists(dirname($localPath));
 
-        $handle = fopen($localPath, 'wb');
+        $response = Http::withToken($accessToken)
+            ->connectTimeout((int) config('youtube.drive.download_connect_timeout', 30))
+            ->timeout((int) config('youtube.drive.download_timeout', 3600))
+            ->withOptions(['stream' => true])
+            ->sink($localPath)
+            ->get("https://www.googleapis.com/drive/v3/files/{$fileId}", ['alt' => 'media']);
 
-        while (! $content->eof()) {
-            fwrite($handle, $content->read(8192));
+        if (! $response->successful()) {
+            throw new RuntimeException("No se pudo descargar el archivo de Drive: {$fileId}");
         }
-
-        fclose($handle);
     }
 
     /** Delete a file from Google Drive. */

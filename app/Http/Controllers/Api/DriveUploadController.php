@@ -5,12 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Enums\VideoUploadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Match\InitDriveUploadRequest;
-use App\Jobs\ProcessUploadedVideo;
-use App\Jobs\UploadMatchToYouTube;
-use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
-use App\Models\MatchVideoUpload;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleDriveService;
 use App\Support\GoogleDriveUrlParser;
@@ -180,7 +176,7 @@ class DriveUploadController extends Controller
             $videoUpload->update(['drive_shared_at' => now()]);
         });
 
-        $this->startProcessingPipeline($videoUpload);
+        ($this->startProcessingPipeline)($videoUpload);
 
         Log::info('Drive upload completed, processing started', [
             'match' => $match->ulid,

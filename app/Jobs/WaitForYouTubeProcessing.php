@@ -16,6 +16,8 @@ class WaitForYouTubeProcessing implements ShouldQueue
 
     public int $tries = 30;
 
+    public int $timeout = 120;
+
     /** @var array<int, int> */
     public array $backoff = [120];
 

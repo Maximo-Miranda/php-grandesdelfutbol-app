@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoResolution;
 use App\Models\MatchVideoUpload;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -76,7 +77,7 @@ class EncodeVideo implements ShouldQueue
             $this->uploadToS3($outputFile, $s3Output);
 
             $this->videoUpload->update([
-                'best_resolution' => '1080p',
+                'best_resolution' => VideoResolution::P1080,
             ]);
         } finally {
             $this->cleanupFile($inputFile);

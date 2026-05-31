@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use App\Jobs\ProcessUploadedVideo;
 use App\Models\FootballMatch;
@@ -25,7 +26,7 @@ test('marks upload ready as original when s3 copy exists, without encoding', fun
     $upload->refresh();
 
     expect($upload->status)->toBe(VideoUploadStatus::Ready)
-        ->and($upload->best_resolution)->toBe('original')
+        ->and($upload->best_resolution)->toBe(VideoResolution::Original)
         ->and($upload->encoded_at)->not->toBeNull()
         ->and($upload->drive_file_id)->toBe('drive-original')
         ->and($upload->s3_path)->toBe('uploads/test/original.mp4');
