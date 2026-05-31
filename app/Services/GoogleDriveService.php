@@ -7,11 +7,13 @@ use Google\Http\MediaFileUpload;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\Permission;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
+use Throwable;
 
 class GoogleDriveService
 {
@@ -106,17 +108,46 @@ class GoogleDriveService
 
         File::ensureDirectoryExists(dirname($localPath));
 
-        $response = Http::withToken($accessToken)
-            ->connectTimeout((int) config('youtube.drive.download_connect_timeout', 30))
-            ->timeout((int) config('youtube.drive.download_timeout', 3600))
-            ->sink($localPath)
-            ->get("https://www.googleapis.com/drive/v3/files/{$fileId}", ['alt' => 'media']);
+        // Stream the response body straight to disk in fixed-size chunks so the
+        // full file never lives in memory (a 9GB video would otherwise exhaust
+        // the worker). 'stream' => true keeps Guzzle from buffering the body.
+        $client = new Client;
+        $handle = fopen($localPath, 'wb');
 
-        if (! $response->successful()) {
+        try {
+            $response = $client->get("https://www.googleapis.com/drive/v3/files/{$fileId}", [
+                'query' => ['alt' => 'media'],
+                'headers' => ['Authorization' => "Bearer {$accessToken}"],
+                'stream' => true,
+                'http_errors' => false,
+                'connect_timeout' => (int) config('youtube.drive.download_connect_timeout', 30),
+                'timeout' => (int) config('youtube.drive.download_timeout', 3600),
+            ]);
+
+            if ($response->getStatusCode() >= 400) {
+                throw new RuntimeException("No se pudo descargar el archivo de Drive ({$fileId}): HTTP {$response->getStatusCode()}.");
+            }
+
+            $body = $response->getBody();
+
+            while (! $body->eof()) {
+                fwrite($handle, $body->read(8 * 1024 * 1024));
+            }
+
+            $body->close();
+        } catch (RuntimeException $e) {
+            fclose($handle);
             File::delete($localPath);
 
-            throw new RuntimeException("No se pudo descargar el archivo de Drive ({$fileId}): HTTP {$response->status()}.");
+            throw $e;
+        } catch (Throwable $e) {
+            fclose($handle);
+            File::delete($localPath);
+
+            throw new RuntimeException("Error al descargar el archivo de Drive ({$fileId}): {$e->getMessage()}", 0, $e);
         }
+
+        fclose($handle);
 
         if (! File::exists($localPath) || File::size($localPath) === 0) {
             File::delete($localPath);
