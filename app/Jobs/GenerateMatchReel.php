@@ -82,16 +82,20 @@ class GenerateMatchReel implements ShouldQueue
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
         } catch (RuntimeException $e) {
-            $this->cleanupFiles($outputFile, $sourceVideo, $match);
-
             if ($this->isRetryableDownloadError($e)) {
                 throw $e;
             }
 
             $this->markFailed($e->getMessage());
         } catch (Exception $e) {
-            $this->cleanupFiles($outputFile, $sourceVideo, $match);
             $this->markFailed($e->getMessage());
+        } finally {
+            // Always free the temp files. cleanupFiles keeps the full source
+            // video while other reels for the same match are still pending, so
+            // a batch of reels reuses the single download; the last reel removes
+            // it. Previously this only ran on failure, leaving the multi-GB
+            // original on disk forever after a successful reel.
+            $this->cleanupFiles($outputFile, $sourceVideo, $match);
         }
     }
 
