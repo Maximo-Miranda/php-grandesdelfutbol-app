@@ -19,7 +19,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
 class DriveUploadController extends Controller
@@ -266,20 +265,11 @@ class DriveUploadController extends Controller
             ]);
         }
 
-        $maxBytes = (int) config('youtube.drive.max_file_bytes');
         $sizeBytes = (int) ($metadata['size'] ?? 0);
 
         if ($sizeBytes === 0) {
             return back()->withErrors([
                 'drive_url' => 'No pudimos determinar el tamaño del video. Verificá que el link sea accesible.',
-            ]);
-        }
-
-        if ($sizeBytes > $maxBytes) {
-            return back()->withErrors([
-                'drive_url' => 'El video pesa '.Number::fileSize($sizeBytes, precision: 1)
-                    .'. El máximo permitido es '.Number::fileSize($maxBytes, precision: 0)
-                    .'. Editá el video o subí una versión más corta.',
             ]);
         }
 
