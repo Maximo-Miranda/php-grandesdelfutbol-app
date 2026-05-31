@@ -7,11 +7,13 @@ use Google\Http\MediaFileUpload;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\Permission;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
+use Throwable;
 
 class GoogleDriveService
 {
@@ -100,24 +102,65 @@ class GoogleDriveService
      *
      * @see https://developers.google.com/workspace/drive/api/reference/rest/v3/files/get
      */
-    public function downloadFile(string $fileId, string $localPath): void
+    public function downloadFile(string $fileId, string $localPath, ?callable $onProgress = null): void
     {
-        $drive = $this->driveService();
-
-        /** @var StreamInterface $content */
-        $content = $drive->files->get($fileId, [
-            'alt' => 'media',
-        ])->getBody();
+        $accessToken = $this->authService->getAccessToken()['access_token'];
 
         File::ensureDirectoryExists(dirname($localPath));
 
+        // Stream the response body straight to disk in fixed-size chunks so the
+        // full file never lives in memory (a 9GB video would otherwise exhaust
+        // the worker). 'stream' => true keeps Guzzle from buffering the body.
+        $client = new Client;
         $handle = fopen($localPath, 'wb');
 
-        while (! $content->eof()) {
-            fwrite($handle, $content->read(8192));
+        try {
+            $response = $client->get("https://www.googleapis.com/drive/v3/files/{$fileId}", [
+                'query' => ['alt' => 'media'],
+                'headers' => ['Authorization' => "Bearer {$accessToken}"],
+                'stream' => true,
+                'http_errors' => false,
+                'connect_timeout' => (int) config('youtube.drive.download_connect_timeout', 30),
+                'timeout' => (int) config('youtube.drive.download_timeout', 3600),
+            ]);
+
+            if ($response->getStatusCode() >= 400) {
+                throw new RuntimeException("No se pudo descargar el archivo de Drive ({$fileId}): HTTP {$response->getStatusCode()}.");
+            }
+
+            $body = $response->getBody();
+            $downloaded = 0;
+
+            while (! $body->eof()) {
+                $chunk = $body->read(8 * 1024 * 1024);
+                fwrite($handle, $chunk);
+
+                if ($onProgress !== null) {
+                    $downloaded += strlen($chunk);
+                    $onProgress($downloaded);
+                }
+            }
+
+            $body->close();
+        } catch (RuntimeException $e) {
+            fclose($handle);
+            File::delete($localPath);
+
+            throw $e;
+        } catch (Throwable $e) {
+            fclose($handle);
+            File::delete($localPath);
+
+            throw new RuntimeException("Error al descargar el archivo de Drive ({$fileId}): {$e->getMessage()}", 0, $e);
         }
 
         fclose($handle);
+
+        if (! File::exists($localPath) || File::size($localPath) === 0) {
+            File::delete($localPath);
+
+            throw new RuntimeException("La descarga del archivo de Drive ({$fileId}) quedó vacía.");
+        }
     }
 
     /** Delete a file from Google Drive. */

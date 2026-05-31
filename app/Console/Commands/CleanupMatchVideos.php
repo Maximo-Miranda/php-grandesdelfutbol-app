@@ -10,60 +10,48 @@ class CleanupMatchVideos extends Command
 {
     protected $signature = 'app:cleanup-match-videos {--days= : Override dias de retencion (default: config)}';
 
-    protected $description = 'Elimina la version 720p de S3 despues del periodo de retencion. Verifica que Drive tenga el respaldo.';
+    protected $description = 'Elimina la copia del video en S3 tras el periodo de retencion, siempre que exista respaldo en YouTube y en Drive.';
 
     public function handle(): int
     {
-        $days = (int) ($this->option('days') ?? config('youtube.storage.s3_reels_source_days', 30));
-
-        $uploads = MatchVideoUpload::query()
-            ->whereNotNull('s3_reels_path')
-            ->where('s3_reels_uploaded_at', '<', now()->subDays($days))
-            ->get();
-
-        if ($uploads->isEmpty()) {
-            $this->info('No hay videos para limpiar.');
-
-            return self::SUCCESS;
-        }
+        $days = (int) ($this->option('days') ?? config('youtube.storage.s3_reels_source_days', 7));
 
         $deleted = 0;
-        $skipped = 0;
 
-        foreach ($uploads as $upload) {
-            if (! $upload->youtube_video_id) {
-                $this->warn("  Saltado: {$upload->ulid} — no tiene video en YouTube.");
-                $skipped++;
+        MatchVideoUpload::query()
+            ->whereNotNull('youtube_video_id')
+            ->whereNotNull('drive_file_id')
+            ->where('encoded_at', '<', now()->subDays($days))
+            ->where(function ($query) {
+                $query->whereNotNull('s3_path')
+                    ->orWhereNotNull('original_s3_path')
+                    ->orWhereNotNull('s3_reels_path');
+            })
+            ->chunkById(100, function ($uploads) use (&$deleted) {
+                foreach ($uploads as $upload) {
+                    $paths = array_values(array_unique(array_filter([
+                        $upload->s3_path,
+                        $upload->original_s3_path,
+                        $upload->s3_reels_path,
+                    ])));
 
-                continue;
-            }
+                    Storage::disk('s3')->delete($paths);
 
-            if (! $upload->drive_reels_file_id) {
-                $this->warn("  Saltado: {$upload->ulid} — no tiene 720p en Drive.");
-                $skipped++;
+                    foreach ($paths as $path) {
+                        $this->line("  Eliminado S3: {$path}");
+                    }
+                }
 
-                continue;
-            }
+                $uploads->toQuery()->update([
+                    's3_path' => null,
+                    'original_s3_path' => null,
+                    's3_reels_path' => null,
+                ]);
 
-            if (Storage::disk('s3')->exists($upload->s3_reels_path)) {
-                Storage::disk('s3')->delete($upload->s3_reels_path);
-                $this->line("  Eliminado S3: {$upload->s3_reels_path}");
-            }
+                $deleted += $uploads->count();
+            });
 
-            if ($upload->original_s3_path && Storage::disk('s3')->exists($upload->original_s3_path)) {
-                Storage::disk('s3')->delete($upload->original_s3_path);
-            }
-
-            $upload->update([
-                's3_reels_path' => null,
-                's3_path' => null,
-                'original_s3_path' => null,
-            ]);
-
-            $deleted++;
-        }
-
-        $this->info("Listo: {$deleted} limpiados, {$skipped} saltados.");
+        $this->info($deleted === 0 ? 'No hay videos para limpiar.' : "Listo: {$deleted} limpiados.");
 
         return self::SUCCESS;
     }

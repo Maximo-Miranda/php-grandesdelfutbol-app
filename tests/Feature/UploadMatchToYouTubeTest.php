@@ -3,6 +3,7 @@
 use App\Enums\VideoUploadStatus;
 use App\Jobs\UploadMatchToYouTube;
 use App\Models\MatchVideoUpload;
+use App\Services\GoogleDriveService;
 use App\Services\YouTubeService;
 use Google\Service\Exception;
 use Illuminate\Support\Facades\Cache;
@@ -70,6 +71,31 @@ it('downloads from s3 and uploads to youtube', function () {
 
     expect($upload->youtube_video_id)->toBe('yt-new-video-id')
         ->and($upload->youtube_uploaded_at)->not->toBeNull();
+});
+
+it('reads from s3 instead of drive when both are available', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('uploads/test.mp4', 'fake-video-content');
+
+    $upload = MatchVideoUpload::factory()->create([
+        'youtube_video_id' => null,
+        's3_path' => 'uploads/test.mp4',
+        'drive_file_id' => 'drive-original-id',
+    ]);
+
+    $driveMock = mock(GoogleDriveService::class);
+    $driveMock->shouldNotReceive('downloadFile');
+
+    $youtubeMock = mock(YouTubeService::class);
+    $youtubeMock->shouldReceive('isConfigured')->andReturn(true);
+    $youtubeMock->shouldReceive('playlistExists')->andReturn(true);
+    $youtubeMock->shouldReceive('createPlaylist')->andReturn('pl-id');
+    $youtubeMock->shouldReceive('addToPlaylist');
+    $youtubeMock->shouldReceive('uploadVideo')->once()->andReturn('yt-from-s3');
+
+    (new UploadMatchToYouTube($upload))->handle($youtubeMock);
+
+    expect($upload->fresh()->youtube_video_id)->toBe('yt-from-s3');
 });
 
 it('creates playlist and adds video when club has no playlist', function () {
@@ -157,12 +183,12 @@ it('recreates playlist when stored playlist was deleted from youtube', function 
     expect($club->fresh()->youtube_playlist_id)->toBe('pl-recreated');
 });
 
-it('is dispatched on video-processing queue', function () {
+it('is dispatched on youtube queue', function () {
     $upload = MatchVideoUpload::factory()->create();
 
     $job = new UploadMatchToYouTube($upload);
 
-    expect($job->queue)->toBe('video-processing');
+    expect($job->queue)->toBe('youtube');
 });
 
 it('sets status to ready with error message when youtube fails and video is encoded', function () {

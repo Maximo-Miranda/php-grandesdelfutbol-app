@@ -223,7 +223,45 @@ function deleteMatch() {
 const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
 const hasVideoEncoding = computed(() => props.match.video_upload?.status === 'encoding');
 const hasVideoAvailable = computed(() => hasVideoReady.value || hasVideoEncoding.value);
+
+const videoStageLabel = computed(
+    () => (props.match.video_upload as { processing_stage_label?: string | null } | null)?.processing_stage_label ?? 'Procesando el video',
+);
+
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+
+// The video plays from S3 as soon as it is ready, while it keeps uploading to
+// YouTube in the background. We surface that and keep polling until it lands.
+const isUploadingToYoutube = computed(() => hasVideoReady.value && !hasYouTube.value);
+const isVideoProcessing = computed(() => hasVideoEncoding.value || isUploadingToYoutube.value);
+
+let videoPollInterval: ReturnType<typeof setInterval> | null = null;
+
+function stopVideoPolling(): void {
+    if (videoPollInterval) {
+        clearInterval(videoPollInterval);
+        videoPollInterval = null;
+    }
+}
+
+function startVideoPolling(): void {
+    if (videoPollInterval) {
+        return;
+    }
+
+    videoPollInterval = setInterval(() => {
+        router.reload({ only: ['match'] });
+    }, 10000);
+}
+
+watch(
+    isVideoProcessing,
+    (processing) => (processing ? startVideoPolling() : stopVideoPolling()),
+    { immediate: true },
+);
+
+onUnmounted(stopVideoPolling);
+
 const youtubeVideoId = computed(() => props.match.video_upload?.youtube_video_id ?? null);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
 const videoStreamUrl = computed(() => props.match.video_upload?.video_stream_url ?? null);
@@ -1084,8 +1122,8 @@ async function shareReel(reel: MatchReel) {
                     <div class="flex items-center gap-3">
                         <Loader2 class="size-5 shrink-0 animate-spin text-amber-400" />
                         <div>
-                            <p class="text-sm font-medium text-amber-400">Optimizando video...</p>
-                            <p class="text-xs text-muted-foreground">Estamos generando una version optimizada del video para cargar estadisticas y generar reels. Esto puede tomar varios minutos.</p>
+                            <p class="text-sm font-medium text-amber-400">{{ videoStageLabel }}...</p>
+                            <p class="text-xs text-muted-foreground">Estamos preparando el video para cargar estadísticas y generar reels. Esto puede tomar varios minutos; la página se actualiza sola cuando esté listo.</p>
                         </div>
                     </div>
                 </div>
@@ -1098,8 +1136,12 @@ async function shareReel(reel: MatchReel) {
                 <div v-if="!youtubeVideoId && videoEmbedUrl && !isAdmin" class="mt-1.5 text-xs text-muted-foreground">
                     Si el video no se reproduce, espera unos minutos mientras se termina de procesar.
                 </div>
-                <div v-if="isAdmin && hasVideoReady && !hasYouTube" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    Pendiente de subir a YouTube
+                <div v-if="isAdmin && isUploadingToYoutube" class="mt-2 flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                    <Loader2 class="mt-0.5 size-4 shrink-0 animate-spin text-amber-400" />
+                    <div class="space-y-0.5">
+                        <p class="text-xs font-medium text-amber-400">Publicando en YouTube...</p>
+                        <p class="text-xs text-muted-foreground">El video ya está disponible aquí. Se publicará en YouTube en unos minutos; esta sección se actualiza sola.</p>
+                    </div>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
                     <!-- Copy video link (YouTube or Drive) -->

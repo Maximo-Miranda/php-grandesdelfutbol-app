@@ -100,7 +100,7 @@ test('oversize video is rejected before copy', function () {
     $driveMock->shouldReceive('getFileMetadata')->once()->andReturn([
         'id' => '1aBcD_ef-Ghij123K',
         'name' => 'huge.mp4',
-        'size' => 30 * 1024 * 1024 * 1024, // 30 GB > 25 GB limit
+        'size' => 60 * 1024 * 1024 * 1024, // 60 GB > 50 GB limit
         'mimeType' => 'video/mp4',
     ]);
     $driveMock->shouldNotReceive('copyFile');

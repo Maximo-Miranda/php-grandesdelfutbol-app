@@ -24,13 +24,19 @@ class GenerateMatchReel implements ShouldQueue
 {
     use Batchable, Queueable;
 
+    public int $timeout = 1800;
+
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [new WithoutOverlapping($this->reel->id)];
+        // expireAfter releases the atomic lock if the worker dies mid-run, so a
+        // crashed reel job does not block future retries for this reel forever.
+        return [
+            (new WithoutOverlapping($this->reel->id))
+                ->expireAfter($this->timeout + 300)
+                ->releaseAfter(60),
+        ];
     }
-
-    public int $timeout = 1800;
 
     public int $tries = 3;
 
@@ -82,16 +88,20 @@ class GenerateMatchReel implements ShouldQueue
             $this->cutSegment($sourceVideo, $outputFile);
             $this->storeOutputAndComplete($outputFile);
         } catch (RuntimeException $e) {
-            $this->cleanupFiles($outputFile, $sourceVideo, $match);
-
             if ($this->isRetryableDownloadError($e)) {
                 throw $e;
             }
 
             $this->markFailed($e->getMessage());
         } catch (Exception $e) {
-            $this->cleanupFiles($outputFile, $sourceVideo, $match);
             $this->markFailed($e->getMessage());
+        } finally {
+            // Always free the temp files. cleanupFiles keeps the full source
+            // video while other reels for the same match are still pending, so
+            // a batch of reels reuses the single download; the last reel removes
+            // it. Previously this only ran on failure, leaving the multi-GB
+            // original on disk forever after a successful reel.
+            $this->cleanupFiles($outputFile, $sourceVideo, $match);
         }
     }
 
@@ -175,7 +185,7 @@ class GenerateMatchReel implements ShouldQueue
             'ffmpeg', '-y',
             '-ss', (string) $start,
             '-i', $sourceFile,
-            ...$this->watermarkArgs(),
+            ...$this->videoFilterArgs(),
             '-t', (string) $duration,
             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
             '-c:a', 'aac',
@@ -190,13 +200,22 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    /** @return list<string> */
-    protected function watermarkArgs(): array
+    /**
+     * Scale the clip down to the configured reel height (keeping reels light,
+     * since the source is now the full-resolution original) and overlay the
+     * watermark when enabled.
+     *
+     * @return list<string>
+     */
+    protected function videoFilterArgs(): array
     {
+        $height = (int) config('reels.height', 720);
+        $scale = "scale=-2:{$height}";
+
         $path = config('reels.watermark_path');
 
         if (! config('reels.watermark_enabled') || ! $path || ! File::exists($path)) {
-            return [];
+            return ['-vf', $scale];
         }
 
         $opacity = config('reels.watermark_opacity', 0.9);
@@ -205,7 +224,7 @@ class GenerateMatchReel implements ShouldQueue
         return [
             '-i', $path,
             '-filter_complex',
-            "[1:v]format=rgba,colorchannelmixer=aa={$opacity}[wm];[0:v][wm]overlay=W-w-{$padding}:{$padding}",
+            "[0:v]{$scale}[base];[1:v]format=rgba,colorchannelmixer=aa={$opacity}[wm];[base][wm]overlay=W-w-{$padding}:{$padding}",
         ];
     }
 

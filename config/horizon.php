@@ -89,10 +89,13 @@ return [
     |
     | Server: 12 GB RAM / 6 vCPU / 100 GB NVMe
     |
-    | Timeout chain: job timeout < supervisor timeout < retry_after (3900s)
+    | Timeout chain: job timeout <= supervisor timeout < retry_after (7800s).
+    | Video jobs can run up to 7200s (large Drive downloads + S3 multipart), so
+    | retry_after (7800) sits above them to avoid re-queueing a job mid-run.
     |
     | supervisor-default:  General jobs + notifications (auto-scales 2-4)
-    | supervisor-video:    FFmpeg encoding + YouTube upload (fixed 1 proc)
+    | supervisor-video:    FFmpeg encoding / Drive->S3 transfer (fixed 1 proc)
+    | supervisor-youtube:  YouTube upload + processing poll (fixed 1 proc)
     | supervisor-reels:    Reel clip generation (auto-scales 1-3)
     |
     */
@@ -123,8 +126,8 @@ return [
             'maxJobs' => 0,
             'memory' => 512,
             'tries' => 2,
-            'timeout' => 3600,
-            'nice' => 0,
+            'timeout' => 7200,
+            'nice' => 10,
         ],
 
         'supervisor-reels' => [
@@ -139,7 +142,7 @@ return [
             'memory' => 256,
             'tries' => 2,
             'timeout' => 1830,
-            'nice' => 0,
+            'nice' => 10,
         ],
 
         'supervisor-news' => [
@@ -154,6 +157,20 @@ return [
             'memory' => 128,
             'tries' => 3,
             'timeout' => 120,
+            'nice' => 0,
+        ],
+
+        'supervisor-youtube' => [
+            'connection' => 'redis',
+            'queue' => ['youtube'],
+            'balance' => false,
+            'minProcesses' => 1,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 7200,
             'nice' => 0,
         ],
     ],
@@ -184,6 +201,10 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+
+            'supervisor-youtube' => [
+                'maxProcesses' => 1,
+            ],
         ],
 
         'local' => [
@@ -200,6 +221,10 @@ return [
             ],
 
             'supervisor-news' => [
+                'maxProcesses' => 1,
+            ],
+
+            'supervisor-youtube' => [
                 'maxProcesses' => 1,
             ],
         ],

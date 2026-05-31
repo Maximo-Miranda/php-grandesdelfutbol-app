@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class RecoverStuckVideoUploads extends Command
 {
     protected $signature = 'videos:recover-stuck
-                            {--minutes=30 : How many minutes without updates before considered stuck}';
+                            {--minutes=120 : How many minutes without updates before considered stuck}';
 
     protected $description = 'Mark MatchVideoUpload records stuck in Uploading/Encoding as Failed, so admins can retry.';
 

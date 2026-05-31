@@ -104,6 +104,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('gemini-api', fn () => Limit::perMinute(
             (int) config('news.ai.per_minute_limit', 200),
         ));
+
+        RateLimiter::for('youtube-upload', fn () => Limit::perMinute(
+            (int) config('youtube.upload_rate_per_minute', 3),
+        )->by('youtube-upload'));
     }
 
     protected function configureDefaults(): void

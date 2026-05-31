@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Actions\Video\DispatchYouTubeUpload;
 use App\Enums\VideoUploadStatus;
 use App\Filament\Resources\MatchVideoUploadResource\Pages;
-use App\Jobs\UploadMatchToYouTube;
 use App\Models\MatchVideoUpload;
 use App\Services\YouTubeQuotaService;
 use App\Support\YouTubeUrlParser;
@@ -174,13 +174,15 @@ class MatchVideoUploadResource extends Resource
                         $toDispatch = $eligible->take($available);
                         $skipped = $eligible->count() - $toDispatch->count();
 
-                        $toDispatch->each(function (MatchVideoUpload $record): void {
+                        $dispatchYouTubeUpload = app(DispatchYouTubeUpload::class);
+
+                        $toDispatch->each(function (MatchVideoUpload $record) use ($dispatchYouTubeUpload): void {
                             $record->update([
                                 'youtube_upload_requested_at' => now(),
                                 'error_message' => null,
                             ]);
 
-                            UploadMatchToYouTube::dispatch($record);
+                            $dispatchYouTubeUpload($record);
                         });
 
                         $message = "{$toDispatch->count()} video(s) enviados a YouTube";
@@ -224,7 +226,7 @@ class MatchVideoUploadResource extends Resource
             'error_message' => null,
         ]);
 
-        UploadMatchToYouTube::dispatch($record);
+        app(DispatchYouTubeUpload::class)($record);
 
         Notification::make()
             ->title($successTitle)

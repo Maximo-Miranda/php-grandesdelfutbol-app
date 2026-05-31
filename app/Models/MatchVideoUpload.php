@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Concerns\HasPublicUlid;
+use App\Enums\VideoProcessingStage;
+use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +34,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $s3_reels_path
  * @property CarbonImmutable|null $s3_reels_uploaded_at
  * @property CarbonImmutable|null $drive_shared_at
- * @property string|null $best_resolution
+ * @property VideoResolution|null $best_resolution
+ * @property VideoProcessingStage|null $processing_stage
+ * @property CarbonImmutable|null $processing_heartbeat_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -51,6 +55,8 @@ class MatchVideoUpload extends Model
         'football_match_id',
         'uploaded_by',
         'status',
+        'processing_stage',
+        'processing_heartbeat_at',
         'original_filename',
         'original_size_bytes',
         'duration_seconds',
@@ -75,6 +81,9 @@ class MatchVideoUpload extends Model
     {
         return [
             'status' => VideoUploadStatus::class,
+            'processing_stage' => VideoProcessingStage::class,
+            'processing_heartbeat_at' => 'immutable_datetime',
+            'best_resolution' => VideoResolution::class,
             'original_size_bytes' => 'integer',
             'duration_seconds' => 'integer',
             'video_offset_seconds' => 'integer',
@@ -90,6 +99,33 @@ class MatchVideoUpload extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(FootballMatch::class, 'football_match_id');
+    }
+
+    /**
+     * The lowercased extension of the originally uploaded file (e.g. "mov"),
+     * defaulting to "mp4". Used to name temp/S3 copies so an iPhone .MOV is not
+     * mislabeled as .mp4.
+     */
+    public function originalExtension(): string
+    {
+        $extension = strtolower(pathinfo($this->original_filename ?? '', PATHINFO_EXTENSION));
+
+        return $extension !== '' ? $extension : 'mp4';
+    }
+
+    /** Record that processing is alive at the given stage. */
+    public function markProcessingStage(VideoProcessingStage $stage): void
+    {
+        $this->update([
+            'processing_stage' => $stage,
+            'processing_heartbeat_at' => now(),
+        ]);
+    }
+
+    /** Refresh the heartbeat without changing the current stage. */
+    public function touchProcessingHeartbeat(): void
+    {
+        $this->forceFill(['processing_heartbeat_at' => now()])->saveQuietly();
     }
 
     public function uploader(): BelongsTo

@@ -44,6 +44,8 @@ return [
 
     'daily_upload_limit' => (int) env('YOUTUBE_DAILY_UPLOAD_LIMIT', 6),
 
+    'upload_rate_per_minute' => (int) env('YOUTUBE_UPLOAD_RATE_PER_MINUTE', 3),
+
     /*
     |--------------------------------------------------------------------------
     | Video Sharing
@@ -71,7 +73,10 @@ return [
         'root_folder_id' => env('DRIVE_ROOT_FOLDER_ID'),
         'root_folder_name' => env('DRIVE_ROOT_FOLDER_NAME', 'Grandes del Futbol'),
         'chunk_size_mb' => (int) env('DRIVE_UPLOAD_CHUNK_SIZE_MB', 10),
-        'max_file_bytes' => (int) env('DRIVE_MAX_FILE_BYTES', 25 * 1024 * 1024 * 1024),
+        'max_file_bytes' => (int) env('DRIVE_MAX_FILE_BYTES', 50 * 1024 * 1024 * 1024),
+        'download_connect_timeout' => (int) env('DRIVE_DOWNLOAD_CONNECT_TIMEOUT', 30),
+        'download_timeout' => (int) env('DRIVE_DOWNLOAD_TIMEOUT', 3600),
+        's3_part_size_bytes' => (int) env('S3_MULTIPART_PART_SIZE_BYTES', 64 * 1024 * 1024),
     ],
 
     /*
@@ -86,7 +91,7 @@ return [
     */
 
     'storage' => [
-        's3_reels_source_days' => (int) env('S3_REELS_SOURCE_DAYS', 30),
+        's3_reels_source_days' => (int) env('S3_REELS_SOURCE_DAYS', 7),
     ],
 
 ];
