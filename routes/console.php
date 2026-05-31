@@ -18,3 +18,4 @@ Schedule::command('news:cleanup-dictionary --days=60')->weekly()->withoutOverlap
 Schedule::command('matches:process-schedules')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('videos:recover-stuck')->hourly()->withoutOverlapping()->onOneServer();
 Schedule::command('videos:cleanup-temp --hours=6')->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('videos:retry-youtube-pending')->hourly()->withoutOverlapping()->onOneServer();
