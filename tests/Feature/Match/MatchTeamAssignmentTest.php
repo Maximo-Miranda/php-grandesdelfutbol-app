@@ -91,9 +91,13 @@ test('auto-assign honors player team preference from last completed match', func
         'scheduled_at' => now()->subWeek(),
     ]);
 
-    // 4 players: 2 historically on team A, 2 on team B
-    $aPlayers = Player::factory()->count(2)->create(['club_id' => $club->id]);
-    $bPlayers = Player::factory()->count(2)->create(['club_id' => $club->id]);
+    // 4 players: 2 historically on team A, 2 on team B. Identical strong stats
+    // keep skill scores balanced so the skill rebalance pass never overrides
+    // the honored team preference (statless players get random scores, which
+    // would spuriously trigger a swap and make this assertion flaky).
+    $balancedStats = ['matches_played' => 20, 'goals' => 30, 'assists' => 30];
+    $aPlayers = Player::factory()->count(2)->create(['club_id' => $club->id, ...$balancedStats]);
+    $bPlayers = Player::factory()->count(2)->create(['club_id' => $club->id, ...$balancedStats]);
 
     foreach ($aPlayers as $player) {
         MatchAttendance::factory()->teamA()->starter()->create([
