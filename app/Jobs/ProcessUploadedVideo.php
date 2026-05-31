@@ -113,6 +113,10 @@ class ProcessUploadedVideo implements ShouldQueue
         try {
             $driveService->downloadFile($this->videoUpload->drive_file_id, $tempPath);
 
+            if (! File::exists($tempPath) || File::size($tempPath) === 0) {
+                throw new RuntimeException("La descarga de Drive no produjo un archivo válido para el match {$matchUlid}.");
+            }
+
             $s3Key = "uploads/{$matchUlid}/original.mp4";
             Storage::disk('s3')->put($s3Key, fopen($tempPath, 'rb'));
 

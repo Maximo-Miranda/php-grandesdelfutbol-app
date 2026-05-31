@@ -109,12 +109,19 @@ class GoogleDriveService
         $response = Http::withToken($accessToken)
             ->connectTimeout((int) config('youtube.drive.download_connect_timeout', 30))
             ->timeout((int) config('youtube.drive.download_timeout', 3600))
-            ->withOptions(['stream' => true])
             ->sink($localPath)
             ->get("https://www.googleapis.com/drive/v3/files/{$fileId}", ['alt' => 'media']);
 
         if (! $response->successful()) {
-            throw new RuntimeException("No se pudo descargar el archivo de Drive: {$fileId}");
+            File::delete($localPath);
+
+            throw new RuntimeException("No se pudo descargar el archivo de Drive ({$fileId}): HTTP {$response->status()}.");
+        }
+
+        if (! File::exists($localPath) || File::size($localPath) === 0) {
+            File::delete($localPath);
+
+            throw new RuntimeException("La descarga del archivo de Drive ({$fileId}) quedó vacía.");
         }
     }
 
