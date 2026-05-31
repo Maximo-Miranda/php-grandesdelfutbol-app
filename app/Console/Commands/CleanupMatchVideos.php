@@ -16,7 +16,9 @@ class CleanupMatchVideos extends Command
     {
         $days = (int) ($this->option('days') ?? config('youtube.storage.s3_reels_source_days', 7));
 
-        $uploads = MatchVideoUpload::query()
+        $deleted = 0;
+
+        MatchVideoUpload::query()
             ->whereNotNull('youtube_video_id')
             ->whereNotNull('drive_file_id')
             ->where('encoded_at', '<', now()->subDays($days))
@@ -25,39 +27,31 @@ class CleanupMatchVideos extends Command
                     ->orWhereNotNull('original_s3_path')
                     ->orWhereNotNull('s3_reels_path');
             })
-            ->get();
+            ->chunkById(100, function ($uploads) use (&$deleted) {
+                foreach ($uploads as $upload) {
+                    $paths = array_values(array_unique(array_filter([
+                        $upload->s3_path,
+                        $upload->original_s3_path,
+                        $upload->s3_reels_path,
+                    ])));
 
-        if ($uploads->isEmpty()) {
-            $this->info('No hay videos para limpiar.');
+                    Storage::disk('s3')->delete($paths);
 
-            return self::SUCCESS;
-        }
+                    foreach ($paths as $path) {
+                        $this->line("  Eliminado S3: {$path}");
+                    }
+                }
 
-        $deleted = 0;
+                $uploads->toQuery()->update([
+                    's3_path' => null,
+                    'original_s3_path' => null,
+                    's3_reels_path' => null,
+                ]);
 
-        foreach ($uploads as $upload) {
-            $paths = array_values(array_unique(array_filter([
-                $upload->s3_path,
-                $upload->original_s3_path,
-                $upload->s3_reels_path,
-            ])));
+                $deleted += $uploads->count();
+            });
 
-            Storage::disk('s3')->delete($paths);
-
-            foreach ($paths as $path) {
-                $this->line("  Eliminado S3: {$path}");
-            }
-
-            $upload->update([
-                's3_path' => null,
-                'original_s3_path' => null,
-                's3_reels_path' => null,
-            ]);
-
-            $deleted++;
-        }
-
-        $this->info("Listo: {$deleted} limpiados.");
+        $this->info($deleted === 0 ? 'No hay videos para limpiar.' : "Listo: {$deleted} limpiados.");
 
         return self::SUCCESS;
     }
