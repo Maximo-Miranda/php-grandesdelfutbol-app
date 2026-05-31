@@ -157,12 +157,12 @@ it('recreates playlist when stored playlist was deleted from youtube', function 
     expect($club->fresh()->youtube_playlist_id)->toBe('pl-recreated');
 });
 
-it('is dispatched on video-processing queue', function () {
+it('is dispatched on youtube queue', function () {
     $upload = MatchVideoUpload::factory()->create();
 
     $job = new UploadMatchToYouTube($upload);
 
-    expect($job->queue)->toBe('video-processing');
+    expect($job->queue)->toBe('youtube');
 });
 
 it('sets status to ready with error message when youtube fails and video is encoded', function () {

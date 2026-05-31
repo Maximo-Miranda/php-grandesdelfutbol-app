@@ -23,7 +23,7 @@ class WaitForYouTubeProcessing implements ShouldQueue
     public function __construct(
         public MatchVideoUpload $videoUpload,
     ) {
-        $this->onQueue('video-processing');
+        $this->onQueue('youtube');
     }
 
     public function handle(YouTubeService $youtubeService): void
