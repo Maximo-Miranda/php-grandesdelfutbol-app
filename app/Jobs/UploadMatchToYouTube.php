@@ -108,7 +108,6 @@ class UploadMatchToYouTube implements ShouldQueue
 
             $quotaService->increment();
             $this->addVideoToClubPlaylist($youtubeService);
-            $this->cleanupDriveOriginal();
 
             Log::info('Video uploaded to YouTube', [
                 'match' => $match->ulid,
@@ -188,24 +187,6 @@ class UploadMatchToYouTube implements ShouldQueue
         stream_copy_to_stream($stream, $local);
         fclose($local);
         fclose($stream);
-    }
-
-    private function cleanupDriveOriginal(): void
-    {
-        if (! $this->videoUpload->drive_file_id) {
-            return;
-        }
-
-        try {
-            app(GoogleDriveService::class)->deleteFile($this->videoUpload->drive_file_id);
-
-            $this->videoUpload->update([
-                'drive_file_id' => null,
-                'drive_shared_at' => null,
-            ]);
-        } catch (Throwable $e) {
-            report($e);
-        }
     }
 
     private function buildDescription(FootballMatch $match, Club $club): string

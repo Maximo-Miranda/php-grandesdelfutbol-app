@@ -6,6 +6,8 @@ use App\Enums\VideoUploadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Match\InitDriveUploadRequest;
 use App\Jobs\ProcessUploadedVideo;
+use App\Jobs\UploadMatchToYouTube;
+use App\Jobs\WaitForYouTubeProcessing;
 use App\Models\Club;
 use App\Models\FootballMatch;
 use App\Services\GoogleAuthService;
@@ -179,6 +181,9 @@ class DriveUploadController extends Controller
 
         ProcessUploadedVideo::dispatch($videoUpload);
 
+        UploadMatchToYouTube::dispatch($videoUpload)
+            ->chain([new WaitForYouTubeProcessing($videoUpload)]);
+
         Log::info('Drive upload completed, processing started', [
             'match' => $match->ulid,
             'drive_file_id' => $validated['drive_file_id'],
@@ -328,6 +333,9 @@ class DriveUploadController extends Controller
         });
 
         ProcessUploadedVideo::dispatch($upload);
+
+        UploadMatchToYouTube::dispatch($upload)
+            ->chain([new WaitForYouTubeProcessing($upload)]);
 
         return back()->with('success', 'Video guardado en nuestro Drive. Preparando para publicación...');
     }

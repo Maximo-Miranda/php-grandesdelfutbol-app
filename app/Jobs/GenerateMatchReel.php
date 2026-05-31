@@ -175,7 +175,7 @@ class GenerateMatchReel implements ShouldQueue
             'ffmpeg', '-y',
             '-ss', (string) $start,
             '-i', $sourceFile,
-            ...$this->watermarkArgs(),
+            ...$this->videoFilterArgs(),
             '-t', (string) $duration,
             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
             '-c:a', 'aac',
@@ -190,13 +190,22 @@ class GenerateMatchReel implements ShouldQueue
         }
     }
 
-    /** @return list<string> */
-    protected function watermarkArgs(): array
+    /**
+     * Scale the clip down to the configured reel height (keeping reels light,
+     * since the source is now the full-resolution original) and overlay the
+     * watermark when enabled.
+     *
+     * @return list<string>
+     */
+    protected function videoFilterArgs(): array
     {
+        $height = (int) config('reels.height', 720);
+        $scale = "scale=-2:{$height}";
+
         $path = config('reels.watermark_path');
 
         if (! config('reels.watermark_enabled') || ! $path || ! File::exists($path)) {
-            return [];
+            return ['-vf', $scale];
         }
 
         $opacity = config('reels.watermark_opacity', 0.9);
@@ -205,7 +214,7 @@ class GenerateMatchReel implements ShouldQueue
         return [
             '-i', $path,
             '-filter_complex',
-            "[1:v]format=rgba,colorchannelmixer=aa={$opacity}[wm];[0:v][wm]overlay=W-w-{$padding}:{$padding}",
+            "[0:v]{$scale}[base];[1:v]format=rgba,colorchannelmixer=aa={$opacity}[wm];[base][wm]overlay=W-w-{$padding}:{$padding}",
         ];
     }
 

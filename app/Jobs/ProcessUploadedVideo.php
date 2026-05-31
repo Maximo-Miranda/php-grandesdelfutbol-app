@@ -3,14 +3,12 @@
 namespace App\Jobs;
 
 use App\Enums\VideoUploadStatus;
-use App\Models\FootballMatch;
 use App\Models\MatchVideoUpload;
 use App\Notifications\MatchVideoUploadedNotification;
 use App\Services\GoogleDriveService;
 use App\Services\ReelService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -44,93 +42,51 @@ class ProcessUploadedVideo implements ShouldQueue
             $this->transferFromDriveToS3($match->ulid);
         }
 
+        $this->videoUpload->refresh();
+
         if (! $this->videoUpload->s3_path) {
             return;
         }
 
-        // Capture serializable values for batch closures
-        $videoUploadId = $this->videoUpload->id;
-        $matchId = $match->id;
-        $matchUlid = $match->ulid;
-        $originalS3Path = $this->videoUpload->s3_path;
+        if ($this->videoUpload->drive_file_id && ! $this->videoUpload->drive_shared_at) {
+            rescue(function () {
+                app(GoogleDriveService::class)->shareFilePublicly($this->videoUpload->drive_file_id);
+                $this->videoUpload->update(['drive_shared_at' => now()]);
+            });
+        }
 
-        $driveFileId = $this->videoUpload->drive_file_id;
+        $this->videoUpload->update([
+            'best_resolution' => 'original',
+            'status' => VideoUploadStatus::Ready,
+            'encoded_at' => now(),
+            's3_reels_uploaded_at' => $this->videoUpload->s3_reels_uploaded_at ?? now(),
+            'error_message' => null,
+        ]);
 
-        Bus::batch([
-            new EncodeVideoTo720p($this->videoUpload),
-        ])
-            ->name("video-pipeline-match-{$matchId}")
-            ->onQueue('video-processing')
-            ->allowFailures()
-            ->finally(function () use ($videoUploadId, $matchId, $matchUlid, $originalS3Path, $driveFileId) {
-                $videoUpload = MatchVideoUpload::find($videoUploadId);
-                $match = FootballMatch::find($matchId);
+        rescue(function () use ($match) {
+            $users = $match->club?->approvedMemberUsers();
 
-                if (! $videoUpload || ! $match) {
-                    return;
-                }
+            if ($users?->isNotEmpty()) {
+                Notification::send($users, new MatchVideoUploadedNotification($match));
+            }
+        });
 
-                $reelsPath = "videos/matches/{$matchUlid}/720p.mp4";
+        rescue(function () use ($match) {
+            if (! $match->stats_finalized_at) {
+                return;
+            }
 
-                if (Storage::disk('s3')->exists($reelsPath)) {
-                    $videoUpload->update([
-                        's3_path' => $reelsPath,
-                    ]);
-                }
+            $hasQualifyingEvents = $match->events()
+                ->where(function ($q) {
+                    $q->whereIn('event_type', ['goal', 'penalty_scored'])
+                        ->orWhere('highlighted', true);
+                })
+                ->exists();
 
-                if ($originalS3Path && $originalS3Path !== $reelsPath) {
-                    rescue(fn () => Storage::disk('s3')->delete($originalS3Path));
-                    $videoUpload->update(['original_s3_path' => null]);
-                }
-
-                if ($driveFileId && ! $videoUpload->drive_shared_at) {
-                    rescue(function () use ($driveFileId, $videoUpload) {
-                        app(GoogleDriveService::class)->shareFilePublicly($driveFileId);
-                        $videoUpload->update(['drive_shared_at' => now()]);
-                    });
-                }
-
-                $videoUpload->refresh();
-
-                if ($videoUpload->best_resolution) {
-                    $videoUpload->update([
-                        'status' => VideoUploadStatus::Ready,
-                        'encoded_at' => now(),
-                        'error_message' => null,
-                    ]);
-
-                    rescue(function () use ($match) {
-                        $users = $match->club?->approvedMemberUsers();
-
-                        if ($users?->isNotEmpty()) {
-                            Notification::send($users, new MatchVideoUploadedNotification($match));
-                        }
-                    });
-                } else {
-                    $videoUpload->update([
-                        'status' => VideoUploadStatus::Failed,
-                        'error_message' => 'El procesamiento del video falló. Puedes reintentar.',
-                    ]);
-                }
-
-                rescue(function () use ($match, $videoUpload) {
-                    if (! $match->stats_finalized_at || ! $videoUpload->best_resolution) {
-                        return;
-                    }
-
-                    $hasQualifyingEvents = $match->events()
-                        ->where(function ($q) {
-                            $q->whereIn('event_type', ['goal', 'penalty_scored'])
-                                ->orWhere('highlighted', true);
-                        })
-                        ->exists();
-
-                    if ($hasQualifyingEvents) {
-                        app(ReelService::class)->generateReelsForMatch($match);
-                    }
-                });
-            })
-            ->dispatch();
+            if ($hasQualifyingEvents) {
+                app(ReelService::class)->generateReelsForMatch($match);
+            }
+        });
     }
 
     /**

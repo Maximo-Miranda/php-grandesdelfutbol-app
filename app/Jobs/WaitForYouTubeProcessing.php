@@ -8,7 +8,6 @@ use App\Services\YouTubeService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class WaitForYouTubeProcessing implements ShouldQueue
@@ -41,7 +40,7 @@ class WaitForYouTubeProcessing implements ShouldQueue
         Log::info("YouTube processing status for {$this->videoUpload->youtube_video_id}: {$status}");
 
         if ($status === 'succeeded') {
-            $affected = MatchVideoUpload::query()
+            MatchVideoUpload::query()
                 ->where('id', $this->videoUpload->id)
                 ->where('status', '!=', VideoUploadStatus::Ready)
                 ->update([
@@ -49,10 +48,6 @@ class WaitForYouTubeProcessing implements ShouldQueue
                     'encoded_at' => now(),
                     'error_message' => null,
                 ]);
-
-            if ($affected > 0) {
-                $this->cleanupOriginal();
-            }
 
             return;
         }
@@ -72,15 +67,5 @@ class WaitForYouTubeProcessing implements ShouldQueue
     public function failed(?Throwable $exception): void
     {
         report($exception);
-    }
-
-    private function cleanupOriginal(): void
-    {
-        $originalPath = $this->videoUpload->original_s3_path;
-
-        if ($originalPath && Storage::disk('s3')->exists($originalPath)) {
-            Storage::disk('s3')->delete($originalPath);
-            $this->videoUpload->update(['original_s3_path' => null]);
-        }
     }
 }

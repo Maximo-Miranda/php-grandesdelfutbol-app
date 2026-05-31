@@ -86,7 +86,7 @@ return [
     */
 
     'storage' => [
-        's3_reels_source_days' => (int) env('S3_REELS_SOURCE_DAYS', 30),
+        's3_reels_source_days' => (int) env('S3_REELS_SOURCE_DAYS', 7),
     ],
 
 ];
