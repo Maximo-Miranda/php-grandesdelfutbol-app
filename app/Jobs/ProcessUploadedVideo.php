@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Video\DispatchYouTubeUpload;
+use App\Enums\VideoProcessingStage;
 use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use App\Models\MatchVideoUpload;
@@ -73,7 +74,10 @@ class ProcessUploadedVideo implements ShouldQueue
         // The original now lives on S3, so the YouTube upload reads from there
         // instead of downloading from Drive a second time.
         if (! $this->videoUpload->youtube_video_id) {
+            $this->videoUpload->markProcessingStage(VideoProcessingStage::Publishing);
             app(DispatchYouTubeUpload::class)($this->videoUpload);
+        } else {
+            $this->videoUpload->update(['processing_stage' => null]);
         }
 
         rescue(function () use ($match) {
@@ -114,16 +118,28 @@ class ProcessUploadedVideo implements ShouldQueue
         $tempDir = storage_path('app/temp/drive');
         File::ensureDirectoryExists($tempDir);
 
-        $tempPath = "{$tempDir}/{$matchUlid}.mp4";
+        $extension = $this->videoUpload->originalExtension();
+        $tempPath = "{$tempDir}/{$matchUlid}.{$extension}";
 
         try {
-            $driveService->downloadFile($this->videoUpload->drive_file_id, $tempPath);
+            $this->videoUpload->markProcessingStage(VideoProcessingStage::Receiving);
+
+            $lastBeat = 0;
+            $driveService->downloadFile($this->videoUpload->drive_file_id, $tempPath, function () use (&$lastBeat) {
+                $now = time();
+                if ($now - $lastBeat >= 10) {
+                    $lastBeat = $now;
+                    $this->videoUpload->touchProcessingHeartbeat();
+                }
+            });
 
             if (! File::exists($tempPath) || File::size($tempPath) === 0) {
                 throw new RuntimeException("La descarga de Drive no produjo un archivo válido para el match {$matchUlid}.");
             }
 
-            $s3Key = "uploads/{$matchUlid}/original.mp4";
+            $this->videoUpload->markProcessingStage(VideoProcessingStage::Storing);
+
+            $s3Key = "uploads/{$matchUlid}/original.{$extension}";
             app(S3VideoStorage::class)->putFile($tempPath, $s3Key);
 
             $this->videoUpload->update([

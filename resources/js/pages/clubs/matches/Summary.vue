@@ -223,6 +223,42 @@ function deleteMatch() {
 const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
 const hasVideoEncoding = computed(() => props.match.video_upload?.status === 'encoding');
 const hasVideoAvailable = computed(() => hasVideoReady.value || hasVideoEncoding.value);
+
+const videoProcessingInfo = computed(
+    () =>
+        (props.match.video_upload ?? {}) as {
+            processing_stage_label?: string | null;
+            processing_heartbeat_at?: string | null;
+        },
+);
+const videoStageLabel = computed(() => videoProcessingInfo.value.processing_stage_label ?? 'Procesando el video');
+
+let videoPollInterval: ReturnType<typeof setInterval> | null = null;
+
+function stopVideoPolling(): void {
+    if (videoPollInterval) {
+        clearInterval(videoPollInterval);
+        videoPollInterval = null;
+    }
+}
+
+function startVideoPolling(): void {
+    if (videoPollInterval) {
+        return;
+    }
+
+    videoPollInterval = setInterval(() => {
+        router.reload({ only: ['match'] });
+    }, 10000);
+}
+
+watch(
+    hasVideoEncoding,
+    (encoding) => (encoding ? startVideoPolling() : stopVideoPolling()),
+    { immediate: true },
+);
+
+onUnmounted(stopVideoPolling);
 const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
 const youtubeVideoId = computed(() => props.match.video_upload?.youtube_video_id ?? null);
 const youtubeUrl = computed(() => props.match.video_upload?.youtube_url ?? null);
@@ -1084,8 +1120,8 @@ async function shareReel(reel: MatchReel) {
                     <div class="flex items-center gap-3">
                         <Loader2 class="size-5 shrink-0 animate-spin text-amber-400" />
                         <div>
-                            <p class="text-sm font-medium text-amber-400">Optimizando video...</p>
-                            <p class="text-xs text-muted-foreground">Estamos generando una version optimizada del video para cargar estadisticas y generar reels. Esto puede tomar varios minutos.</p>
+                            <p class="text-sm font-medium text-amber-400">{{ videoStageLabel }}...</p>
+                            <p class="text-xs text-muted-foreground">Estamos preparando el video para cargar estadísticas y generar reels. Esto puede tomar varios minutos; la página se actualiza sola cuando esté listo.</p>
                         </div>
                     </div>
                 </div>

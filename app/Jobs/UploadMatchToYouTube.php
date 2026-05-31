@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoProcessingStage;
 use App\Enums\VideoUploadStatus;
 use App\Models\Club;
 use App\Models\FootballMatch;
@@ -13,7 +14,7 @@ use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -41,7 +42,16 @@ class UploadMatchToYouTube implements ShouldQueue
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [new RateLimited('youtube-upload')];
+        // WithoutOverlapping prevents a duplicate upload of the same video, and
+        // expireAfter releases the lock automatically if the worker dies mid-job
+        // (a manual Cache::lock would otherwise stay held for its full TTL and
+        // silently block the retry). expireAfter > timeout to cover a full run.
+        return [
+            new RateLimited('youtube-upload'),
+            (new WithoutOverlapping($this->videoUpload->id))
+                ->expireAfter($this->timeout + 300)
+                ->releaseAfter(60),
+        ];
     }
 
     public function handle(YouTubeService $youtubeService, ?YouTubeQuotaService $quotaService = null): void
@@ -84,19 +94,15 @@ class UploadMatchToYouTube implements ShouldQueue
             return;
         }
 
-        $lock = Cache::lock("youtube-upload-{$this->videoUpload->id}", 3600);
-
-        if (! $lock->get()) {
-            return;
-        }
-
         $tempDir = storage_path('app/temp/youtube');
         File::ensureDirectoryExists($tempDir);
 
-        $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.mp4';
+        $tempFile = $tempDir.'/'.$this->videoUpload->ulid.'.'.$this->videoUpload->originalExtension();
 
         File::delete($tempFile);
         $startTime = microtime(true);
+
+        $this->videoUpload->markProcessingStage(VideoProcessingStage::Publishing);
 
         try {
             $this->createClubPlaylist($youtubeService, $club);
@@ -111,6 +117,8 @@ class UploadMatchToYouTube implements ShouldQueue
             $this->videoUpload->update([
                 'youtube_video_id' => $youtubeVideoId,
                 'youtube_uploaded_at' => now(),
+                'processing_stage' => null,
+                'processing_heartbeat_at' => null,
             ]);
 
             $quotaService->increment();
@@ -124,7 +132,6 @@ class UploadMatchToYouTube implements ShouldQueue
                 'elapsed_seconds' => round(microtime(true) - $startTime, 1),
             ]);
         } finally {
-            $lock->release();
             File::delete($tempFile);
         }
     }

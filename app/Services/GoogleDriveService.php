@@ -102,7 +102,7 @@ class GoogleDriveService
      *
      * @see https://developers.google.com/workspace/drive/api/reference/rest/v3/files/get
      */
-    public function downloadFile(string $fileId, string $localPath): void
+    public function downloadFile(string $fileId, string $localPath, ?callable $onProgress = null): void
     {
         $accessToken = $this->authService->getAccessToken()['access_token'];
 
@@ -129,9 +129,16 @@ class GoogleDriveService
             }
 
             $body = $response->getBody();
+            $downloaded = 0;
 
             while (! $body->eof()) {
-                fwrite($handle, $body->read(8 * 1024 * 1024));
+                $chunk = $body->read(8 * 1024 * 1024);
+                fwrite($handle, $chunk);
+
+                if ($onProgress !== null) {
+                    $downloaded += strlen($chunk);
+                    $onProgress($downloaded);
+                }
             }
 
             $body->close();

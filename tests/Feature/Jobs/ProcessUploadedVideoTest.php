@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\VideoProcessingStage;
 use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use App\Jobs\ProcessUploadedVideo;
@@ -51,6 +52,7 @@ test('chains the youtube upload once the original is on s3', function () {
     (new ProcessUploadedVideo($upload))->handle();
 
     Bus::assertDispatched(UploadMatchToYouTube::class);
+    expect($upload->fresh()->processing_stage)->toBe(VideoProcessingStage::Publishing);
 });
 
 test('does not re-dispatch youtube when already uploaded', function () {
