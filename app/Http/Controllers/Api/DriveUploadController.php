@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Video\StartVideoProcessingPipeline;
 use App\Enums\VideoUploadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Match\InitDriveUploadRequest;
@@ -32,6 +33,7 @@ class DriveUploadController extends Controller
     public function __construct(
         private GoogleDriveService $driveService,
         private GoogleAuthService $authService,
+        private StartVideoProcessingPipeline $startProcessingPipeline,
     ) {}
 
     /**
@@ -326,20 +328,9 @@ class DriveUploadController extends Controller
             $upload->update(['drive_shared_at' => now()]);
         });
 
-        $this->startProcessingPipeline($upload);
+        ($this->startProcessingPipeline)($upload);
 
         return back()->with('success', 'Video guardado en nuestro Drive. Preparando para publicación...');
-    }
-
-    /**
-     * Kick off the video pipeline: transfer to S3 + publish to YouTube in parallel.
-     */
-    private function startProcessingPipeline(MatchVideoUpload $upload): void
-    {
-        ProcessUploadedVideo::dispatch($upload);
-
-        UploadMatchToYouTube::dispatch($upload)
-            ->chain([new WaitForYouTubeProcessing($upload)]);
     }
 
     /** Run a Drive API call with exponential backoff on transient errors. */
