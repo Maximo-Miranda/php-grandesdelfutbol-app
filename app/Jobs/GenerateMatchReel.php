@@ -24,13 +24,19 @@ class GenerateMatchReel implements ShouldQueue
 {
     use Batchable, Queueable;
 
+    public int $timeout = 1800;
+
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [new WithoutOverlapping($this->reel->id)];
+        // expireAfter releases the atomic lock if the worker dies mid-run, so a
+        // crashed reel job does not block future retries for this reel forever.
+        return [
+            (new WithoutOverlapping($this->reel->id))
+                ->expireAfter($this->timeout + 300)
+                ->releaseAfter(60),
+        ];
     }
-
-    public int $timeout = 1800;
 
     public int $tries = 3;
 
