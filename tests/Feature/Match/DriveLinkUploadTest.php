@@ -95,28 +95,22 @@ test('non-video mime type is rejected', function () {
         ->assertSessionHasErrors(['drive_url']);
 });
 
-test('large videos are accepted (no size limit)', function () {
-    Queue::fake();
-
+test('oversize video is rejected before copy', function () {
     $driveMock = mock(GoogleDriveService::class);
     $driveMock->shouldReceive('getFileMetadata')->once()->andReturn([
         'id' => '1aBcD_ef-Ghij123K',
         'name' => 'huge.mp4',
-        'size' => 40 * 1024 * 1024 * 1024, // 40 GB — would have been rejected by the old 25 GB cap
+        'size' => 60 * 1024 * 1024 * 1024, // 60 GB > 50 GB limit
         'mimeType' => 'video/mp4',
     ]);
-    $driveMock->shouldReceive('ensureClubFolder')->once()->andReturn('folder-id-123');
-    $driveMock->shouldReceive('copyFile')->once()->andReturn('copied-file-id-456');
-    $driveMock->shouldReceive('shareFilePublicly')->once()->with('copied-file-id-456');
+    $driveMock->shouldNotReceive('copyFile');
 
     $this->actingAs($this->user)
         ->post(route('clubs.matches.driveUpload.fromLink', [$this->club, $this->match]), [
             'drive_url' => 'https://drive.google.com/file/d/1aBcD_ef-Ghij123K/view',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success');
-
-    Queue::assertPushed(ProcessUploadedVideo::class);
+        ->assertSessionHasErrors(['drive_url']);
 });
 
 test('private file (404 notFound) returns share-permission message', function () {

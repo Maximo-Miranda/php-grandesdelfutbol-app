@@ -161,6 +161,11 @@ function pickVideoFile(onFile: (file: File) => void) {
 
 async function selectFile() {
     pickVideoFile(async (file) => {
+        if (file.size > 50 * 1073741824) {
+            errorMessage.value = 'El archivo es demasiado grande. Maximo 50 GB.';
+            return;
+        }
+
         uploadedFilename.value = file.name;
         await startUpload(file);
     });
