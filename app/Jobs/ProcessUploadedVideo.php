@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\Video\DispatchYouTubeUpload;
 use App\Enums\VideoResolution;
 use App\Enums\VideoUploadStatus;
 use App\Models\MatchVideoUpload;
@@ -31,7 +32,6 @@ class ProcessUploadedVideo implements ShouldQueue
         $this->onQueue('video-processing');
     }
 
-    /** @return array<int, object> */
     /** @return array<int, object> */
     public function middleware(): array
     {
@@ -69,6 +69,12 @@ class ProcessUploadedVideo implements ShouldQueue
             's3_reels_uploaded_at' => $this->videoUpload->s3_reels_uploaded_at ?? now(),
             'error_message' => null,
         ]);
+
+        // The original now lives on S3, so the YouTube upload reads from there
+        // instead of downloading from Drive a second time.
+        if (! $this->videoUpload->youtube_video_id) {
+            app(DispatchYouTubeUpload::class)($this->videoUpload);
+        }
 
         rescue(function () use ($match) {
             $users = $match->club?->approvedMemberUsers();

@@ -100,7 +100,7 @@ class UploadMatchToYouTube implements ShouldQueue
 
         try {
             $this->createClubPlaylist($youtubeService, $club);
-            $this->downloadVideoToTemp($tempFile);
+            $source = $this->downloadVideoToTemp($tempFile);
 
             $title = "{$match->title} - {$club->name}";
             $description = $this->buildDescription($match, $club);
@@ -120,7 +120,7 @@ class UploadMatchToYouTube implements ShouldQueue
                 'match' => $match->ulid,
                 'youtube_id' => $youtubeVideoId,
                 'file_size_mb' => File::exists($tempFile) ? round(File::size($tempFile) / 1048576) : null,
-                'source' => $this->videoUpload->drive_file_id ? 'drive' : 's3',
+                'source' => $source,
                 'elapsed_seconds' => round(microtime(true) - $startTime, 1),
             ]);
         } finally {
@@ -175,25 +175,39 @@ class UploadMatchToYouTube implements ShouldQueue
         $youtubeService->addToPlaylist($club->youtube_playlist_id, $this->videoUpload->youtube_video_id);
     }
 
-    private function downloadVideoToTemp(string $tempFile): void
+    /**
+     * Download the source video to a temp file, returning which source was used.
+     *
+     * Prefers S3 (already populated by ProcessUploadedVideo) so the original is
+     * not downloaded from Drive a second time. Falls back to Drive when the S3
+     * cache has been purged (e.g. a late retry after cleanup).
+     */
+    private function downloadVideoToTemp(string $tempFile): string
     {
+        $s3Path = $this->videoUpload->original_s3_path ?? $this->videoUpload->s3_path;
+
+        if ($s3Path && Storage::disk('s3')->exists($s3Path)) {
+            $stream = Storage::disk('s3')->readStream($s3Path);
+
+            if (! $stream) {
+                throw new RuntimeException('No se pudo leer el video de S3.');
+            }
+
+            $local = fopen($tempFile, 'wb');
+            stream_copy_to_stream($stream, $local);
+            fclose($local);
+            fclose($stream);
+
+            return 's3';
+        }
+
         if ($this->videoUpload->drive_file_id) {
             app(GoogleDriveService::class)->downloadFile($this->videoUpload->drive_file_id, $tempFile);
 
-            return;
+            return 'drive';
         }
 
-        $s3Path = $this->videoUpload->original_s3_path ?? $this->videoUpload->s3_path;
-        $stream = Storage::disk('s3')->readStream($s3Path);
-
-        if (! $stream) {
-            throw new RuntimeException('No se pudo leer el video de S3.');
-        }
-
-        $local = fopen($tempFile, 'wb');
-        stream_copy_to_stream($stream, $local);
-        fclose($local);
-        fclose($stream);
+        throw new RuntimeException('No hay fuente disponible (S3 ni Drive) para subir a YouTube.');
     }
 
     private function buildDescription(FootballMatch $match, Club $club): string

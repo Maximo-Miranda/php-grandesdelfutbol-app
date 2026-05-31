@@ -7,16 +7,15 @@ use App\Models\MatchVideoUpload;
 
 class StartVideoProcessingPipeline
 {
-    public function __construct(private DispatchYouTubeUpload $dispatchYouTubeUpload) {}
-
     /**
-     * Kick off the video pipeline: transfer the original to S3 and publish it
-     * to YouTube in parallel (separate queues so neither blocks the other).
+     * Kick off the video pipeline by transferring the original from Drive to S3.
+     *
+     * The YouTube upload is chained from ProcessUploadedVideo once the file is
+     * on S3, so the original is downloaded from Drive only once (YouTube then
+     * reads from S3 instead of pulling from Drive a second time).
      */
     public function __invoke(MatchVideoUpload $videoUpload): void
     {
         ProcessUploadedVideo::dispatch($videoUpload);
-
-        ($this->dispatchYouTubeUpload)($videoUpload);
     }
 }
