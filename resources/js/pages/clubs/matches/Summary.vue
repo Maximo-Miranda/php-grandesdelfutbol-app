@@ -235,10 +235,11 @@ const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
 const isUploadingToYoutube = computed(() => hasVideoReady.value && !hasYouTube.value);
 const isVideoProcessing = computed(() => hasVideoEncoding.value || isUploadingToYoutube.value);
 
-// While the video publishes to YouTube it plays from S3. Pause the background
-// refresh whenever the user is actively watching so the reload never resets the
-// player mid-playback; polling resumes as soon as they pause.
-const isVideoPlaying = ref(false);
+// While the video publishes to YouTube it plays from S3. Once the user starts
+// watching we stop the background refresh entirely: reloading would reset the
+// player position, and auto-switching to YouTube mid-playback would interrupt
+// them just the same. The page picks up the YouTube version on the next visit.
+const userStartedWatching = ref(false);
 
 let videoPollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -250,16 +251,18 @@ function stopVideoPolling(): void {
 }
 
 function startVideoPolling(): void {
-    if (videoPollInterval) {
+    if (videoPollInterval || userStartedWatching.value) {
         return;
     }
 
     videoPollInterval = setInterval(() => {
-        if (isVideoPlaying.value) {
-            return;
-        }
         router.reload({ only: ['match'], preserveState: true, preserveScroll: true });
     }, 10000);
+}
+
+function onVideoPlay(): void {
+    userStartedWatching.value = true;
+    stopVideoPolling();
 }
 
 watch(
@@ -1197,7 +1200,7 @@ async function shareReel(reel: MatchReel) {
                 </div>
             </div>
             <div v-else-if="hasVideoReady && !isFullscreen" class="mt-4">
-                <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" @play="isVideoPlaying = true" @pause="isVideoPlaying = false" />
+                <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" @play="onVideoPlay" />
                 <div class="mt-2 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="generatingShareLink" @click="generateShareLink">
