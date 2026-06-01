@@ -389,6 +389,11 @@ class MatchController extends Controller
                 : [],
             'myPlayer' => $club->players()->where('user_id', $user->id)->first(),
             's3VideoUrl' => $s3VideoUrl,
+            'videoStatus' => $videoUpload ? [
+                'status' => $videoUpload->status->value,
+                'on_youtube' => (bool) $videoUpload->youtube_video_id,
+                'stage_label' => $videoUpload->processing_stage?->label(),
+            ] : null,
         ];
     }
 }

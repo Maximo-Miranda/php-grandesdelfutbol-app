@@ -75,7 +75,8 @@ import type { BreadcrumbItem, Club, FootballMatch, MatchEvent, MatchReel, Player
 
 type PositionOption = { value: string; label: string };
 type PaginatedReels = { data: MatchReel[] };
-type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels; s3VideoUrl?: string | null };
+type VideoStatus = { status: string; on_youtube: boolean; stage_label: string | null };
+type Props = { club: Club; match: FootballMatch; isAdmin?: boolean; players?: Player[]; positions?: PositionOption[]; myPlayer?: Player | null; reels?: PaginatedReels; s3VideoUrl?: string | null; videoStatus?: VideoStatus | null };
 const props = defineProps<Props>();
 
 const base = `/clubs/${props.club.ulid}/matches`;
@@ -220,26 +221,27 @@ function deleteMatch() {
 }
 
 // --- Video Upload state ---
-const hasVideoReady = computed(() => props.match.video_upload?.status === 'ready');
-const hasVideoEncoding = computed(() => props.match.video_upload?.status === 'encoding');
+// Player visibility/source come from `match`, which is intentionally NOT
+// refreshed while a video is playing. Live processing status comes from the
+// lightweight `videoStatus` prop — the only thing the background poll refreshes
+// once the S3 player is on screen — so the player is never reset mid-playback.
+const liveStatus = computed(() => props.videoStatus?.status ?? props.match.video_upload?.status ?? null);
+const liveOnYoutube = computed(() => props.videoStatus?.on_youtube ?? !!props.match.video_upload?.youtube_video_id);
+
+const hasVideoReady = computed(() => liveStatus.value === 'ready');
+const hasVideoEncoding = computed(() => liveStatus.value === 'encoding');
 const hasVideoAvailable = computed(() => hasVideoReady.value || hasVideoEncoding.value);
 
-const videoStageLabel = computed(
-    () => (props.match.video_upload as { processing_stage_label?: string | null } | null)?.processing_stage_label ?? 'Procesando el video',
-);
-
-const hasYouTube = computed(() => !!props.match.video_upload?.youtube_video_id);
+const videoStageLabel = computed(() => props.videoStatus?.stage_label ?? 'Procesando el video');
 
 // The video plays from S3 as soon as it is ready, while it keeps uploading to
-// YouTube in the background. We surface that and keep polling until it lands.
-const isUploadingToYoutube = computed(() => hasVideoReady.value && !hasYouTube.value);
+// YouTube in the background.
+const isUploadingToYoutube = computed(() => hasVideoReady.value && !liveOnYoutube.value);
 const isVideoProcessing = computed(() => hasVideoEncoding.value || isUploadingToYoutube.value);
 
-// While the video publishes to YouTube it plays from S3. Once the user starts
-// watching we stop the background refresh entirely: reloading would reset the
-// player position, and auto-switching to YouTube mid-playback would interrupt
-// them just the same. The page picks up the YouTube version on the next visit.
-const userStartedWatching = ref(false);
+// YouTube finished while the user is still on the S3 player. We do NOT switch
+// under them; we surface a button so they choose when to reload.
+const youtubeJustBecameAvailable = computed(() => liveOnYoutube.value && !props.match.video_upload?.youtube_video_id);
 
 let videoPollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -251,18 +253,17 @@ function stopVideoPolling(): void {
 }
 
 function startVideoPolling(): void {
-    if (videoPollInterval || userStartedWatching.value) {
+    if (videoPollInterval) {
         return;
     }
 
     videoPollInterval = setInterval(() => {
-        router.reload({ only: ['match'], preserveState: true, preserveScroll: true });
+        // While encoding there is no player yet, so refreshing `match` to pick up
+        // the S3 source once ready is safe. Once ready (player on screen) we
+        // refresh ONLY the status prop so the player is never reset.
+        const only = hasVideoEncoding.value ? ['match', 'videoStatus'] : ['videoStatus'];
+        router.reload({ only, preserveScroll: true });
     }, 10000);
-}
-
-function onVideoPlay(): void {
-    userStartedWatching.value = true;
-    stopVideoPolling();
 }
 
 watch(
@@ -1200,7 +1201,7 @@ async function shareReel(reel: MatchReel) {
                 </div>
             </div>
             <div v-else-if="hasVideoReady && !isFullscreen" class="mt-4">
-                <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" @play="onVideoPlay" />
+                <VideoPlayer v-if="s3VideoUrl" :src="s3VideoUrl" />
                 <div class="mt-2 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <Button v-if="isAdmin" type="button" variant="outline" size="sm" class="gap-1.5" :disabled="generatingShareLink" @click="generateShareLink">
@@ -1275,6 +1276,16 @@ async function shareReel(reel: MatchReel) {
             <div v-else-if="!hasVideoReady && !isFullscreen" class="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
                 <Video class="mx-auto mb-1 size-6 text-muted-foreground" />
                 <p class="text-xs text-muted-foreground">Sin video del partido</p>
+            </div>
+
+            <!-- YouTube quedó listo mientras se veía desde S3: ofrecer el cambio sin recargar bajo los pies -->
+            <div v-if="youtubeJustBecameAvailable && !isFullscreen" class="mt-3 flex flex-col items-start gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                <p class="text-xs font-medium text-emerald-400">El video ya está disponible en YouTube</p>
+                <p class="text-xs text-muted-foreground">Puedes seguir viéndolo aquí o recargar para verlo desde YouTube.</p>
+                <Button variant="outline" size="sm" class="mt-1 gap-1.5" @click="() => router.reload({ preserveScroll: true })">
+                    <RefreshCw class="size-3" />
+                    Ver en YouTube
+                </Button>
             </div>
 
             <!-- ===== MATCH INFO (compact) ===== -->

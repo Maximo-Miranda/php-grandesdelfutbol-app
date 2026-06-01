@@ -2,11 +2,6 @@
 defineProps<{
     src: string;
 }>();
-
-const emit = defineEmits<{
-    play: [];
-    pause: [];
-}>();
 </script>
 
 <template>
@@ -17,9 +12,6 @@ const emit = defineEmits<{
             controls
             preload="metadata"
             playsinline
-            @play="emit('play')"
-            @pause="emit('pause')"
-            @ended="emit('pause')"
         />
     </div>
 </template>

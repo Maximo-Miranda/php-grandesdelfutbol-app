@@ -127,3 +127,48 @@ test('public match page passes null s3VideoUrl when youtube is available', funct
             ->where('s3VideoUrl', null)
         );
 });
+
+test('summary exposes a lightweight videoStatus prop for background polling', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    MatchVideoUpload::factory()->ready()->create([
+        'football_match_id' => $match->id,
+        'uploaded_by' => $user->id,
+        's3_path' => 'videos/encoded/test.mp4',
+        'best_resolution' => '720p',
+        'youtube_video_id' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('clubs.matches.show', [$club, $match]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('clubs/matches/Summary')
+            ->where('videoStatus.status', 'ready')
+            ->where('videoStatus.on_youtube', false)
+        );
+});
+
+test('videoStatus marks on_youtube once the video has a youtube id', function () {
+    $user = User::factory()->create();
+    $club = Club::factory()->create();
+    ClubMember::factory()->create(['club_id' => $club->id, 'user_id' => $user->id]);
+    $match = FootballMatch::factory()->completed()->create(['club_id' => $club->id]);
+    MatchVideoUpload::factory()->ready()->create([
+        'football_match_id' => $match->id,
+        'uploaded_by' => $user->id,
+        's3_path' => 'videos/encoded/test.mp4',
+        'best_resolution' => '720p',
+        'youtube_video_id' => 'abc123',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('clubs.matches.show', [$club, $match]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('clubs/matches/Summary')
+            ->where('videoStatus.on_youtube', true)
+        );
+});
