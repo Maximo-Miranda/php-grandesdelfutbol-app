@@ -91,7 +91,9 @@ test('auto-assign honors player team preference from last completed match', func
         'scheduled_at' => now()->subWeek(),
     ]);
 
-    // 4 players: 2 historically on team A, 2 on team B
+    // 4 players without stats: 2 historically on team A, 2 on team B. The neutral
+    // baseline score for statless players keeps the two teams balanced so the
+    // skill rebalance pass never overrides their honored preference.
     $aPlayers = Player::factory()->count(2)->create(['club_id' => $club->id]);
     $bPlayers = Player::factory()->count(2)->create(['club_id' => $club->id]);
 

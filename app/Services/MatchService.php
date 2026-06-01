@@ -36,6 +36,8 @@ class MatchService
 
     private const int EXPERIENCE_CAP_MATCHES = 40;
 
+    private const int STATLESS_BASELINE_SCORE = 40;
+
     public function createMatch(Club $club, array $data): FootballMatch
     {
         $scheduledAt = Carbon::parse($data['scheduled_at'])->setTimezone(config('app.timezone'));
@@ -745,13 +747,18 @@ class MatchService
 
     /**
      * Calculate a player's skill score based on stats.
-     * Players without stats get a random baseline score.
+     * Players without stats get a neutral fixed baseline so teams of statless
+     * players stay balanced and honored preferences are not rebalanced away.
      * Includes a small random factor to avoid identical sorts every time.
      */
     private function calculatePlayerScore(?Player $player): float
     {
         if (! $player || $player->matches_played === 0) {
-            return round(mt_rand(30, 50) + mt_rand(0, 99) / 100, 2);
+            // Neutral, near-equal baseline so a team of statless players stays
+            // balanced and the skill rebalance never overrides their honored team
+            // preference. The sub-point factor only breaks sort ties; it is far
+            // too small to push the team delta past AUTO_BALANCE_DELTA_PCT.
+            return round(self::STATLESS_BASELINE_SCORE + mt_rand(0, 99) / 100, 2);
         }
 
         $matches = $player->matches_played;
